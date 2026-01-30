@@ -1,12 +1,51 @@
 version: 1
-updated_at_ts: 1769775090
+updated_at_ts: 1769775963
 symbols:
+  ACHUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862135
+  AEVOUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862133
   AFCUSDT:
     reason: WS_STALE
     until: 1769795648
+  AGLDUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862193
+  ALMANAKUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862221
   AMZNXUSDT:
     reason: WS_STALE
     until: 1769796690
+  ARKMUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862157
+  ARUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862158
+  AVLUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862192
+  AVNTUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862161
+  BDXNUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862136
+  CFGUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862140
+  DYDXUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862260
+  EPTUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862167
+  ETHFIUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862168
   FLIPUSDT:
     reason: WS_STALE
     until: 1769795648
@@ -16,12 +55,36 @@ symbols:
   FOXYUSDT:
     reason: BAD_TOKEN_CFG
     until: 1769858419
+  GAIBUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862139
   GTAIUSDT:
     reason: WS_STALE
     until: 1769795648
+  HAEDALUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862363
+  HBARUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862146
+  HFTUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862166
+  HMSTRUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862195
   INSPUSDT:
     reason: WS_STALE
     until: 1769796360
+  INTERUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862138
+  IZIUSDT:
+    reason: WS_STALE
+    until: 1769797540
+  LITKEYUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862175
   MASAUSDT:
     reason: WS_STALE
     until: 1769795648
@@ -31,6 +94,27 @@ symbols:
   MCDXUSDT:
     reason: WS_STALE
     until: 1769795876
+  METAXUSDT:
+    reason: WS_STALE
+    until: 1769797420
+  MODEUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862141
+  MONPROUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862143
+  MORPHOUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862191
+  NAVXUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862142
+  NXPCUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862169
+  PIEVERSEUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862159
   PIRATEUSDT:
     reason: WS_STALE
     until: 1769796630
@@ -49,15 +133,51 @@ symbols:
   RLUSDUSDT:
     reason: WS_STALE
     until: 1769795768
+  RPLUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862173
+  SAHARAUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862184
+  SCORUSDT:
+    reason: WS_STALE
+    until: 1769796930
   SERAPHUSDT:
     reason: WS_STALE
     until: 1769795876
   STREAMUSDT:
     reason: WS_STALE
     until: 1769795648
+  SVLUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862226
+  SWEATUSDT:
+    reason: WS_STALE
+    until: 1769797450
+  TONUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862154
   TUNAUSDT:
     reason: WS_STALE
     until: 1769796570
   USDTBUSDT:
     reason: WS_STALE
     until: 1769795648
+  VOOIUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862221
+  VTHOUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862205
+  WAXPUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862305
+  XAVAUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862199
+  XTZUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862184
+  ZKJUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862171

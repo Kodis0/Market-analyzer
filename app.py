@@ -70,14 +70,9 @@ class BybitWSCluster:
             self._tasks.clear()
 
     async def update_symbols(self, symbols: list[str]) -> None:
-        """
-        Ensure enough clients exist and apply symbol shards via set_symbols().
-        No restart: uses subscribe/unsubscribe inside each client.
-        """
         shards = list(chunked(list(symbols), self.max_symbols_per_ws))
 
         async with self._lock:
-            # create missing clients
             while len(self._clients) < len(shards):
                 c = BybitWS(
                     ws_url=self.ws_url,
@@ -89,11 +84,9 @@ class BybitWSCluster:
                 self._clients.append(c)
                 self._tasks.append(asyncio.create_task(c.run(), name=f"bybit_ws_{len(self._clients)}"))
 
-            # apply shard symbols
             for idx, shard in enumerate(shards):
                 self._clients[idx].set_symbols(shard)
 
-            # extra clients -> unsubscribe all (keep client alive; cheap and avoids churn)
             for idx in range(len(shards), len(self._clients)):
                 self._clients[idx].set_symbols([])
 
@@ -103,16 +96,13 @@ class BybitWSCluster:
 async def main(cfg_path: str) -> None:
     load_dotenv()
 
-    # --- load config ---
     with open(cfg_path, "r", encoding="utf-8") as f:
         raw = yaml.safe_load(f)
 
     cfg = AppConfig.model_validate(raw)
 
-    # logging first
     setup_logging(cfg.logging.level)
 
-    # --- quarantine path (relative to config dir) ---
     quarantine_path = raw.get("quarantine_path") if isinstance(raw, dict) else None
     if not quarantine_path:
         quarantine_path = "quarantine.yaml"
@@ -124,6 +114,10 @@ async def main(cfg_path: str) -> None:
     full_symbols: list[str] = list(cfg.bybit.symbols)
     full_tokens = dict(cfg.trading.tokens)  # token_key -> token_cfg model
     base_denylist = list(cfg.filters.denylist_symbols or [])
+
+    # mint -> bybit_symbol (для JUP авто-санитизации)
+    mint_to_symbol = {t.mint: t.bybit_symbol for t in full_tokens.values() if getattr(t, "mint", None)}
+    stable_mint = cfg.trading.stable.mint
 
     # --- runtime quarantine state ---
     q_lock = asyncio.Lock()
@@ -139,12 +133,6 @@ async def main(cfg_path: str) -> None:
             cfg.filters.denylist_symbols.extend(merged)
 
     def apply_quarantine_to_cfg() -> None:
-        """
-        Apply current quarantined_set to cfg in-place:
-          - cfg.bybit.symbols becomes active symbols (non-quarantined)
-          - cfg.trading.tokens filtered
-          - cfg.filters.denylist_symbols updated in-place
-        """
         cfg.bybit.symbols = [s for s in full_symbols if s not in quarantined_set]
         cfg.trading.tokens = {k: v for k, v in full_tokens.items() if v.bybit_symbol not in quarantined_set}
         rebuild_denylist_inplace()
@@ -159,7 +147,6 @@ async def main(cfg_path: str) -> None:
     else:
         log.info("Quarantine empty/disabled. File=%s", quarantine_path)
 
-    # --- env ---
     tg_token = os.environ.get("TG_BOT_TOKEN")
     jup_key = os.environ.get("JUP_API_KEY")
     if not tg_token:
@@ -181,19 +168,6 @@ async def main(cfg_path: str) -> None:
             delete_stale=cfg.notifier.delete_stale,
         )
 
-        jup = JupiterClient(
-            session=session,
-            base_url=cfg.jupiter.base_url,
-            api_key=jup_key,
-            timeout_sec=cfg.jupiter.timeout_sec,
-            slippage_bps=cfg.jupiter.slippage_bps,
-            restrict_intermediate_tokens=cfg.jupiter.restrict_intermediate_tokens,
-            max_accounts=cfg.jupiter.max_accounts,
-            rps=cfg.rate_limits.jupiter_rps,
-            concurrency=cfg.rate_limits.jupiter_concurrency,
-            max_retries=cfg.rate_limits.jupiter_max_retries,
-        )
-
         thresholds = Thresholds(
             bybit_taker_fee_bps=Decimal(str(cfg.thresholds.bybit_taker_fee_bps)),
             solana_tx_fee_usd=Decimal(str(cfg.thresholds.solana_tx_fee_usd)),
@@ -202,7 +176,6 @@ async def main(cfg_path: str) -> None:
             min_profit_usd=Decimal(str(cfg.thresholds.min_profit_usd)),
         )
 
-        # token cfgs passed into engine (dict reference must remain stable)
         token_cfgs: dict[str, dict[str, Any]] = {}
         for token_key, t in cfg.trading.tokens.items():
             token_cfgs[token_key] = {"bybit_symbol": t.bybit_symbol, "mint": t.mint, "decimals": t.decimals}
@@ -218,7 +191,6 @@ async def main(cfg_path: str) -> None:
 
             now = now_ts()
 
-            # anti-spam: once per 60 sec per symbol
             last = last_quarantine_write.get(symbol, 0)
             if (now - last) < 60:
                 return
@@ -230,7 +202,6 @@ async def main(cfg_path: str) -> None:
                 q = prune_expired(load_quarantine(quarantine_path))
                 prev = q.get(symbol)
                 if prev is not None and prev.until_ts > (now + 1800):
-                    # already quarantined and not expiring soon
                     if symbol not in quarantined_set:
                         quarantined_set.add(symbol)
                     apply_quarantine_to_cfg()
@@ -245,6 +216,92 @@ async def main(cfg_path: str) -> None:
                 rebuild_token_cfgs_inplace()
 
             log.warning("AUTO-QUARANTINE: %s reason=%s ttl=%ds file=%s", symbol, reason, ttl_sec, quarantine_path)
+
+        # -----------------------------
+        # Jupiter auto-sanitization
+        # -----------------------------
+        jup_bad_counts: dict[str, int] = {}
+        jup_bad_last_ts: dict[str, float] = {}
+
+        JUP_BAD_WINDOW_SEC = 20 * 60          # 20 минут окно
+        JUP_NOT_TRADABLE_TTL_SEC = 24 * 3600  # 24 часа карантин
+        JUP_NO_ROUTE_TTL_SEC = 2 * 3600       # 2 часа карантин
+
+        JUP_NOT_TRADABLE_HITS = 1             # сразу выкидываем
+        JUP_NO_ROUTE_HITS = 30                # только если стабильно нет маршрута
+
+        async def on_jup_skip(code: str, input_mint: str, output_mint: str, bad_mint: str, msg: str) -> None:
+            # определяем "виноватый mint"
+            m = bad_mint or ""
+            if not m:
+                # если явно не дали mint — берём не-stable из пары
+                if output_mint and output_mint != stable_mint:
+                    m = output_mint
+                elif input_mint and input_mint != stable_mint:
+                    m = input_mint
+
+            if not m or m == stable_mint:
+                return
+
+            symbol = mint_to_symbol.get(m)
+            if not symbol:
+                return  # не из нашего universe
+
+            now = time.time()
+            last = jup_bad_last_ts.get(m, 0.0)
+            if (now - last) > JUP_BAD_WINDOW_SEC:
+                jup_bad_counts[m] = 0
+            jup_bad_last_ts[m] = now
+            jup_bad_counts[m] = jup_bad_counts.get(m, 0) + 1
+
+            if code == "TOKEN_NOT_TRADABLE" and jup_bad_counts[m] >= JUP_NOT_TRADABLE_HITS:
+                await quarantine_add(symbol, reason="JUP_TOKEN_NOT_TRADABLE", ttl_sec=JUP_NOT_TRADABLE_TTL_SEC)
+                return
+
+            if code == "COULD_NOT_FIND_ANY_ROUTE" and jup_bad_counts[m] >= JUP_NO_ROUTE_HITS:
+                await quarantine_add(symbol, reason="JUP_NO_ROUTE", ttl_sec=JUP_NO_ROUTE_TTL_SEC)
+                return
+
+        jup = JupiterClient(
+            session=session,
+            base_url=cfg.jupiter.base_url,
+            api_key=jup_key,
+            timeout_sec=cfg.jupiter.timeout_sec,
+            slippage_bps=cfg.jupiter.slippage_bps,
+            restrict_intermediate_tokens=cfg.jupiter.restrict_intermediate_tokens,
+            max_accounts=cfg.jupiter.max_accounts,
+            rps=cfg.rate_limits.jupiter_rps,
+            concurrency=cfg.rate_limits.jupiter_concurrency,
+            max_retries=cfg.rate_limits.jupiter_max_retries,
+            on_skip=on_jup_skip,
+        )
+
+        engine = ArbEngine(
+            state=state,
+            jup=jup,
+            thresholds=thresholds,
+            notional_usd=Decimal(str(cfg.trading.notional_usd)),
+            stable_mint=cfg.trading.stable.mint,
+            stable_decimals=cfg.trading.stable.decimals,
+            token_cfgs=token_cfgs,
+            max_cex_slippage_bps=Decimal(str(cfg.filters.max_cex_slippage_bps)),
+            max_dex_price_impact_pct=Decimal(str(cfg.filters.max_dex_price_impact_pct)),
+            persistence_hits=int(cfg.filters.persistence_hits),
+            cooldown_sec=int(cfg.filters.cooldown_sec),
+            min_delta_profit_usd_to_resend=Decimal(str(cfg.filters.min_delta_profit_usd_to_resend)),
+            engine_tick_hz=int(cfg.runtime.engine_tick_hz),
+            jupiter_poll_interval_sec=float(cfg.jupiter.poll_interval_sec),
+            price_ratio_max=Decimal(str(cfg.filters.price_ratio_max)),
+            gross_profit_cap_pct=Decimal(str(cfg.filters.gross_profit_cap_pct)),
+            max_spread_bps=Decimal(str(cfg.filters.max_spread_bps)),
+            min_depth_coverage_pct=Decimal(str(cfg.filters.min_depth_coverage_pct)),
+            denylist_symbols=cfg.filters.denylist_symbols,
+            denylist_regex=cfg.filters.denylist_regex,
+        )
+
+        async def on_signal(sig):
+            reply_markup = sig.to_reply_markup() if hasattr(sig, "to_reply_markup") else None
+            await tg.upsert(sig.key, sig.text, reply_markup=reply_markup)
 
         async def on_ob(msg: dict) -> None:
             topic = str(msg.get("topic", "") or "")
@@ -291,7 +348,6 @@ async def main(cfg_path: str) -> None:
                     if bids or asks:
                         ob.apply_delta(bids, asks, now_ms, now_ms)
 
-        # --- WS cluster ---
         ws_cluster = BybitWSCluster(
             ws_url=cfg.bybit.ws_url,
             depth=cfg.bybit.depth,
@@ -300,46 +356,10 @@ async def main(cfg_path: str) -> None:
             max_symbols_per_ws=100,
         )
 
-        # start with active symbols
         await ws_cluster.start(cfg.bybit.symbols)
-
         log.info("Bybit WS clients=%d, symbols=%d", len(ws_cluster.clients), len(cfg.bybit.symbols))
 
-        engine = ArbEngine(
-            state=state,
-            jup=jup,
-            thresholds=thresholds,
-            notional_usd=Decimal(str(cfg.trading.notional_usd)),
-            stable_mint=cfg.trading.stable.mint,
-            stable_decimals=cfg.trading.stable.decimals,
-            token_cfgs=token_cfgs,
-            max_cex_slippage_bps=Decimal(str(cfg.filters.max_cex_slippage_bps)),
-            max_dex_price_impact_pct=Decimal(str(cfg.filters.max_dex_price_impact_pct)),
-            persistence_hits=int(cfg.filters.persistence_hits),
-            cooldown_sec=int(cfg.filters.cooldown_sec),
-            min_delta_profit_usd_to_resend=Decimal(str(cfg.filters.min_delta_profit_usd_to_resend)),
-            engine_tick_hz=int(cfg.runtime.engine_tick_hz),
-            jupiter_poll_interval_sec=float(cfg.jupiter.poll_interval_sec),
-            price_ratio_max=Decimal(str(cfg.filters.price_ratio_max)),
-            gross_profit_cap_pct=Decimal(str(cfg.filters.gross_profit_cap_pct)),
-            max_spread_bps=Decimal(str(cfg.filters.max_spread_bps)),
-            min_depth_coverage_pct=Decimal(str(cfg.filters.min_depth_coverage_pct)),
-            denylist_symbols=cfg.filters.denylist_symbols,
-            denylist_regex=cfg.filters.denylist_regex,
-        )
-
-        async def on_signal(sig):
-            reply_markup = sig.to_reply_markup() if hasattr(sig, "to_reply_markup") else None
-            await tg.upsert(sig.key, sig.text, reply_markup=reply_markup)
-
         async def quarantine_sync_loop(poll_sec: float = 10.0) -> None:
-            """
-            Single source of truth: quarantine.yaml.
-            - prune expired
-            - detect added/removed
-            - apply both directions (quarantine/unquarantine)
-            - update WS subscriptions dynamically via cluster.update_symbols()
-            """
             last_mtime = 0.0
             while True:
                 try:
@@ -355,7 +375,6 @@ async def main(cfg_path: str) -> None:
                         q = load_quarantine(quarantine_path)
                         q2 = prune_expired(q)
                         if q2.keys() != q.keys():
-                            # we pruned something -> persist
                             save_quarantine(quarantine_path, q2)
                         new_set = set(q2.keys())
                     except Exception:
@@ -370,11 +389,10 @@ async def main(cfg_path: str) -> None:
                         if added or removed:
                             quarantined_set.clear()
                             quarantined_set.update(new_set)
-                            
+
                             apply_quarantine_to_cfg()
                             rebuild_token_cfgs_inplace()
 
-                            # dynamic resubscribe: active symbols changed
                             await ws_cluster.update_symbols(cfg.bybit.symbols)
 
                             log.warning(
@@ -470,8 +488,7 @@ async def main(cfg_path: str) -> None:
                         stale_syms.append(sym)
 
                 if stale_syms:
-                    # auto quarantine stale
-                    for sym in stale_syms[:50]:  # safety cap
+                    for sym in stale_syms[:50]:
                         await quarantine_add(sym, reason="WS_STALE", ttl_sec=AUTO_Q_TTL_SEC)
 
                     log.warning(

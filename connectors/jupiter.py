@@ -8,7 +8,7 @@ import re
 import time
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, Callable, Awaitable
 
 import aiohttp
 
@@ -175,6 +175,7 @@ class JupiterClient:
       - don't spam logs for expected 400 errors (no route / not tradable / amount too big)
       - backoff & retry on 429/5xx and network issues
       - negative cache for bad tokens/pairs
+      - (NEW) optional on_skip callback for autosanitization in app
     """
 
     _RE_NOT_TRADABLE_MINT = re.compile(
@@ -201,6 +202,8 @@ class JupiterClient:
         # logging
         expected_400_log_interval_sec: float = 60.0,
         retry_log_interval_sec: float = 10.0,
+        # autosanitization hook
+        on_skip: Optional[Callable[[str, str, str, str, str], Awaitable[None]]] = None,
     ) -> None:
         self._s = session
         self._base = base_url.rstrip("/")
@@ -223,6 +226,8 @@ class JupiterClient:
 
         self._neg = NegativeCache()
         self._throttle = LogThrottle()
+
+        self._on_skip = on_skip
 
     # -------- internal utils --------
 
@@ -258,6 +263,16 @@ class JupiterClient:
         if random.random() < 0.02:  # ~2% calls
             self._neg.cleanup()
             self._throttle.cleanup()
+
+    def _emit_skip(self, code: str, input_mint: str, output_mint: str, bad_mint: str, msg: str) -> None:
+        cb = self._on_skip
+        if not cb:
+            return
+        try:
+            asyncio.create_task(cb(code, input_mint, output_mint, bad_mint, msg))
+        except Exception:
+            # never fail quotes because of observer
+            pass
 
     # -------- public API --------
 
@@ -323,27 +338,31 @@ class JupiterClient:
                     msg = str(body_json.get("error") or body_text or "")
 
                     if code == "TOKEN_NOT_TRADABLE":
-                        # Try to extract offending mint from message; fallback to output
                         mint = ""
                         m = self._RE_NOT_TRADABLE_MINT.search(msg)
                         if m:
                             mint = m.group(1)
 
-                        self._neg.block_token(mint or output_mint, self._ttl_not_tradable)
+                        bad = mint or output_mint
+
+                        self._neg.block_token(bad, self._ttl_not_tradable)
                         self._neg.block_pair(input_mint, output_mint, 60.0)
 
-                        if self._throttle.allow(f"400:{code}:{mint or output_mint}", self._expected_400_log_interval):
-                            log.info("jup skip %s out=%s msg=%s", code, (mint or output_mint), msg[:140])
+                        if self._throttle.allow(f"400:{code}:{bad}", self._expected_400_log_interval):
+                            log.info("jup skip %s out=%s msg=%s", code, bad, msg[:140])
+
+                        self._emit_skip(code, input_mint, output_mint, bad, msg)
                         return None
 
                     if code == "COULD_NOT_FIND_ANY_ROUTE":
                         self._neg.block_pair(input_mint, output_mint, self._ttl_no_route)
                         if self._throttle.allow(f"400:{code}:{input_mint}->{output_mint}", self._expected_400_log_interval):
                             log.debug("jup skip %s %s->%s msg=%s", code, input_mint, output_mint, msg[:140])
+
+                        self._emit_skip(code, input_mint, output_mint, "", msg)
                         return None
 
                     if code == "ROUTE_PLAN_DOES_NOT_CONSUME_ALL_THE_AMOUNT":
-                        # Usually means amount too large / route can't fill full amount
                         self._neg.block_pair(input_mint, output_mint, self._ttl_amount_too_big)
                         if self._throttle.allow(f"400:{code}:{input_mint}->{output_mint}", self._expected_400_log_interval):
                             log.debug("jup skip %s %s->%s msg=%s", code, input_mint, output_mint, msg[:140])
@@ -360,7 +379,6 @@ class JupiterClient:
                 return None
 
             except (aiohttp.ClientError, asyncio.TimeoutError) as e:
-                # network errors are usually transient
                 if attempt < self._max_retries - 1:
                     wait_s = self._retry_delay(attempt)
                     if self._throttle.allow(f"net:{type(e).__name__}", self._retry_log_interval):
