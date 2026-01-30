@@ -133,7 +133,7 @@ async def main(cfg_path: str) -> None:
                         ob.apply_delta(bids, asks, now_ms, now_ms)
 
 
-        MAX_SYMBOLS_PER_WS = 10
+        MAX_SYMBOLS_PER_WS = 100
 
         bybit_clients = []
         symbol_to_client: dict[str, BybitWS] = {}
