@@ -2,43 +2,166 @@
 
 import argparse
 import asyncio
+import logging
 import os
 import time
 from decimal import Decimal
-import yaml
-import aiohttp
-from dotenv import load_dotenv
-import logging
+from typing import Any
 
-from utils.log import setup_logging
-from core.config import AppConfig
-from core.state import MarketState
+import aiohttp
+import yaml
+from dotenv import load_dotenv
+
 from connectors.bybit_ws import BybitWS
 from connectors.jupiter import JupiterClient
-from core.fees import Thresholds
 from core.arb_engine import ArbEngine
+from core.config import AppConfig
+from core.fees import Thresholds
+from core.quarantine import QuarantineEntry, load_quarantine, now_ts, prune_expired, save_quarantine
+from core.state import MarketState
 from notifier.telegram import TelegramNotifier
+from utils.log import setup_logging
 
 log = logging.getLogger("app")
 
 
 def chunked(lst, n: int):
     for i in range(0, len(lst), n):
-        yield lst[i:i + n]
+        yield lst[i : i + n]
+
+
+class BybitWSCluster:
+    """
+    Manages N BybitWS clients with sharding, supports dynamic resubscribe.
+    """
+
+    def __init__(
+        self,
+        ws_url: str,
+        depth: int,
+        ping_interval_sec: int,
+        on_orderbook_message,
+        max_symbols_per_ws: int = 100,
+    ) -> None:
+        self.ws_url = ws_url
+        self.depth = depth
+        self.ping_interval_sec = ping_interval_sec
+        self.on_orderbook_message = on_orderbook_message
+        self.max_symbols_per_ws = max(1, int(max_symbols_per_ws))
+
+        self._clients: list[BybitWS] = []
+        self._tasks: list[asyncio.Task] = []
+        self._lock = asyncio.Lock()
+
+    @property
+    def clients(self) -> list[BybitWS]:
+        return list(self._clients)
+
+    async def start(self, symbols: list[str]) -> None:
+        await self.update_symbols(symbols)
+
+    async def stop(self) -> None:
+        async with self._lock:
+            for c in self._clients:
+                await c.stop()
+            for t in self._tasks:
+                t.cancel()
+            self._clients.clear()
+            self._tasks.clear()
+
+    async def update_symbols(self, symbols: list[str]) -> None:
+        """
+        Ensure enough clients exist and apply symbol shards via set_symbols().
+        No restart: uses subscribe/unsubscribe inside each client.
+        """
+        shards = list(chunked(list(symbols), self.max_symbols_per_ws))
+
+        async with self._lock:
+            # create missing clients
+            while len(self._clients) < len(shards):
+                c = BybitWS(
+                    ws_url=self.ws_url,
+                    symbols=[],
+                    depth=self.depth,
+                    ping_interval_sec=self.ping_interval_sec,
+                    on_orderbook_message=self.on_orderbook_message,
+                )
+                self._clients.append(c)
+                self._tasks.append(asyncio.create_task(c.run(), name=f"bybit_ws_{len(self._clients)}"))
+
+            # apply shard symbols
+            for idx, shard in enumerate(shards):
+                self._clients[idx].set_symbols(shard)
+
+            # extra clients -> unsubscribe all (keep client alive; cheap and avoids churn)
+            for idx in range(len(shards), len(self._clients)):
+                self._clients[idx].set_symbols([])
+
+        log.info("WS cluster updated: clients=%d symbols=%d", len(self._clients), len(symbols))
 
 
 async def main(cfg_path: str) -> None:
     load_dotenv()
 
+    # --- load config ---
     with open(cfg_path, "r", encoding="utf-8") as f:
         raw = yaml.safe_load(f)
 
     cfg = AppConfig.model_validate(raw)
+
+    # logging first
     setup_logging(cfg.logging.level)
 
+    # --- quarantine path (relative to config dir) ---
+    quarantine_path = raw.get("quarantine_path") if isinstance(raw, dict) else None
+    if not quarantine_path:
+        quarantine_path = "quarantine.yaml"
+    if isinstance(quarantine_path, str) and quarantine_path and not os.path.isabs(quarantine_path):
+        cfg_dir = os.path.dirname(os.path.abspath(cfg_path))
+        quarantine_path = os.path.join(cfg_dir, quarantine_path)
+
+    # --- source-of-truth copies (to restore on unquarantine) ---
+    full_symbols: list[str] = list(cfg.bybit.symbols)
+    full_tokens = dict(cfg.trading.tokens)  # token_key -> token_cfg model
+    base_denylist = list(cfg.filters.denylist_symbols or [])
+
+    # --- runtime quarantine state ---
+    q_lock = asyncio.Lock()
+    quarantined_set: set[str] = set()
+    last_quarantine_write: dict[str, int] = {}  # anti-spam
+
+    def rebuild_denylist_inplace() -> None:
+        merged = sorted(set(base_denylist) | set(quarantined_set))
+        if cfg.filters.denylist_symbols is None:
+            cfg.filters.denylist_symbols = merged
+        else:
+            cfg.filters.denylist_symbols.clear()
+            cfg.filters.denylist_symbols.extend(merged)
+
+    def apply_quarantine_to_cfg() -> None:
+        """
+        Apply current quarantined_set to cfg in-place:
+          - cfg.bybit.symbols becomes active symbols (non-quarantined)
+          - cfg.trading.tokens filtered
+          - cfg.filters.denylist_symbols updated in-place
+        """
+        cfg.bybit.symbols = [s for s in full_symbols if s not in quarantined_set]
+        cfg.trading.tokens = {k: v for k, v in full_tokens.items() if v.bybit_symbol not in quarantined_set}
+        rebuild_denylist_inplace()
+
+    # initial quarantine load/prune
+    q0 = prune_expired(load_quarantine(quarantine_path))
+    quarantined_set = set(q0.keys())
+    apply_quarantine_to_cfg()
+
+    if quarantined_set:
+        log.warning("Quarantine enabled: %d symbols disabled. File=%s", len(quarantined_set), quarantine_path)
+    else:
+        log.info("Quarantine empty/disabled. File=%s", quarantine_path)
+
+    # --- env ---
     tg_token = os.environ.get("TG_BOT_TOKEN")
     jup_key = os.environ.get("JUP_API_KEY")
-
     if not tg_token:
         raise RuntimeError("Нет TG_BOT_TOKEN в .env")
     if not jup_key:
@@ -79,6 +202,50 @@ async def main(cfg_path: str) -> None:
             min_profit_usd=Decimal(str(cfg.thresholds.min_profit_usd)),
         )
 
+        # token cfgs passed into engine (dict reference must remain stable)
+        token_cfgs: dict[str, dict[str, Any]] = {}
+        for token_key, t in cfg.trading.tokens.items():
+            token_cfgs[token_key] = {"bybit_symbol": t.bybit_symbol, "mint": t.mint, "decimals": t.decimals}
+
+        def rebuild_token_cfgs_inplace() -> None:
+            token_cfgs.clear()
+            for token_key, t in cfg.trading.tokens.items():
+                token_cfgs[token_key] = {"bybit_symbol": t.bybit_symbol, "mint": t.mint, "decimals": t.decimals}
+
+        async def quarantine_add(symbol: str, reason: str, ttl_sec: int) -> None:
+            if not symbol:
+                return
+
+            now = now_ts()
+
+            # anti-spam: once per 60 sec per symbol
+            last = last_quarantine_write.get(symbol, 0)
+            if (now - last) < 60:
+                return
+            last_quarantine_write[symbol] = now
+
+            until = now + int(ttl_sec)
+
+            async with q_lock:
+                q = prune_expired(load_quarantine(quarantine_path))
+                prev = q.get(symbol)
+                if prev is not None and prev.until_ts > (now + 1800):
+                    # already quarantined and not expiring soon
+                    if symbol not in quarantined_set:
+                        quarantined_set.add(symbol)
+                    apply_quarantine_to_cfg()
+                    rebuild_token_cfgs_inplace()
+                    return
+
+                q[symbol] = QuarantineEntry(reason=reason, until_ts=until)
+                save_quarantine(quarantine_path, q)
+
+                quarantined_set.add(symbol)
+                apply_quarantine_to_cfg()
+                rebuild_token_cfgs_inplace()
+
+            log.warning("AUTO-QUARANTINE: %s reason=%s ttl=%ds file=%s", symbol, reason, ttl_sec, quarantine_path)
+
         async def on_ob(msg: dict) -> None:
             topic = str(msg.get("topic", "") or "")
             typ = str(msg.get("type", "") or "")
@@ -87,9 +254,7 @@ async def main(cfg_path: str) -> None:
             if data is None:
                 return
 
-            # иногда data бывает листом
             if isinstance(data, list):
-                # v5 orderbook обычно не лист, но на всякий
                 parts = [x for x in data if isinstance(x, dict)]
             elif isinstance(data, dict):
                 parts = [data]
@@ -99,66 +264,46 @@ async def main(cfg_path: str) -> None:
             now_ms = state.now_ms()
 
             for it in parts:
-                # 1) symbol
                 symbol = it.get("s") or it.get("symbol")
-                if not symbol:
-                    # fallback из topic: orderbook.50.SOLUSDT
-                    if topic:
-                        symbol = topic.split(".")[-1]
-
+                if not symbol and topic:
+                    symbol = topic.split(".")[-1]
                 if not symbol:
                     continue
 
-                # 2) bids/asks в разных формах
+                async with q_lock:
+                    if symbol in quarantined_set:
+                        continue
+
                 bids = it.get("b") or it.get("bids") or []
                 asks = it.get("a") or it.get("asks") or []
 
-                # 3) если вдруг bids/asks лежат внутри it["data"]
                 if (not bids and not asks) and isinstance(it.get("data"), dict):
                     inner = it["data"]
                     bids = inner.get("b") or inner.get("bids") or []
                     asks = inner.get("a") or inner.get("asks") or []
 
                 ob = await state.upsert_orderbook(symbol)
-
                 if typ == "snapshot":
                     ob.apply_snapshot(bids, asks, now_ms, now_ms)
                 elif typ == "delta":
                     ob.apply_delta(bids, asks, now_ms, now_ms)
                 else:
-                    # если type нет — попробуем по наличию ключей
-                    # snapshot обычно содержит больше уровней, но нам пофиг
                     if bids or asks:
-                        # пусть будет delta
                         ob.apply_delta(bids, asks, now_ms, now_ms)
 
+        # --- WS cluster ---
+        ws_cluster = BybitWSCluster(
+            ws_url=cfg.bybit.ws_url,
+            depth=cfg.bybit.depth,
+            ping_interval_sec=cfg.bybit.ping_interval_sec,
+            on_orderbook_message=on_ob,
+            max_symbols_per_ws=100,
+        )
 
-        MAX_SYMBOLS_PER_WS = 100
+        # start with active symbols
+        await ws_cluster.start(cfg.bybit.symbols)
 
-        bybit_clients = []
-        symbol_to_client: dict[str, BybitWS] = {}
-        for i, syms in enumerate(chunked(cfg.bybit.symbols, MAX_SYMBOLS_PER_WS), start=1):
-            client = BybitWS(
-                ws_url=cfg.bybit.ws_url,
-                symbols=syms,
-                depth=cfg.bybit.depth,
-                ping_interval_sec=cfg.bybit.ping_interval_sec,
-                on_orderbook_message=on_ob,
-            )
-            bybit_clients.append(client)
-            for s in syms:
-                symbol_to_client[s] = client
-
-        log.info("Bybit WS clients=%d, symbols=%d", len(bybit_clients), len(cfg.bybit.symbols))
-
-        token_cfgs = {
-            token_key: {
-                "bybit_symbol": t.bybit_symbol,
-                "mint": t.mint,
-                "decimals": t.decimals,
-            }
-            for token_key, t in cfg.trading.tokens.items()
-        }
+        log.info("Bybit WS clients=%d, symbols=%d", len(ws_cluster.clients), len(cfg.bybit.symbols))
 
         engine = ArbEngine(
             state=state,
@@ -184,13 +329,63 @@ async def main(cfg_path: str) -> None:
         )
 
         async def on_signal(sig):
-            reply_markup = None
-            if hasattr(sig, "to_reply_markup"):
-                reply_markup = sig.to_reply_markup()
+            reply_markup = sig.to_reply_markup() if hasattr(sig, "to_reply_markup") else None
             await tg.upsert(sig.key, sig.text, reply_markup=reply_markup)
 
-        token_by_symbol = {t.bybit_symbol: tk for tk, t in cfg.trading.tokens.items()}
-        last_skip_summary = {"text": "n/a"}
+        async def quarantine_sync_loop(poll_sec: float = 10.0) -> None:
+            """
+            Single source of truth: quarantine.yaml.
+            - prune expired
+            - detect added/removed
+            - apply both directions (quarantine/unquarantine)
+            - update WS subscriptions dynamically via cluster.update_symbols()
+            """
+            last_mtime = 0.0
+            while True:
+                try:
+                    mtime = os.path.getmtime(quarantine_path)
+                except FileNotFoundError:
+                    mtime = 0.0
+
+                changed = mtime > last_mtime
+                last_mtime = max(last_mtime, mtime)
+
+                if changed:
+                    try:
+                        q = load_quarantine(quarantine_path)
+                        q2 = prune_expired(q)
+                        if q2.keys() != q.keys():
+                            # we pruned something -> persist
+                            save_quarantine(quarantine_path, q2)
+                        new_set = set(q2.keys())
+                    except Exception:
+                        log.exception("Failed to sync quarantine file=%s", quarantine_path)
+                        new_set = set()
+
+                    async with q_lock:
+                        before = set(quarantined_set)
+                        added = new_set - before
+                        removed = before - new_set
+
+                        if added or removed:
+                            quarantined_set.clear()
+                            quarantined_set.update(new_set)
+                            
+                            apply_quarantine_to_cfg()
+                            rebuild_token_cfgs_inplace()
+
+                            # dynamic resubscribe: active symbols changed
+                            await ws_cluster.update_symbols(cfg.bybit.symbols)
+
+                            log.warning(
+                                "Quarantine sync: added=%d removed=%d active=%d quarantined=%d",
+                                len(added),
+                                len(removed),
+                                len(cfg.bybit.symbols),
+                                len(quarantined_set),
+                            )
+
+                await asyncio.sleep(poll_sec)
 
         async def status_loop():
             while True:
@@ -199,13 +394,10 @@ async def main(cfg_path: str) -> None:
 
                 fresh_cnt = 0
                 non_empty_cnt = 0
-                jup_buy_ok = 0
-                jup_sell_ok = 0
 
                 FRESH_MS = 2000
-
                 sample_syms = symbols[:5]
-                sample_parts = []
+                sample_parts: list[str] = []
 
                 for sym in symbols:
                     ob = await state.get_orderbook(sym)
@@ -214,14 +406,6 @@ async def main(cfg_path: str) -> None:
                         if ob.age_ms() <= FRESH_MS:
                             fresh_cnt += 1
 
-                    token_key = token_by_symbol.get(sym)
-                    if token_key:
-                        qp = await state.get_quote_pair(token_key)
-                        if qp.buy_quote is not None:
-                            jup_buy_ok += 1
-                        if qp.sell_quote is not None:
-                            jup_sell_ok += 1
-
                 for sym in sample_syms:
                     ob = await state.get_orderbook(sym)
                     if ob is None or not ob.bids or not ob.asks:
@@ -229,28 +413,30 @@ async def main(cfg_path: str) -> None:
                     else:
                         best_bid = max(ob.bids.keys())
                         best_ask = min(ob.asks.keys())
-                        sample_parts.append(
-                            f"{sym} bid={best_bid} ask={best_ask} age={ob.age_ms()}ms"
-                        )
+                        sample_parts.append(f"{sym} bid={best_bid} ask={best_ask} age={ob.age_ms()}ms")
 
                 stats = engine.drain_debug_stats()
                 if stats is not None:
                     if stats:
                         top = sorted(stats.items(), key=lambda kv: kv[1], reverse=True)[:5]
-                        last_skip_summary["text"] = ", ".join([f"{k}={v}" for k, v in top])
+                        skip_text = ", ".join([f"{k}={v}" for k, v in top])
                     else:
-                        last_skip_summary["text"] = "none"
+                        skip_text = "none"
+                else:
+                    skip_text = "n/a"
 
                 log.info(
-                    "[STATUS] OB non-empty %d/%d | OB fresh %d/%d (<=%dms) | JUP buy %d/%d | JUP sell %d/%d | skips(30s): %s | sample: %s",
-                    non_empty_cnt, total,
-                    fresh_cnt, total, FRESH_MS,
-                    jup_buy_ok, total,
-                    jup_sell_ok, total,
-                    last_skip_summary["text"],
+                    "[STATUS] active=%d | quarantined=%d | OB non-empty %d/%d | OB fresh %d/%d (<=%dms) | skips(30s): %s | sample: %s",
+                    total,
+                    len(quarantined_set),
+                    non_empty_cnt,
+                    total,
+                    fresh_cnt,
+                    total,
+                    FRESH_MS,
+                    skip_text,
                     " | ".join(sample_parts),
                 )
-
                 await asyncio.sleep(5)
 
         async def stale_loop():
@@ -262,54 +448,42 @@ async def main(cfg_path: str) -> None:
             timeout_sec = float(cfg.runtime.ws_snapshot_timeout_sec)
             if timeout_sec <= 0:
                 return
-            last_reconnect: dict[BybitWS, float] = {}
+
             start_ts = time.time()
+            AUTO_Q_TTL_SEC = 6 * 3600  # 6h
+
             while True:
                 await asyncio.sleep(max(5.0, timeout_sec / 2))
                 if (time.time() - start_ts) < timeout_sec:
                     continue
 
                 now_ms = state.now_ms()
-                stale_syms = []
-                for sym in cfg.bybit.symbols:
+                symbols = list(cfg.bybit.symbols)
+
+                stale_syms: list[str] = []
+                for sym in symbols:
                     ob = await state.get_orderbook(sym)
                     last_msg_ms = 0
                     if ob is not None:
                         last_msg_ms = int(ob.last_cts_ms or ob.last_update_ms or ob.last_snapshot_ms or 0)
-
                     if last_msg_ms <= 0 or (now_ms - last_msg_ms) > timeout_sec * 1000:
                         stale_syms.append(sym)
 
                 if stale_syms:
-                    clients = set()
-                    for sym in stale_syms:
-                        client = symbol_to_client.get(sym)
-                        if client:
-                            clients.add(client)
+                    # auto quarantine stale
+                    for sym in stale_syms[:50]:  # safety cap
+                        await quarantine_add(sym, reason="WS_STALE", ttl_sec=AUTO_Q_TTL_SEC)
 
-                    for client in clients:
-                        last = last_reconnect.get(client, 0.0)
-                        if (time.time() - last) < 5.0:
-                            continue
-                        client.request_reconnect()
-                        last_reconnect[client] = time.time()
-
-                    sample = ", ".join(stale_syms[:5])
                     log.warning(
-                        "[HEALTH] stale snapshots %d/%d (>%.0fs) | sample=%s | reconnecting=%d",
+                        "[HEALTH] stale snapshots %d/%d (>%.0fs) sample=%s",
                         len(stale_syms),
-                        len(cfg.bybit.symbols),
+                        len(symbols),
                         timeout_sec,
-                        sample,
-                        len(clients),
+                        ", ".join(stale_syms[:5]),
                     )
 
-        tasks = []
-
-        for idx, client in enumerate(bybit_clients, start=1):
-            tasks.append(asyncio.create_task(client.run(), name=f"bybit_ws_{idx}"))
-
-        tasks += [
+        tasks: list[asyncio.Task] = [
+            asyncio.create_task(quarantine_sync_loop(), name="quarantine_sync"),
             asyncio.create_task(engine.quote_poller(), name="jup_poller"),
             asyncio.create_task(engine.run(on_signal), name="arb_engine"),
             asyncio.create_task(status_loop(), name="status"),
@@ -326,11 +500,11 @@ async def main(cfg_path: str) -> None:
         except KeyboardInterrupt:
             log.info("Stopping...")
         finally:
-            for client in bybit_clients:
-                await client.stop()
-            await engine.stop()
             for t in tasks:
                 t.cancel()
+            await ws_cluster.stop()
+            await engine.stop()
+
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser()

@@ -721,6 +721,5 @@ async def main() -> None:
         dump_yaml(config_path, cfg)
         log.info("applied to: %s", config_path.resolve())
 
-
 if __name__ == "__main__":
     asyncio.run(main())

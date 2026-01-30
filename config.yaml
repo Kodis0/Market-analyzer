@@ -2339,7 +2339,7 @@ trading:
 logging:
   level: INFO
 telegram:
-  chat_id: 0
+  chat_id: -1003881338901
   thread_id: null
 notifier:
   edit_min_interval_sec: 2
@@ -2348,20 +2348,20 @@ notifier:
   delete_stale: false
 thresholds:
   bybit_taker_fee_bps: 10
-  solana_tx_fee_usd: 1
+  solana_tx_fee_usd: 0.05
   latency_buffer_bps: 15
   usdt_usdc_buffer_bps: 10
-  min_profit_usd: 10
+  min_profit_usd: 0.2
 filters:
   max_cex_slippage_bps: 80
-  max_dex_price_impact_pct: 1.0
-  persistence_hits: 2
-  cooldown_sec: 10
+  max_dex_price_impact_pct: 3.0
+  persistence_hits: 1
+  cooldown_sec: 3
   min_delta_profit_usd_to_resend: 2
   price_ratio_max: 3
   gross_profit_cap_pct: 10
-  max_spread_bps: 80
-  min_depth_coverage_pct: 98
+  max_spread_bps: 150
+  min_depth_coverage_pct: 60
   denylist_symbols:
   - XAUT
   - PAXG

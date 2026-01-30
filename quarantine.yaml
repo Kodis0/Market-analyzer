@@ -1,0 +1,63 @@
+version: 1
+updated_at_ts: 1769775090
+symbols:
+  AFCUSDT:
+    reason: WS_STALE
+    until: 1769795648
+  AMZNXUSDT:
+    reason: WS_STALE
+    until: 1769796690
+  FLIPUSDT:
+    reason: WS_STALE
+    until: 1769795648
+  FORTUSDT:
+    reason: WS_STALE
+    until: 1769795648
+  FOXYUSDT:
+    reason: BAD_TOKEN_CFG
+    until: 1769858419
+  GTAIUSDT:
+    reason: WS_STALE
+    until: 1769795648
+  INSPUSDT:
+    reason: WS_STALE
+    until: 1769796360
+  MASAUSDT:
+    reason: WS_STALE
+    until: 1769795648
+  MBXUSDT:
+    reason: WS_STALE
+    until: 1769795678
+  MCDXUSDT:
+    reason: WS_STALE
+    until: 1769795876
+  PIRATEUSDT:
+    reason: WS_STALE
+    until: 1769796630
+  PSGUSDT:
+    reason: WS_STALE
+    until: 1769796390
+  PSTAKEUSDT:
+    reason: WS_STALE
+    until: 1769795648
+  PUFFUSDT:
+    reason: WS_STALE
+    until: 1769795678
+  RDNTUSDT:
+    reason: WS_STALE
+    until: 1769795876
+  RLUSDUSDT:
+    reason: WS_STALE
+    until: 1769795768
+  SERAPHUSDT:
+    reason: WS_STALE
+    until: 1769795876
+  STREAMUSDT:
+    reason: WS_STALE
+    until: 1769795648
+  TUNAUSDT:
+    reason: WS_STALE
+    until: 1769796570
+  USDTBUSDT:
+    reason: WS_STALE
+    until: 1769795648
