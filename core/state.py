@@ -1,9 +1,10 @@
+
 from __future__ import annotations
 
 import asyncio
+import time
 from dataclasses import dataclass, field
 from typing import Dict, Optional
-import time
 
 from core.orderbook import OrderBook
 from connectors.jupiter import JupQuote
@@ -11,6 +12,11 @@ from connectors.jupiter import JupQuote
 
 @dataclass
 class QuotePair:
+    """
+    Quotes for one token. Protected by per-token lock so we can:
+      - update buy/sell independently
+      - take an atomic-ish snapshot inside the engine tick
+    """
     lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
 
     buy_quote: Optional[JupQuote] = None
@@ -26,9 +32,9 @@ class MarketState:
     orderbooks: Dict[str, OrderBook] = field(default_factory=dict)
     quotes: Dict[str, QuotePair] = field(default_factory=dict)
 
-    # lock оставляем — используем его для orderbooks (backward compatible)
+    # Backward compatible: lock for orderbooks
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
-    # новый lock только для quotes
+    # New: separate lock for quotes map
     quotes_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
     async def upsert_orderbook(self, symbol: str) -> OrderBook:
