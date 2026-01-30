@@ -100,9 +100,9 @@ async def main(cfg_path: str) -> None:
         raw = yaml.safe_load(f)
 
     cfg = AppConfig.model_validate(raw)
-
     setup_logging(cfg.logging.level)
 
+    # ---- quarantine path ----
     quarantine_path = raw.get("quarantine_path") if isinstance(raw, dict) else None
     if not quarantine_path:
         quarantine_path = "quarantine.yaml"
@@ -110,7 +110,7 @@ async def main(cfg_path: str) -> None:
         cfg_dir = os.path.dirname(os.path.abspath(cfg_path))
         quarantine_path = os.path.join(cfg_dir, quarantine_path)
 
-    # --- source-of-truth copies (to restore on unquarantine) ---
+    # ---- source-of-truth copies (to restore on unquarantine) ----
     full_symbols: list[str] = list(cfg.bybit.symbols)
     full_tokens = dict(cfg.trading.tokens)  # token_key -> token_cfg model
     base_denylist = list(cfg.filters.denylist_symbols or [])
@@ -119,10 +119,10 @@ async def main(cfg_path: str) -> None:
     mint_to_symbol = {t.mint: t.bybit_symbol for t in full_tokens.values() if getattr(t, "mint", None)}
     stable_mint = cfg.trading.stable.mint
 
-    # --- runtime quarantine state ---
+    # ---- runtime quarantine state ----
     q_lock = asyncio.Lock()
     quarantined_set: set[str] = set()
-    last_quarantine_write: dict[str, int] = {}  # anti-spam
+    last_quarantine_write: dict[str, int] = {}  # anti-spam per symbol (sec)
 
     def rebuild_denylist_inplace() -> None:
         merged = sorted(set(base_denylist) | set(quarantined_set))
@@ -137,8 +137,36 @@ async def main(cfg_path: str) -> None:
         cfg.trading.tokens = {k: v for k, v in full_tokens.items() if v.bybit_symbol not in quarantined_set}
         rebuild_denylist_inplace()
 
-    # initial quarantine load/prune
+    # ---- initial quarantine load/prune ----
     q0 = prune_expired(load_quarantine(quarantine_path))
+
+    # ---- BAD_TOKEN_CFG validator (after q0 exists) ----
+    bad_added = False
+    for token_key, t in list(full_tokens.items()):
+        ok = True
+        if not getattr(t, "mint", None):
+            ok = False
+        if getattr(t, "decimals", None) is None:
+            ok = False
+        if not getattr(t, "bybit_symbol", None):
+            ok = False
+
+        if not ok:
+            sym = getattr(t, "bybit_symbol", "") or ""
+            if sym and sym not in q0:
+                q0[sym] = QuarantineEntry(reason="BAD_TOKEN_CFG", until_ts=now_ts() + 24 * 3600)
+                bad_added = True
+                log.warning(
+                    "BAD_TOKEN_CFG: token_key=%s sym=%s mint=%s decimals=%s",
+                    token_key,
+                    sym,
+                    getattr(t, "mint", None),
+                    getattr(t, "decimals", None),
+                )
+
+    if bad_added:
+        save_quarantine(quarantine_path, q0)
+
     quarantined_set = set(q0.keys())
     apply_quarantine_to_cfg()
 
@@ -147,6 +175,7 @@ async def main(cfg_path: str) -> None:
     else:
         log.info("Quarantine empty/disabled. File=%s", quarantine_path)
 
+    # ---- env ----
     tg_token = os.environ.get("TG_BOT_TOKEN")
     jup_key = os.environ.get("JUP_API_KEY")
     if not tg_token:
@@ -176,6 +205,7 @@ async def main(cfg_path: str) -> None:
             min_profit_usd=Decimal(str(cfg.thresholds.min_profit_usd)),
         )
 
+        # token_cfgs passed into engine (keep dict identity stable)
         token_cfgs: dict[str, dict[str, Any]] = {}
         for token_key, t in cfg.trading.tokens.items():
             token_cfgs[token_key] = {"bybit_symbol": t.bybit_symbol, "mint": t.mint, "decimals": t.decimals}
@@ -191,6 +221,7 @@ async def main(cfg_path: str) -> None:
 
             now = now_ts()
 
+            # per-symbol spam guard: 1 quarantine write / 60 sec
             last = last_quarantine_write.get(symbol, 0)
             if (now - last) < 60:
                 return
@@ -201,9 +232,10 @@ async def main(cfg_path: str) -> None:
             async with q_lock:
                 q = prune_expired(load_quarantine(quarantine_path))
                 prev = q.get(symbol)
+
+                # if already quarantined far enough — don't rewrite file
                 if prev is not None and prev.until_ts > (now + 1800):
-                    if symbol not in quarantined_set:
-                        quarantined_set.add(symbol)
+                    quarantined_set.add(symbol)
                     apply_quarantine_to_cfg()
                     rebuild_token_cfgs_inplace()
                     return
@@ -230,11 +262,24 @@ async def main(cfg_path: str) -> None:
         JUP_NOT_TRADABLE_HITS = 1             # сразу выкидываем
         JUP_NO_ROUTE_HITS = 30                # только если стабильно нет маршрута
 
+        # rate-limit quarantines per minute (global for jupiter skips)
+        jup_qrate = {"ts": 0.0, "cnt": 0}
+        JUP_MAX_QUARANTINES_PER_MIN = 10
+
+        def allow_jup_quarantine() -> bool:
+            now2 = time.time()
+            if (now2 - jup_qrate["ts"]) > 60:
+                jup_qrate["ts"] = now2
+                jup_qrate["cnt"] = 0
+            if jup_qrate["cnt"] >= JUP_MAX_QUARANTINES_PER_MIN:
+                return False
+            jup_qrate["cnt"] += 1
+            return True
+
         async def on_jup_skip(code: str, input_mint: str, output_mint: str, bad_mint: str, msg: str) -> None:
-            # определяем "виноватый mint"
+            # determine problematic mint
             m = bad_mint or ""
             if not m:
-                # если явно не дали mint — берём не-stable из пары
                 if output_mint and output_mint != stable_mint:
                     m = output_mint
                 elif input_mint and input_mint != stable_mint:
@@ -245,7 +290,7 @@ async def main(cfg_path: str) -> None:
 
             symbol = mint_to_symbol.get(m)
             if not symbol:
-                return  # не из нашего universe
+                return
 
             now = time.time()
             last = jup_bad_last_ts.get(m, 0.0)
@@ -255,10 +300,14 @@ async def main(cfg_path: str) -> None:
             jup_bad_counts[m] = jup_bad_counts.get(m, 0) + 1
 
             if code == "TOKEN_NOT_TRADABLE" and jup_bad_counts[m] >= JUP_NOT_TRADABLE_HITS:
+                if not allow_jup_quarantine():
+                    return
                 await quarantine_add(symbol, reason="JUP_TOKEN_NOT_TRADABLE", ttl_sec=JUP_NOT_TRADABLE_TTL_SEC)
                 return
 
             if code == "COULD_NOT_FIND_ANY_ROUTE" and jup_bad_counts[m] >= JUP_NO_ROUTE_HITS:
+                if not allow_jup_quarantine():
+                    return
                 await quarantine_add(symbol, reason="JUP_NO_ROUTE", ttl_sec=JUP_NO_ROUTE_TTL_SEC)
                 return
 
@@ -348,6 +397,7 @@ async def main(cfg_path: str) -> None:
                     if bids or asks:
                         ob.apply_delta(bids, asks, now_ms, now_ms)
 
+        # ---- WS cluster ----
         ws_cluster = BybitWSCluster(
             ws_url=cfg.bybit.ws_url,
             depth=cfg.bybit.depth,
@@ -359,6 +409,7 @@ async def main(cfg_path: str) -> None:
         await ws_cluster.start(cfg.bybit.symbols)
         log.info("Bybit WS clients=%d, symbols=%d", len(ws_cluster.clients), len(cfg.bybit.symbols))
 
+        # ---- quarantine sync loop ----
         async def quarantine_sync_loop(poll_sec: float = 10.0) -> None:
             last_mtime = 0.0
             while True:
@@ -405,6 +456,7 @@ async def main(cfg_path: str) -> None:
 
                 await asyncio.sleep(poll_sec)
 
+        # ---- status loop ----
         async def status_loop():
             while True:
                 symbols = list(cfg.bybit.symbols)
@@ -412,8 +464,8 @@ async def main(cfg_path: str) -> None:
 
                 fresh_cnt = 0
                 non_empty_cnt = 0
-
                 FRESH_MS = 2000
+
                 sample_syms = symbols[:5]
                 sample_parts: list[str] = []
 

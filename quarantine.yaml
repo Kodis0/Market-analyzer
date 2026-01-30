@@ -1,5 +1,5 @@
 version: 1
-updated_at_ts: 1769775963
+updated_at_ts: 1769776299
 symbols:
   ACHUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
@@ -82,6 +82,9 @@ symbols:
   IZIUSDT:
     reason: WS_STALE
     until: 1769797540
+  L3USDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1769862699
   LITKEYUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1769862175
@@ -178,6 +181,9 @@ symbols:
   XTZUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1769862184
+  XUSDUSDT:
+    reason: WS_STALE
+    until: 1769797750
   ZKJUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1769862171
