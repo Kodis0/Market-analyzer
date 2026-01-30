@@ -1,0 +1,379 @@
+bybit:
+  symbols:
+  - SOLUSDT
+  - BIRBUSDT
+  - MNTUSDT
+  - PUMPUSDT
+  - VIRTUALUSDT
+  - SKRUSDT
+  - PYBOBOUSDT
+  - JTOUSDT
+  - WHITEWHALEUSDT
+  - FIGHTUSDT
+  - PENGUUSDT
+  - WIFUSDT
+  - RENDERUSDT
+  - TRUMPUSDT
+  - JUPUSDT
+  - WLFIUSDT
+  - HOLOUSDT
+  - WUSDT
+  - PYTHUSDT
+  - BONKUSDT
+  - IOUSDT
+  - POPCATUSDT
+  - WETUSDT
+  - COMMONUSDT
+  - ESUSDT
+  - METUSDT
+  - GRASSUSDT
+  - HNTUSDT
+  - PNUTUSDT
+  - WCTUSDT
+  - BBSOLUSDT
+  - DOODUSDT
+  - 2ZUSDT
+  - KMNOUSDT
+  - AMZNXUSDT
+  - ALCHUSDT
+  - METAXUSDT
+  - DRIFTUSDT
+  - DBRUSDT
+  - CUDISUSDT
+  - PONKEUSDT
+  - COINXUSDT
+  - HUMAUSDT
+  - GOATUSDT
+  - TNSRUSDT
+  - ZEREBROUSDT
+  - CHILLGUYUSDT
+  - MEUSDT
+  - MEWUSDT
+  - SONICUSDT
+  - CLOUDUSDT
+  - ELIZAOSUSDT
+  - HOMEUSDT
+  - PRCLUSDT
+  - BOMEUSDT
+  - BMTUSDT
+  - TUNAUSDT
+  - NEONUSDT
+  - GMTUSDT
+  - KUSDT
+  - TAIUSDT
+  - BANUSDT
+  - SAROSUSDT
+  - WENUSDT
+  - ZEXUSDT
+  - ROAMUSDT
+  - LAYERUSDT
+  - FIDAUSDT
+  - JUSDT
+  - MPLXUSDT
+  - PORTALSUSDT
+  - ACSUSDT
+  - STREAMUSDT
+  - EATUSDT
+  - MCDXUSDT
+trading:
+  tokens:
+    SOL:
+      bybit_symbol: SOLUSDT
+      mint: So11111111111111111111111111111111111111112
+      decimals: 9
+    BIRB:
+      bybit_symbol: BIRBUSDT
+      mint: G7vQWurMkMMm2dU3iZpXYFTHT9Biio4F4gZCrwFpKNwG
+      decimals: 6
+    MNT:
+      bybit_symbol: MNTUSDT
+      mint: 4SoQ8UkWfeDH47T56PA53CZCeW4KytYCiU65CwBWoJUt
+      decimals: 9
+    PUMP:
+      bybit_symbol: PUMPUSDT
+      mint: pumpCmXqMfrsAkQ5r49WcJnRayYRqmXz6ae8H7H9Dfn
+      decimals: 6
+    VIRTUAL:
+      bybit_symbol: VIRTUALUSDT
+      mint: 3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y
+      decimals: 9
+    SKR:
+      bybit_symbol: SKRUSDT
+      mint: SKRbvo6Gf7GondiT3BbTfuRDPqLWei4j2Qy2NPGZhW3
+      decimals: 6
+    PYBOBO:
+      bybit_symbol: PYBOBOUSDT
+      mint: D6xWgRCSHoMEB5fqPwk3p6Stxirn5ytm2WwboSTTx4oE
+      decimals: 6
+    JTO:
+      bybit_symbol: JTOUSDT
+      mint: jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL
+      decimals: 9
+    WHITEWHALE:
+      bybit_symbol: WHITEWHALEUSDT
+      mint: a3W4qutoEJA4232T2gwZUfgYJTetr96pU4SJMwppump
+      decimals: 6
+    FIGHT:
+      bybit_symbol: FIGHTUSDT
+      mint: 8f62NyJGo7He5uWeveTA2JJQf4xzf8aqxkmzxRQ3mxfU
+      decimals: 9
+    PENGU:
+      bybit_symbol: PENGUUSDT
+      mint: 2zMMhcVQEXDtdE6vsFS7S7D5oUodfJHE8vd1gnBouauv
+      decimals: 6
+    $WIF:
+      bybit_symbol: WIFUSDT
+      mint: EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm
+      decimals: 6
+    RENDER:
+      bybit_symbol: RENDERUSDT
+      mint: rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof
+      decimals: 8
+    TRUMP:
+      bybit_symbol: TRUMPUSDT
+      mint: 6p6xgHyF7AeE6TZkSmFsko444wqoP15icUSqi2jfGiPN
+      decimals: 6
+    JUP:
+      bybit_symbol: JUPUSDT
+      mint: JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN
+      decimals: 6
+    WLFI:
+      bybit_symbol: WLFIUSDT
+      mint: WLFinEv6ypjkczcS83FZqFpgFZYwQXutRbxGe7oC16g
+      decimals: 6
+    HOLO:
+      bybit_symbol: HOLOUSDT
+      mint: 69RX85eQoEsnZvXGmLNjYcWgVkp9r2JjahVm99KbJETU
+      decimals: 9
+    W:
+      bybit_symbol: WUSDT
+      mint: 85VBFQZC9TZkfaptBWjvUw7YbZjy52A6mjtPGjstQAmQ
+      decimals: 6
+    PYTH:
+      bybit_symbol: PYTHUSDT
+      mint: HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3
+      decimals: 6
+    BONK:
+      bybit_symbol: BONKUSDT
+      mint: DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263
+      decimals: 5
+    IO:
+      bybit_symbol: IOUSDT
+      mint: BZLbGTNCSFfoth2GYDtwr7e4imWzpR5jqcUuGEwr646K
+      decimals: 8
+    POPCAT:
+      bybit_symbol: POPCATUSDT
+      mint: 7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr
+      decimals: 9
+    WET:
+      bybit_symbol: WETUSDT
+      mint: WETZjtprkDMCcUxPi9PfWnowMRZkiGGHDb9rABuRZ2U
+      decimals: 6
+    COMMON:
+      bybit_symbol: COMMONUSDT
+      mint: H1MHqq1dsExxeuYTd8JZzM51z33RvxjuM5sx2oB11WJ
+      decimals: 9
+    ES:
+      bybit_symbol: ESUSDT
+      mint: BqPqrrQuoQXFGGEAEMnPmDgZ6RWQCajWnY3V6Yp4DZWP
+      decimals: 6
+    MET:
+      bybit_symbol: METUSDT
+      mint: METvsvVRapdj9cFLzq4Tr43xK4tAjQfwX76z3n6mWQL
+      decimals: 6
+    GRASS:
+      bybit_symbol: GRASSUSDT
+      mint: Grass7B4RdKfBCjTKgSqnXkqjwiGvQyFbuSCUJr3XXjs
+      decimals: 9
+    HNT:
+      bybit_symbol: HNTUSDT
+      mint: hntyVP6YFm1Hg25TN9WGLqM12b8TQmcknKrdu1oxWux
+      decimals: 8
+    PNUT:
+      bybit_symbol: PNUTUSDT
+      mint: 2qEHjDLDLbuBgRYvsxhc5D6uDWAivNFZGan56P1tpump
+      decimals: 6
+    WCT:
+      bybit_symbol: WCTUSDT
+      mint: WCTk5xWdn5SYg56twGj32sUF3W4WFQ48ogezLBuYTBY
+      decimals: 9
+    BBSOL:
+      bybit_symbol: BBSOLUSDT
+      mint: Bybit2vBJGhPF52GBdNaQfUJ6ZpThSgHBobjWZpLPb4B
+      decimals: 9
+    DOOD:
+      bybit_symbol: DOODUSDT
+      mint: DvjbEsdca43oQcw2h3HW1CT7N3x5vRcr3QrvTUHnXvgV
+      decimals: 9
+    2Z:
+      bybit_symbol: 2ZUSDT
+      mint: J6pQQ3FAcJQeWPPGppWRb4nM8jU3wLyYbRrLh7feMfvd
+      decimals: 8
+    KMNO:
+      bybit_symbol: KMNOUSDT
+      mint: KMNo3nJsBXfcpJTVhZcXLW7RmTwTt4GVFE7suUBo9sS
+      decimals: 6
+    AMZNX:
+      bybit_symbol: AMZNXUSDT
+      mint: Xs3eBt7uRfJX8QUs4suhyU8p2M6DoUDrJyWBa8LLZsg
+      decimals: 8
+    ALCH:
+      bybit_symbol: ALCHUSDT
+      mint: HNg5PYJmtqcmzXrv6S9zP1CDKk5BgDuyFBxbvNApump
+      decimals: 6
+    METAX:
+      bybit_symbol: METAXUSDT
+      mint: Xsa62P5mvPszXL1krVUnU5ar38bBSVcWAB6fmPCo5Zu
+      decimals: 8
+    DRIFT:
+      bybit_symbol: DRIFTUSDT
+      mint: DriFtupJYLTosbwoN8koMbEYSx54aFAVLddWsbksjwg7
+      decimals: 6
+    DBR:
+      bybit_symbol: DBRUSDT
+      mint: DBRiDgJAMsM95moTzJs7M9LnkGErpbv9v6CUR1DXnUu5
+      decimals: 6
+    CUDIS:
+      bybit_symbol: CUDISUSDT
+      mint: CudisfkgWvMKnZ3TWf6iCuHm8pN2ikXhDcWytwz6f6RN
+      decimals: 9
+    PONKE:
+      bybit_symbol: PONKEUSDT
+      mint: 5z3EqYQo9HiCEs3R84RCDMu2n7anpDMxRhdK8PSWmrRC
+      decimals: 9
+    COINX:
+      bybit_symbol: COINXUSDT
+      mint: Xs7ZdzSHLU9ftNJsii5fCeJhoRWSC32SQGzGQtePxNu
+      decimals: 8
+    HUMA:
+      bybit_symbol: HUMAUSDT
+      mint: HUMA1821qVDKta3u2ovmfDQeW2fSQouSKE8fkF44wvGw
+      decimals: 6
+    GOAT:
+      bybit_symbol: GOATUSDT
+      mint: CzLSujWBLFsSjncfkh59rUFqvafWcY5tzedWJSuypump
+      decimals: 6
+    TNSR:
+      bybit_symbol: TNSRUSDT
+      mint: TNSRxcUxoT9xBG3de7PiJyTDYu7kskLqcpddxnEJAS6
+      decimals: 9
+    ZEREBRO:
+      bybit_symbol: ZEREBROUSDT
+      mint: 8x5VqbHA8D7NkD52uNuS5nnt3PwA8pLD34ymskeSo2Wn
+      decimals: 6
+    CHILLGUY:
+      bybit_symbol: CHILLGUYUSDT
+      mint: Df6yfrKC8kZE3KNkrHERKzAetSxbrWeniQfyJY4Jpump
+      decimals: 6
+    ME:
+      bybit_symbol: MEUSDT
+      mint: MEFNBXixkEbait3xn9bkm8WsJzXtVsaJEn4c8Sam21u
+      decimals: 6
+    MEW:
+      bybit_symbol: MEWUSDT
+      mint: MEW1gQWJ3nEXg2qgERiKu7FAFj79PHvQVREQUzScPP5
+      decimals: 5
+    SONIC:
+      bybit_symbol: SONICUSDT
+      mint: SonicxvLud67EceaEzCLRnMTBqzYUUYNr93DBkBdDES
+      decimals: 9
+    CLOUD:
+      bybit_symbol: CLOUDUSDT
+      mint: CLoUDKc4Ane7HeQcPpE3YHnznRxhMimJ4MyaUqyHFzAu
+      decimals: 9
+    ELIZAOS:
+      bybit_symbol: ELIZAOSUSDT
+      mint: DuMbhu7mvQvqQHGcnikDgb4XegXJRyhUBfdU22uELiZA
+      decimals: 9
+    HOME:
+      bybit_symbol: HOMEUSDT
+      mint: J3umBWqhSjd13sag1E1aUojViWvPYA5dFNyqpKuX3WXj
+      decimals: 9
+    PRCL:
+      bybit_symbol: PRCLUSDT
+      mint: 4LLbsb5ReP3yEtYzmXewyGjcir5uXtKFURtaEUVC2AHs
+      decimals: 6
+    BOME:
+      bybit_symbol: BOMEUSDT
+      mint: ukHH6c7mMyiWCf1b9pnWe25TSpkDDt3H5pQZgZ74J82
+      decimals: 6
+    BMT:
+      bybit_symbol: BMTUSDT
+      mint: FQgtfugBdpFN7PZ6NdPrZpVLDBrPGxXesi4gVu3vErhY
+      decimals: 9
+    TUNA:
+      bybit_symbol: TUNAUSDT
+      mint: TUNAfXDZEdQizTMTh3uEvNvYqJmqFHZbEJt8joP4cyx
+      decimals: 6
+    NEON:
+      bybit_symbol: NEONUSDT
+      mint: NeonTjSjsuo3rexg9o6vHuMXw62f9V7zvmu8M8Zut44
+      decimals: 9
+    GMT:
+      bybit_symbol: GMTUSDT
+      mint: 7i5KKsX2weiTkry7jA4ZwSuXGhs5eJBEjY8vVxR4pfRx
+      decimals: 9
+    K:
+      bybit_symbol: KUSDT
+      mint: ERpDpYmuifJUKbaB1Dv9hnJ67RM21Jujmxz18JCeDzbr
+      decimals: 9
+    TAI:
+      bybit_symbol: TAIUSDT
+      mint: Hax9LTgsQkze1YFychnBLtFH8gYbQKtKfWKKg2SP6gdD
+      decimals: 9
+    BAN:
+      bybit_symbol: BANUSDT
+      mint: 9PR7nCP9DpcUotnDPVLUBUZKu5WAYkwrCUx9wDnSpump
+      decimals: 6
+    SAROS:
+      bybit_symbol: SAROSUSDT
+      mint: SarosY6Vscao718M4A778z4CGtvcwcGef5M9MEH1LGL
+      decimals: 6
+    WEN:
+      bybit_symbol: WENUSDT
+      mint: WENWENvqqNya429ubCdR81ZmD69brwQaaBYY6p3LCpk
+      decimals: 5
+    ZEX:
+      bybit_symbol: ZEXUSDT
+      mint: ZEXy1pqteRu3n13kdyh4LwPQknkFk3GzmMYMuNadWPo
+      decimals: 6
+    ROAM:
+      bybit_symbol: ROAMUSDT
+      mint: RoamA1USA8xjvpTJZ6RvvxyDRzNh6GCA1zVGKSiMVkn
+      decimals: 6
+    LAYER:
+      bybit_symbol: LAYERUSDT
+      mint: LAYER4xPpTCb3QL8S9u41EAhAX7mhBn8Q6xMTwY2Yzc
+      decimals: 9
+    FIDA:
+      bybit_symbol: FIDAUSDT
+      mint: EchesyfXePKdLtoiZSL8pBe8Myagyy8ZRqsACNCFGnvp
+      decimals: 6
+    J:
+      bybit_symbol: JUSDT
+      mint: Jambjx1oJoZNBZiqbiF9TqgatEZPdyfvYa9WVsKNzUh
+      decimals: 9
+    MPLX:
+      bybit_symbol: MPLXUSDT
+      mint: METAewgxyPbgwsseH8T16a39CQ5VyVxZi9zXiDPY18m
+      decimals: 6
+    PORTALS:
+      bybit_symbol: PORTALSUSDT
+      mint: PRTLSwfLzpVGSAQiUfXEenJkq1cwTsEcsn1hPL9zwwg
+      decimals: 9
+    ACS:
+      bybit_symbol: ACSUSDT
+      mint: 5MAYDfq5yxtudAhtfyuMBuHZjgAbaS9tbEyEQYAhDS5y
+      decimals: 6
+    STREAM:
+      bybit_symbol: STREAMUSDT
+      mint: STREAMribRwybYpMmSYoCsQUdr6MZNXEqHgm7p1gu9M
+      decimals: 6
+    EAT:
+      bybit_symbol: EATUSDT
+      mint: 375aiUqZERLrB9sHtsArKr4nuWCgBrtqibUDBMGeLvZC
+      decimals: 9
+    MCDX:
+      bybit_symbol: MCDXUSDT
+      mint: XsqE9cRRpzxcGKDXj1BJ7Xmg4GRhZoyY1KpmGSxAWT2
+      decimals: 8
