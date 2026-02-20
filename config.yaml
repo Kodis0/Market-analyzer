@@ -2343,6 +2343,7 @@ telegram:
   chat_id: -1003881338901
   thread_id: null
   web_app_url: https://t.me/AutoArbitrage0Bot/market
+  # api_base_url: http://109.73.199.154:8080  # URL API для дашборда. Добавь ?api=... в URL Mini App в BotFather
   pinned_message_text: |
     Навигация по единой торговой системе.
     Здесь собраны все инструменты для мониторинга арбитражных возможностей между Jupiter и Bybit.

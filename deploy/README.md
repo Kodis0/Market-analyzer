@@ -52,7 +52,12 @@ sudo systemctl enable market-analyzer
 sudo systemctl start market-analyzer
 ```
 
-### 5. Добавить SSH-ключ для деплоя в authorized_keys
+### 5. Открыть порт 8080 для API (дашборд)
+
+API слушает порт 8080. В панели Timeweb: **Сеть** → **Firewall** → разреши входящий TCP 8080.  
+Либо: `sudo ufw allow 8080 && sudo ufw reload` (если используется ufw).
+
+### 6. Добавить SSH-ключ для деплоя в authorized_keys
 
 На **Windows** (PowerShell):
 
@@ -73,6 +78,13 @@ nano ~/.ssh/authorized_keys
 chmod 700 ~/.ssh
 chmod 600 ~/.ssh/authorized_keys
 ```
+
+---
+
+### 7. URL для Mini App дашборда
+
+В BotFather при настройке Mini App укажи URL с параметром API:  
+`https://твой-фронт.pages.dev?api=http://IP_СЕРВЕРА:8080`
 
 ---
 

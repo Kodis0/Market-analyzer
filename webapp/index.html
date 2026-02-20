@@ -7,13 +7,16 @@
   <title>Market Analyzer</title>
   <style>
     :root {
-      --bg: rgb(0, 255, 21);
-      --bg-card: #16213e;
-      --accent-jup: #00d9ff;
-      --accent-bybit: #f7931a;
-      --text: #e8e8e8;
-      --text-dim: #8b8b9e;
-      --border: #2a2a4a;
+      --bg: #0d0d0f;
+      --bg-card: #16161a;
+      --bg-card-hover: #1c1c21;
+      --accent-jup: #22d3ee;
+      --accent-bybit: #f59e0b;
+      --text: #f4f4f5;
+      --text-dim: #71717a;
+      --border: #27272a;
+      --success: #22c55e;
+      --error: #ef4444;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
@@ -23,44 +26,48 @@
       color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 14px;
+      -webkit-font-smoothing: antialiased;
     }
-    body { padding: 12px; padding-bottom: 24px; }
+    body { padding: 16px; padding-bottom: 32px; }
 
     .header {
       text-align: center;
-      margin-bottom: 16px;
+      margin-bottom: 24px;
     }
     .header h1 {
-      font-size: 1.25rem;
+      font-size: 1.35rem;
       font-weight: 600;
       color: var(--text);
+      letter-spacing: -0.02em;
     }
     .header p {
       font-size: 0.8rem;
       color: var(--text-dim);
-      margin-top: 4px;
+      margin-top: 6px;
     }
 
     .period-tabs {
       display: flex;
       gap: 8px;
-      margin-bottom: 16px;
+      margin-bottom: 20px;
       flex-wrap: wrap;
     }
     .period-tabs button {
       flex: 1;
-      min-width: 60px;
-      padding: 10px 12px;
+      min-width: 70px;
+      padding: 12px 14px;
       border: 1px solid var(--border);
-      border-radius: 10px;
+      border-radius: 12px;
       background: var(--bg-card);
       color: var(--text);
-      font-size: 0.85rem;
+      font-size: 0.9rem;
+      font-weight: 500;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.2s ease;
     }
     .period-tabs button:hover {
-      background: var(--border);
+      background: var(--bg-card-hover);
+      border-color: var(--text-dim);
     }
     .period-tabs button.active {
       background: var(--accent-jup);
@@ -70,38 +77,43 @@
 
     .chart-card {
       background: var(--bg-card);
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 16px;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 20px;
       border: 1px solid var(--border);
     }
     .chart-card h2 {
-      font-size: 0.95rem;
-      font-weight: 600;
-      margin-bottom: 12px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      margin-bottom: 16px;
       color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
     .chart-wrap {
       width: 100%;
-      height: 200px;
+      height: 220px;
       position: relative;
+      background: rgba(0,0,0,0.2);
+      border-radius: 12px;
     }
     .chart-canvas {
       width: 100%;
       height: 100%;
       display: block;
+      border-radius: 12px;
     }
 
     .legend {
       display: flex;
-      gap: 20px;
-      margin-top: 12px;
-      font-size: 0.8rem;
+      gap: 24px;
+      margin-top: 16px;
+      font-size: 0.85rem;
     }
     .legend-item {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
     }
     .legend-dot {
       width: 10px;
@@ -111,27 +123,64 @@
     .legend-dot.jupiter { background: var(--accent-jup); }
     .legend-dot.bybit { background: var(--accent-bybit); }
 
-    .loading, .error {
-      text-align: center;
-      padding: 40px 20px;
-      color: var(--text-dim);
+    .stats-row {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+      flex-wrap: wrap;
     }
-    .error { color: #ff6b6b; }
+    .stat-badge {
+      padding: 8px 14px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+    .stat-badge.jupiter { background: rgba(34, 211, 238, 0.15); color: var(--accent-jup); }
+    .stat-badge.bybit { background: rgba(245, 158, 11, 0.15); color: var(--accent-bybit); }
+
+    .status {
+      text-align: center;
+      padding: 16px;
+      font-size: 0.9rem;
+      border-radius: 12px;
+      margin-bottom: 16px;
+    }
+    .status.loading {
+      color: var(--text-dim);
+      background: var(--bg-card);
+      border: 1px dashed var(--border);
+    }
+    .status.error {
+      color: var(--error);
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    .status.success {
+      color: var(--success);
+      font-size: 0.8rem;
+    }
 
     .footer {
       text-align: center;
-      margin-top: 20px;
+      margin-top: 24px;
       font-size: 0.75rem;
       color: var(--text-dim);
+    }
+    .footer code {
+      background: var(--bg-card);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.7rem;
     }
 
     @media (prefers-color-scheme: light) {
       :root {
-        --bg: #f5f5f7;
+        --bg: #fafafa;
         --bg-card: #fff;
-        --text: #1d1d1f;
-        --text-dim: #6e6e73;
-        --border: #d2d2d7;
+        --bg-card-hover: #f4f4f5;
+        --text: #18181b;
+        --text-dim: #52525b;
+        --border: #e4e4e7;
       }
       .period-tabs button.active {
         color: #fff;
@@ -162,9 +211,10 @@
         <span class="legend-item"><span class="legend-dot jupiter"></span> Jupiter</span>
         <span class="legend-item"><span class="legend-dot bybit"></span> Bybit</span>
       </div>
+      <div id="stats-row" class="stats-row" style="display:none;"></div>
     </div>
 
-    <div id="status" class="loading">Загрузка...</div>
+    <div id="status" class="status loading">Загрузка...</div>
     <div class="footer">
       API: <code id="api-display">—</code> • Обнови страницу для новых данных
     </div>
@@ -172,11 +222,13 @@
 
   <script>
     (function() {
+      const params = new URLSearchParams(location.search);
       const tg = window.Telegram?.WebApp;
       const startParam = tg?.startParam;
-      const API_BASE = startParam
-        ? decodeURIComponent(startParam)
-        : (document.getElementById('app').dataset.apiUrl || 'http://localhost:8080');
+      const apiParam = params.get('api');
+      const API_BASE = (apiParam ? decodeURIComponent(apiParam).trim() : null)
+        || (startParam ? decodeURIComponent(startParam) : null)
+        || (document.getElementById('app').dataset.apiUrl || 'http://localhost:8080');
       document.getElementById('api-display').textContent = API_BASE;
 
       let currentPeriod = '1h';
@@ -192,28 +244,29 @@
 
       function drawChart(data) {
         const w = ctx.canvas.width || 300;
-        const h = ctx.canvas.height || 200;
+        const h = ctx.canvas.height || 220;
+        ctx.clearRect(0, 0, w, h);
+
         if (!data || data.length === 0) {
-          ctx.fillStyle = '#8b8b9e';
+          ctx.fillStyle = '#71717a';
           ctx.font = '14px sans-serif';
           ctx.textAlign = 'center';
           ctx.fillText('Нет данных', w / 2, h / 2);
           return;
         }
-        const padding = { top: 20, right: 40, bottom: 30, left: 50 };
+
+        const padding = { top: 24, right: 24, bottom: 32, left: 48 };
         const chartW = w - padding.left - padding.right;
         const chartH = h - padding.top - padding.bottom;
-
-        ctx.clearRect(0, 0, w, h);
 
         const jupMax = Math.max(1, ...data.map(d => d.jupiter || 0));
         const bybitMax = Math.max(1, ...data.map(d => d.bybit || 0));
         const yMax = Math.max(jupMax, bybitMax, 1);
 
-        const jupColor = '#00d9ff';
-        const bybitColor = '#f7931a';
+        const jupColor = '#22d3ee';
+        const bybitColor = '#f59e0b';
 
-        function drawLine(values, color, key) {
+        function drawLine(key, color) {
           const arr = data.map(d => d[key] || 0);
           ctx.beginPath();
           for (let i = 0; i < arr.length; i++) {
@@ -223,42 +276,59 @@
             else ctx.lineTo(x, y);
           }
           ctx.strokeStyle = color;
-          ctx.lineWidth = 2;
+          ctx.lineWidth = 2.5;
           ctx.lineJoin = 'round';
           ctx.lineCap = 'round';
           ctx.stroke();
         }
 
-        drawLine(data, jupColor, 'jupiter');
-        drawLine(data, bybitColor, 'bybit');
+        drawLine('jupiter', jupColor);
+        drawLine('bybit', bybitColor);
 
-        // X labels
-        ctx.fillStyle = '#8b8b9e';
+        ctx.fillStyle = '#71717a';
         ctx.font = '10px sans-serif';
         ctx.textAlign = 'center';
         const step = Math.max(1, Math.floor(data.length / 5));
         for (let i = 0; i < data.length; i += step) {
           const x = padding.left + (i / Math.max(1, data.length - 1)) * chartW;
-          ctx.fillText(formatTime(data[i].ts, currentPeriod), x, h - 8);
+          ctx.fillText(formatTime(data[i].ts, currentPeriod), x, h - 10);
         }
+      }
+
+      function updateStats(data) {
+        const el = document.getElementById('stats-row');
+        if (!data || data.length === 0) {
+          el.style.display = 'none';
+          return;
+        }
+        const totalJup = data.reduce((s, d) => s + (d.jupiter || 0), 0);
+        const totalBybit = data.reduce((s, d) => s + (d.bybit || 0), 0);
+        if (totalJup === 0 && totalBybit === 0) {
+          el.style.display = 'none';
+          return;
+        }
+        el.style.display = 'flex';
+        el.innerHTML = '<span class="stat-badge jupiter">Jupiter: ' + totalJup + '</span><span class="stat-badge bybit">Bybit: ' + totalBybit + '</span>';
       }
 
       async function fetchAndDraw() {
         const statusEl = document.getElementById('status');
-        statusEl.className = 'loading';
+        statusEl.className = 'status loading';
         statusEl.textContent = 'Загрузка...';
 
         try {
-          const r = await fetch(API_BASE + '/api/stats?period=' + currentPeriod);
+          const r = await fetch(API_BASE.replace(/\/$/, '') + '/api/stats?period=' + currentPeriod);
           if (!r.ok) throw new Error('HTTP ' + r.status);
           const data = await r.json();
-          statusEl.className = '';
-          statusEl.textContent = '';
+          statusEl.className = 'status success';
+          statusEl.textContent = 'Данные загружены';
           drawChart(data);
+          updateStats(data);
         } catch (e) {
-          statusEl.className = 'error';
-          statusEl.textContent = 'Ошибка: ' + e.message + '. Проверь API_URL и что бот запущен.';
+          statusEl.className = 'status error';
+          statusEl.textContent = 'Ошибка: ' + e.message + '. Укажи ?api=http://IP:8080 в URL или проверь, что бот запущен и порт 8080 открыт.';
           drawChart([]);
+          document.getElementById('stats-row').style.display = 'none';
         }
       }
 

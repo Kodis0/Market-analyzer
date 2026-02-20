@@ -6,12 +6,12 @@
 
 График получает данные от API, который запускается вместе с ботом (порт 8080 по умолчанию, `API_PORT` в .env).
 
-**Важно:** API должен быть доступен по HTTPS с того же домена или с CORS. Для продакшена:
-1. Запусти бота на VPS
-2. Настрой nginx/reverse proxy с SSL для порта API
-3. В BotFather при создании Direct Link укажи URL с параметром: `https://твой-домен.com?startapp=https://api.твой-домен.com`
+**Важно:** API должен быть доступен с фронта (CORS включён). Для продакшена:
+1. Запусти бота на VPS (API на порту 8080)
+2. Открой порт 8080 в firewall или настрой nginx с SSL
+3. В BotFather при создании Mini App укажи URL с параметром: `https://твой-фронт.pages.dev?api=http://IP:8080`
 
-Либо измени `data-api-url` в index.html на URL твоего API.
+Пример: `https://market-analyzer-9kk.pages.dev?api=http://109.73.199.154:8080`
 
 ## Деплой (бесплатно)
 
