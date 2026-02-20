@@ -637,7 +637,6 @@ async def main(cfg_path: str) -> None:
                     stop_event=commands_stop,
                     web_app_url=getattr(cfg.telegram, "web_app_url", None),
                     pinned_message_text=getattr(cfg.telegram, "pinned_message_text", None),
-                    api_base_url=getattr(cfg.telegram, "api_base_url", None) or os.environ.get("API_BASE_URL"),
                 ),
                 name="settings_cmd",
             ),
