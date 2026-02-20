@@ -97,7 +97,6 @@ def _make_navigation_button_payload(
     web_app_url: Optional[str],
     pinned_text: Optional[str] = None,
 ) -> dict:
-    """Payload для отправки сообщения с кнопкой «Навигация»."""
     text = (pinned_text or DEFAULT_PINNED_TEXT).strip() or DEFAULT_PINNED_TEXT
     payload: dict = {
         "chat_id": chat_id,
@@ -108,22 +107,20 @@ def _make_navigation_button_payload(
     if thread_id is not None:
         payload["message_thread_id"] = thread_id
 
-    if web_app_url and web_app_url.strip().startswith("https://"):
+    url = (web_app_url or "").strip()
+    if url.startswith("https://"):
         payload["reply_markup"] = {
             "inline_keyboard": [[
-                {"text": "НАВИГАЦИЯ", "web_app": {"url": web_app_url.strip()}},
+                {"text": "НАВИГАЦИЯ", "url": url},
             ]],
         }
     else:
         payload["reply_markup"] = {
             "inline_keyboard": [[
-                {"text": "НАВИГАЦИЯ", "url": "https://t.me/BotFather"},
+                {"text": "НАВИГАЦИЯ", "url": "https://t.me/AutoArbitrage0Bot/market"},
             ]],
         }
-        payload["text"] = (
-            "Добавь web_app_url в config.yaml (telegram.web_app_url) — URL твоего Web App. "
-            "Задеплой папку webapp/ на netlify.com/drop или surge.sh."
-        )
+
     return payload
 
 

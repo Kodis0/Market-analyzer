@@ -2342,7 +2342,7 @@ logging:
 telegram:
   chat_id: -1003881338901
   thread_id: null
-  # web_app_url: https://your-app.netlify.app  # URL после деплоя webapp/
+  web_app_url: https://t.me/AutoArbitrage0Bot/market
   pinned_message_text: |
     Навигация по единой торговой системе.
     Здесь собраны все инструменты для мониторинга арбитражных возможностей между Jupiter и Bybit.

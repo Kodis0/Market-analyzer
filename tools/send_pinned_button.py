@@ -60,7 +60,7 @@ async def main() -> None:
     if web_app_url and str(web_app_url).strip().startswith("https://"):
         payload["reply_markup"] = {
             "inline_keyboard": [[
-                {"text": "НАВИГАЦИЯ", "web_app": {"url": str(web_app_url).strip()}},
+                {"text": "НАВИГАЦИЯ", "url": str(web_app_url).strip()},
             ]],
         }
     else:

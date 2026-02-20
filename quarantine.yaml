@@ -1,5 +1,5 @@
 version: 1
-updated_at_ts: 1771584607
+updated_at_ts: 1771588354
 symbols:
   AAVEUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
@@ -70,6 +70,9 @@ symbols:
   DOGEUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771668496
+  DOGSUSDT:
+    reason: WS_STALE
+    until: 1771609954
   DYDXUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771589205
@@ -109,6 +112,9 @@ symbols:
   GAIBUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771588880
+  GLMRUSDT:
+    reason: WS_STALE
+    until: 1771609237
   HAEDALUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771588826
@@ -193,6 +199,9 @@ symbols:
   NAVXUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771589571
+  NIBIUSDT:
+    reason: WS_STALE
+    until: 1771607731
   NXPCUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771589541
@@ -211,6 +220,9 @@ symbols:
   PEPEUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771668502
+  PERPUSDT:
+    reason: WS_STALE
+    until: 1771607536
   PIEVERSEUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771589536
