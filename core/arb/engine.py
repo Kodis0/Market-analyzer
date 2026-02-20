@@ -19,7 +19,7 @@ from .persistence import Persistence
 from .stats import SkipStats
 from .denylist import Denylist
 from .poller import QuotePoller
-from .utils import bybit_spot_url, jup_swap_url, to_raw, from_raw, snapshot_book
+from .utils import bybit_spot_url, jup_swap_url_by_symbol, to_raw, from_raw, snapshot_book
 
 log = logging.getLogger("engine")
 getcontext().prec = 28
@@ -210,8 +210,8 @@ class ArbEngine:
             required = self.thresholds.required_profit_usd(self.notional)
 
             bybit_url = bybit_spot_url(bybit_symbol)
-            jup_buy_url = jup_swap_url(self.stable_mint, mint)
-            jup_sell_url = jup_swap_url(mint, self.stable_mint)
+            jup_buy_url = jup_swap_url_by_symbol(bybit_symbol, buy=True)
+            jup_sell_url = jup_swap_url_by_symbol(bybit_symbol, buy=False)
 
             # ---------- A) Jupiter -> Bybit ----------
             a_key = f"{token_key}:A"
@@ -262,6 +262,8 @@ class ArbEngine:
                                                 self._dbg_inc("A_skip_dedup")
                                             else:
                                                 net_pct = (profit / self.notional) * Decimal("100")
+                                                price_jup = self.notional / token_out
+                                                price_bybit = sim_sell.avg_price
                                                 text = (
                                                     f"🚨 <b>АРБИТРАЖ</b> • <b>{token_key}</b>\n"
                                                     f"Маршрут: <b>Jupiter → Bybit</b>\n"
@@ -269,10 +271,8 @@ class ArbEngine:
                                                     f"Ожидаемый выход: <code>{stable_out:.2f} USDT</code>\n"
                                                     f"Чистая прибыль: <b>{profit:.2f}$</b> (<b>{net_pct:.2f}%</b>)\n"
                                                     f"Комиссии/запас: <code>{required:.2f}$</code>\n"
-                                                    f"DEX impact: <code>{Decimal(str(j_buy.price_impact_pct)):.4f}%</code> • "
-                                                    f"CEX slip: <code>{Decimal(str(sim_sell.slippage_bps)):.2f} bps</code>\n"
-                                                    f"Spread: <code>{spread_bps:.1f} bps</code> • Depth: <code>{depth_cov:.1f}%</code>\n"
-                                                    f"Возраст стакана: <code>{ob.age_ms()} ms</code>"
+                                                    f"Цена на Jupiter: <code>{price_jup:.6f}$</code>\n"
+                                                    f"Цена на Bybit: <code>{price_bybit:.6f}$</code>"
                                                 )
                                                 buttons: Buttons = [[
                                                     ("🟢 Купить на Jupiter", jup_buy_url),
@@ -378,6 +378,8 @@ class ArbEngine:
                                                 self._dbg_inc("B_skip_dedup")
                                             else:
                                                 net_pct2 = (profit2 / self.notional) * Decimal("100")
+                                                price_bybit2 = sim_buy2.avg_price
+                                                price_jup2 = stable_out2 / token_out2
                                                 text2 = (
                                                     f"🚨 <b>АРБИТРАЖ</b> • <b>{token_key}</b>\n"
                                                     f"Маршрут: <b>Bybit → Jupiter</b>\n"
@@ -385,10 +387,8 @@ class ArbEngine:
                                                     f"Ожидаемый выход: <code>{stable_out2:.2f} USDT</code>\n"
                                                     f"Чистая прибыль: <b>{profit2:.2f}$</b> (<b>{net_pct2:.2f}%</b>)\n"
                                                     f"Комиссии/запас: <code>{required:.2f}$</code>\n"
-                                                    f"DEX impact: <code>{Decimal(str(j_sell.price_impact_pct)):.4f}%</code> • "
-                                                    f"CEX slip: <code>{Decimal(str(sim_buy2.slippage_bps)):.2f} bps</code>\n"
-                                                    f"Spread: <code>{spread_bps:.1f} bps</code> • Depth: <code>{depth_cov2:.1f}%</code>\n"
-                                                    f"Возраст стакана: <code>{ob.age_ms()} ms</code>"
+                                                    f"Цена на Bybit: <code>{price_bybit2:.6f}$</code>\n"
+                                                    f"Цена на Jupiter: <code>{price_jup2:.6f}$</code>"
                                                 )
                                                 buttons2: Buttons = [[
                                                     ("🟠 Купить на Bybit", bybit_url),

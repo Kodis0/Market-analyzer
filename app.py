@@ -80,7 +80,10 @@ class BybitWSCluster:
                     depth=self.depth,
                     ping_interval_sec=self.ping_interval_sec,
                     on_orderbook_message=self.on_orderbook_message,
+                    subscribe_batch=5,
+                    subscribe_ack_timeout=12.0,
                 )
+
                 self._clients.append(c)
                 self._tasks.append(asyncio.create_task(c.run(), name=f"bybit_ws_{len(self._clients)}"))
 
