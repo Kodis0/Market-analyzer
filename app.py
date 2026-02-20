@@ -110,6 +110,13 @@ async def main(cfg_path: str) -> None:
     # ---- paths ----
     cfg_dir = os.path.dirname(os.path.abspath(cfg_path))
     settings_path = os.path.join(cfg_dir, "settings.json")
+    api_db_path = os.path.join(cfg_dir, "request_stats.db")
+
+    # ---- API (stats for Mini App) ----
+    from api import db as api_db
+
+    api_db.log = log
+    api_db.init(api_db_path)
 
     quarantine_path = raw.get("quarantine_path") if isinstance(raw, dict) else None
     if not quarantine_path:
@@ -342,6 +349,14 @@ async def main(cfg_path: str) -> None:
                 await quarantine_add(symbol, reason="JUP_NO_ROUTE", ttl_sec=JUP_NO_ROUTE_TTL_SEC)
                 return
 
+        def _record_jupiter(source: str, count: int = 1) -> None:
+            try:
+                from api.db import record
+
+                record(source, count)
+            except Exception:
+                pass
+
         jup = JupiterClient(
             session=session,
             base_url=cfg.jupiter.base_url,
@@ -354,6 +369,7 @@ async def main(cfg_path: str) -> None:
             concurrency=cfg.rate_limits.jupiter_concurrency,
             max_retries=cfg.rate_limits.jupiter_max_retries,
             on_skip=on_jup_skip,
+            on_request=_record_jupiter,
         )
 
         engine = ArbEngine(
@@ -383,7 +399,16 @@ async def main(cfg_path: str) -> None:
             reply_markup = sig.to_reply_markup() if hasattr(sig, "to_reply_markup") else None
             await tg.upsert(sig.key, sig.text, reply_markup=reply_markup)
 
+        def _record_bybit() -> None:
+            try:
+                from api.db import record
+
+                record("bybit", 1)
+            except Exception:
+                pass
+
         async def on_ob(msg: dict) -> None:
+            _record_bybit()
             topic = str(msg.get("topic", "") or "")
             typ = str(msg.get("type", "") or "")
             data = msg.get("data")
@@ -588,7 +613,13 @@ async def main(cfg_path: str) -> None:
             engine.reload_settings(s)
             tg.update_stale_settings(s.stale_ttl_sec, s.delete_stale)
 
+        api_port = int(os.environ.get("PORT") or os.environ.get("API_PORT") or "8080")
+
         tasks: list[asyncio.Task] = [
+            asyncio.create_task(
+                __import__("api.server", fromlist=["run_server"]).run_server(host="0.0.0.0", port=api_port),
+                name="api_server",
+            ),
             asyncio.create_task(quarantine_sync_loop(), name="quarantine_sync"),
             asyncio.create_task(engine.quote_poller(), name="jup_poller"),
             asyncio.create_task(engine.run(on_signal), name="arb_engine"),
@@ -606,6 +637,7 @@ async def main(cfg_path: str) -> None:
                     stop_event=commands_stop,
                     web_app_url=getattr(cfg.telegram, "web_app_url", None),
                     pinned_message_text=getattr(cfg.telegram, "pinned_message_text", None),
+                    api_base_url=getattr(cfg.telegram, "api_base_url", None) or os.environ.get("API_BASE_URL"),
                 ),
                 name="settings_cmd",
             ),

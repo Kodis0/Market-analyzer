@@ -1,177 +1,870 @@
 version: 1
-updated_at_ts: 1771588990
+updated_at_ts: 1771593375
 symbols:
+  0GUSDT:
+    reason: WS_STALE
+    until: 1771613786
+  1INCHUSDT:
+    reason: WS_STALE
+    until: 1771613785
+  2ZUSDT:
+    reason: WS_STALE
+    until: 1771613786
+  A8USDT:
+    reason: WS_STALE
+    until: 1771614974
   AAVEUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771675321
   ACHUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771675325
+  ACSUSDT:
+    reason: WS_STALE
+    until: 1771614233
+  ADAUSDT:
+    reason: WS_STALE
+    until: 1771614060
+  AEROUSDT:
+    reason: WS_STALE
+    until: 1771614064
   AEVOUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771675321
   AFCUSDT:
     reason: WS_STALE
     until: 1771604232
+  AGIUSDT:
+    reason: WS_STALE
+    until: 1771614232
   AGLDUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771589064
+    until: 1771678611
+  AIOZUSDT:
+    reason: WS_STALE
+    until: 1771614232
+  AIXBTUSDT:
+    reason: WS_STALE
+    until: 1771613786
+  ALCHUSDT:
+    reason: WS_STALE
+    until: 1771614099
+  ALGOUSDT:
+    reason: WS_STALE
+    until: 1771614064
   ALMANAKUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771589086
+    until: 1771678189
+  ALTUSDT:
+    reason: WS_STALE
+    until: 1771614972
+  AMIUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1771678061
   AMZNXUSDT:
     reason: WS_STALE
     until: 1771604082
+  ANIMEUSDT:
+    reason: WS_STALE
+    until: 1771614974
+  ANKRUSDT:
+    reason: WS_STALE
+    until: 1771614232
   AOUSDT:
-    reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771589080
+    reason: WS_STALE
+    until: 1771610819
+  APEUSDT:
+    reason: WS_STALE
+    until: 1771614099
+  APEXUSDT:
+    reason: WS_STALE
+    until: 1771613495
+  APTUSDT:
+    reason: WS_STALE
+    until: 1771614063
+  ARBUSDT:
+    reason: WS_STALE
+    until: 1771614062
   ARKMUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771675321
   ARTYUSDT:
     reason: WS_STALE
     until: 1771605103
+  ARUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1771678053
+  ASTERUSDT:
+    reason: WS_STALE
+    until: 1771614060
+  ATHUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1771678128
   ATOMUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771606635
+  AURORAUSDT:
+    reason: WS_STALE
+    until: 1771614233
+  AUSDT:
+    reason: WS_STALE
+    until: 1771614064
+  AVAILUSDT:
+    reason: WS_STALE
+    until: 1771614233
+  AVAUSDT:
+    reason: WS_STALE
+    until: 1771613495
+  AVAXUSDT:
+    reason: WS_STALE
+    until: 1771614061
   AVLUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771675322
   AVNTUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771589525
+    until: 1771678128
+  AXLUSDT:
+    reason: WS_STALE
+    until: 1771613786
+  AXSUSDT:
+    reason: WS_STALE
+    until: 1771614064
+  B3USDT:
+    reason: WS_STALE
+    until: 1771614232
+  BABY1USDT:
+    reason: WS_STALE
+    until: 1771613923
+  BABYDOGEUSDT:
+    reason: WS_STALE
+    until: 1771613787
+  BANUSDT:
+    reason: WS_STALE
+    until: 1771614973
+  BARDUSDT:
+    reason: WS_STALE
+    until: 1771614063
+  BATUSDT:
+    reason: WS_STALE
+    until: 1771613787
+  BBSOLUSDT:
+    reason: WS_STALE
+    until: 1771613786
+  BBUSDT:
+    reason: WS_STALE
+    until: 1771614974
+  BCHUSDT:
+    reason: WS_STALE
+    until: 1771614060
+  BDXNUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1771678058
+  BEAMUSDT:
+    reason: WS_STALE
+    until: 1771613787
+  BELUSDT:
+    reason: WS_STALE
+    until: 1771614233
+  BERAUSDT:
+    reason: WS_STALE
+    until: 1771613785
+  BICOUSDT:
+    reason: WS_STALE
+    until: 1771613495
+  BIRBUSDT:
+    reason: WS_STALE
+    until: 1771614061
+  BLASTUSDT:
+    reason: WS_STALE
+    until: 1771613786
+  BLURUSDT:
+    reason: WS_STALE
+    until: 1771614973
+  BMTUSDT:
+    reason: WS_STALE
+    until: 1771614973
+  BNBUSDT:
+    reason: WS_STALE
+    until: 1771614059
+  BOBAUSDT:
+    reason: WS_STALE
+    until: 1771614233
+  BOMEUSDT:
+    reason: WS_STALE
+    until: 1771614974
+  BONKUSDT:
+    reason: WS_STALE
+    until: 1771614064
+  BRETTUSDT:
+    reason: WS_STALE
+    until: 1771613786
+  BREVUSDT:
+    reason: WS_STALE
+    until: 1771613785
+  BRUSDT:
+    reason: WS_STALE
+    until: 1771614232
+  BTCUSDT:
+    reason: WS_STALE
+    until: 1771614059
+  BTTUSDT:
+    reason: WS_STALE
+    until: 1771614232
+  C98USDT:
+    reason: WS_STALE
+    until: 1771614973
+  CAKEUSDT:
+    reason: WS_STALE
+    until: 1771614063
+  CAMPUSDT:
+    reason: WS_STALE
+    until: 1771614974
+  CARVUSDT:
+    reason: WS_STALE
+    until: 1771613786
+  CATIUSDT:
+    reason: WS_STALE
+    until: 1771614974
   CATUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771675324
+  CBKUSDT:
+    reason: WS_STALE
+    until: 1771614233
+  CCUSDT:
+    reason: WS_STALE
+    until: 1771614060
+  CELOUSDT:
+    reason: WS_STALE
+    until: 1771613785
   CFGUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771675328
+  CGPTUSDT:
+    reason: WS_STALE
+    until: 1771613495
+  CHILLGUYUSDT:
+    reason: WS_STALE
+    until: 1771614972
+  CHZUSDT:
+    reason: WS_STALE
+    until: 1771613573
   CITYUSDT:
     reason: WS_STALE
     until: 1771604292
+  CLOUDUSDT:
+    reason: WS_STALE
+    until: 1771611749
+  CMETHUSDT:
+    reason: WS_STALE
+    until: 1771614975
+  COINXUSDT:
+    reason: WS_STALE
+    until: 1771613989
+  COMMONUSDT:
+    reason: WS_STALE
+    until: 1771613575
+  COMPUSDT:
+    reason: WS_STALE
+    until: 1771614936
+  COOKIEUSDT:
+    reason: WS_STALE
+    until: 1771614974
+  COOKUSDT:
+    reason: WS_STALE
+    until: 1771614024
   COQUSDT:
     reason: WS_STALE
     until: 1771603778
+  COREUSDT:
+    reason: WS_STALE
+    until: 1771614973
+  CORNUSDT:
+    reason: WS_STALE
+    until: 1771614063
+  CPOOLUSDT:
+    reason: WS_STALE
+    until: 1771614974
+  CRVUSDT:
+    reason: WS_STALE
+    until: 1771614063
+  CSPRUSDT:
+    reason: WS_STALE
+    until: 1771614973
+  CTAUSDT:
+    reason: WS_STALE
+    until: 1771614022
+  CTCUSDT:
+    reason: WS_STALE
+    until: 1771613574
+  CUDISUSDT:
+    reason: WS_STALE
+    until: 1771614972
+  CYBERUSDT:
+    reason: WS_STALE
+    until: 1771614973
   DAIUSDT:
     reason: WS_STALE
     until: 1771605967
+  DBRUSDT:
+    reason: WS_STALE
+    until: 1771614972
+  DEEPUSDT:
+    reason: WS_STALE
+    until: 1771614061
+  DEGENUSDT:
+    reason: WS_STALE
+    until: 1771614974
+  DGBUSDT:
+    reason: WS_STALE
+    until: 1771614022
+  DIAMUSDT:
+    reason: WS_STALE
+    until: 1771613574
   DOGEUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771668496
   DOGSUSDT:
     reason: WS_STALE
     until: 1771609954
+  DOLOUSDT:
+    reason: WS_STALE
+    until: 1771614021
+  DOODUSDT:
+    reason: WS_STALE
+    until: 1771613572
+  DOTUSDT:
+    reason: WS_STALE
+    until: 1771614062
+  DRIFTUSDT:
+    reason: WS_STALE
+    until: 1771613573
   DYDXUSDT:
+    reason: WS_STALE
+    until: 1771614099
+  DYMUSDT:
+    reason: WS_STALE
+    until: 1771614973
+  EATUSDT:
+    reason: WS_STALE
+    until: 1771614023
+  EGLDUSDT:
+    reason: WS_STALE
+    until: 1771614972
+  EIGENUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771589205
+    until: 1771678159
+  ELIZAOSUSDT:
+    reason: WS_STALE
+    until: 1771614975
+  ELSAUSDT:
+    reason: WS_STALE
+    until: 1771614060
+  ENAUSDT:
+    reason: WS_STALE
+    until: 1771614061
+  ENJUSDT:
+    reason: WS_STALE
+    until: 1771613575
+  ENSOUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1771678111
+  ENSUSDT:
+    reason: WS_STALE
+    until: 1771613576
   EPTUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771589133
+    until: 1771678281
+  ERAUSDT:
+    reason: WS_STALE
+    until: 1771614936
+  ESEUSDT:
+    reason: WS_STALE
+    until: 1771614021
+  ESUSDT:
+    reason: WS_STALE
+    until: 1771614737
   ETCUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771589538
+    until: 1771678278
   ETHFIUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771589537
+    until: 1771678276
+  ETHUSDT:
+    reason: WS_STALE
+    until: 1771614059
+  ETHWUSDT:
+    reason: WS_STALE
+    until: 1771614023
+  FETUSDT:
+    reason: WS_STALE
+    until: 1771614064
+  FFUSDT:
+    reason: WS_STALE
+    until: 1771613573
+  FHEUSDT:
+    reason: WS_STALE
+    until: 1771613574
+  FIDAUSDT:
+    reason: WS_STALE
+    until: 1771614022
+  FIGHTUSDT:
+    reason: WS_STALE
+    until: 1771614060
+  FILUSDT:
+    reason: WS_STALE
+    until: 1771614064
   FITFIUSDT:
     reason: WS_STALE
     until: 1771604112
   FLIPUSDT:
     reason: WS_STALE
     until: 1771604923
+  FLOCKUSDT:
+    reason: WS_STALE
+    until: 1771613575
   FLOKIUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771606658
+  FLOWUSDT:
+    reason: WS_STALE
+    until: 1771613574
+  FLRUSDT:
+    reason: WS_STALE
+    until: 1771613575
+  FLUIDUSDT:
+    reason: WS_STALE
+    until: 1771613572
+  FOGOUSDT:
+    reason: WS_STALE
+    until: 1771614060
+  FORTUSDT:
+    reason: WS_STALE
+    until: 1771614024
   FOXYUSDT:
     reason: WS_STALE
     until: 1771603808
   FRAXUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771675383
+  FTTUSDT:
+    reason: WS_STALE
+    until: 1771614024
   FUELUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771589170
+    until: 1771678068
+  FUSDT:
+    reason: WS_STALE
+    until: 1771613576
+  GAIBUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1771678067
+  GALAUSDT:
+    reason: WS_STALE
+    until: 1771613573
+  GAMEUSDT:
+    reason: WS_STALE
+    until: 1771614022
   GLMRUSDT:
     reason: WS_STALE
     until: 1771609237
+  GMTUSDT:
+    reason: WS_STALE
+    until: 1771614738
+  GMXUSDT:
+    reason: WS_STALE
+    until: 1771614738
+  GOATUSDT:
+    reason: WS_STALE
+    until: 1771613575
+  GODSUSDT:
+    reason: WS_STALE
+    until: 1771613495
+  GPSUSDT:
+    reason: WS_STALE
+    until: 1771613574
+  GRASSUSDT:
+    reason: WS_STALE
+    until: 1771613574
+  GRTUSDT:
+    reason: WS_STALE
+    until: 1771614737
+  GTAIUSDT:
+    reason: WS_STALE
+    until: 1771613463
+  GUSDT:
+    reason: WS_STALE
+    until: 1771614023
+  HAEDALUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1771678149
+  HBARUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1771678090
+  HFTUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1771678276
+  HMSTRUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1771678148
+  HNTUSDT:
+    reason: WS_STALE
+    until: 1771613574
+  HOLOUSDT:
+    reason: WS_STALE
+    until: 1771614064
+  HOMEUSDT:
+    reason: WS_STALE
+    until: 1771614737
+  HOOKUSDT:
+    reason: WS_STALE
+    until: 1771614022
   HPOS10IUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771675326
   HTXUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771606672
+  HUMAUSDT:
+    reason: WS_STALE
+    until: 1771613575
+  HUSDT:
+    reason: WS_STALE
+    until: 1771614063
+  HYPERUSDT:
+    reason: WS_STALE
+    until: 1771614737
+  HYPEUSDT:
+    reason: WS_STALE
+    until: 1771614059
+  ICNTUSDT:
+    reason: WS_STALE
+    until: 1771613573
+  ICPUSDT:
+    reason: WS_STALE
+    until: 1771614063
+  ICXUSDT:
+    reason: WS_STALE
+    until: 1771614738
+  IDUSDT:
+    reason: WS_STALE
+    until: 1771614737
+  IMUUSDT:
+    reason: WS_STALE
+    until: 1771613572
+  IMXUSDT:
+    reason: WS_STALE
+    until: 1771613746
+  INITUSDT:
+    reason: WS_STALE
+    until: 1771613575
+  INJUSDT:
+    reason: WS_STALE
+    until: 1771614062
+  INSPUSDT:
+    reason: WS_STALE
+    until: 1771614023
   INTERUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771589567
+    until: 1771678061
+  IOUSDT:
+    reason: WS_STALE
+    until: 1771614064
+  IPUSDT:
+    reason: WS_STALE
+    until: 1771614060
+  IZIUSDT:
+    reason: WS_STALE
+    until: 1771614024
   JASMYUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771589132
+    until: 1771678278
+  JSTUSDT:
+    reason: WS_STALE
+    until: 1771613747
+  JTOUSDT:
+    reason: WS_STALE
+    until: 1771614062
+  JUPUSDT:
+    reason: WS_STALE
+    until: 1771614062
   JUSDT:
     reason: WS_STALE
     until: 1771604082
   JUVUSDT:
     reason: WS_STALE
     until: 1771604202
+  KAIAUSDT:
+    reason: WS_STALE
+    until: 1771613575
+  KASUSDT:
+    reason: WS_STALE
+    until: 1771614063
+  KAVAUSDT:
+    reason: WS_STALE
+    until: 1771613747
+  KCSUSDT:
+    reason: WS_STALE
+    until: 1771613746
   KILOUSDT:
     reason: WS_STALE
     until: 1771603808
+  KMNOUSDT:
+    reason: WS_STALE
+    until: 1771613576
   KSMUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771675328
   KUBUSDT:
     reason: WS_STALE
     until: 1771606207
+  KUSDT:
+    reason: WS_STALE
+    until: 1771613746
   L3USDT:
     reason: WS_STALE
     until: 1771604052
+  LAUSDT:
+    reason: WS_STALE
+    until: 1771613748
+  LAVAUSDT:
+    reason: WS_STALE
+    until: 1771613576
+  LAYERUSDT:
+    reason: WS_STALE
+    until: 1771614021
+  LBTCUSDT:
+    reason: WS_STALE
+    until: 1771613747
+  LDOUSDT:
+    reason: WS_STALE
+    until: 1771614063
+  LINEAUSDT:
+    reason: WS_STALE
+    until: 1771614062
+  LINKUSDT:
+    reason: WS_STALE
+    until: 1771614062
+  LITKEYUSDT:
+    reason: WS_STALE
+    until: 1771613748
+  LITUSDT:
+    reason: WS_STALE
+    until: 1771614062
   LMWRUSDT:
     reason: WS_STALE
     until: 1771606207
+  LRCUSDT:
+    reason: WS_STALE
+    until: 1771613747
+  LTCUSDT:
+    reason: WS_STALE
+    until: 1771614060
+  LUNAIUSDT:
+    reason: WS_STALE
+    until: 1771614021
+  LUNAUSDT:
+    reason: WS_STALE
+    until: 1771613747
+  LUNCUSDT:
+    reason: WS_STALE
+    until: 1771613747
   MAGICUSDT:
     reason: WS_STALE
     until: 1771606057
+  MAJORUSDT:
+    reason: WS_STALE
+    until: 1771611899
+  MANAUSDT:
+    reason: WS_STALE
+    until: 1771613576
+  MANTAUSDT:
+    reason: WS_STALE
+    until: 1771613747
   MASAUSDT:
     reason: WS_STALE
     until: 1771603778
+  MASKUSDT:
+    reason: WS_STALE
+    until: 1771613747
+  MAVIAUSDT:
+    reason: WS_STALE
+    until: 1771613746
+  MBOXUSDT:
+    reason: WS_STALE
+    until: 1771613747
   MBXUSDT:
     reason: WS_STALE
     until: 1771604202
   MCDXUSDT:
     reason: WS_STALE
     until: 1771603808
+  MCRTUSDT:
+    reason: WS_STALE
+    until: 1771614023
+  MEEUSDT:
+    reason: WS_STALE
+    until: 1771614024
+  MEMEUSDT:
+    reason: WS_STALE
+    until: 1771613576
+  MERLUSDT:
+    reason: WS_STALE
+    until: 1771613573
   METAXUSDT:
     reason: WS_STALE
     until: 1771605223
+  METHUSDT:
+    reason: WS_STALE
+    until: 1771614023
+  METUSDT:
+    reason: WS_STALE
+    until: 1771613573
+  MEUSDT:
+    reason: WS_STALE
+    until: 1771613575
+  MEWUSDT:
+    reason: WS_STALE
+    until: 1771613746
   MILKUSDT:
     reason: WS_STALE
     until: 1771603778
+  MINAUSDT:
+    reason: WS_STALE
+    until: 1771613576
+  MMTUSDT:
+    reason: WS_STALE
+    until: 1771613746
+  MNTUSDT:
+    reason: WS_STALE
+    until: 1771614059
+  MOCAUSDT:
+    reason: WS_STALE
+    until: 1771613573
   MODEUSDT:
     reason: WS_STALE
     until: 1771603778
+  MOGUSDT:
+    reason: WS_STALE
+    until: 1771613746
+  MONPROUSDT:
+    reason: WS_STALE
+    until: 1771610729
+  MONUSDT:
+    reason: WS_STALE
+    until: 1771614060
+  MORPHOUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1771678297
+  MOVEUSDT:
+    reason: WS_STALE
+    until: 1771613572
   MOVRUSDT:
     reason: WS_STALE
     until: 1771605907
+  MPLXUSDT:
+    reason: WS_STALE
+    until: 1771614024
+  MVLUSDT:
+    reason: JUP_TOKEN_NOT_TRADABLE
+    until: 1771678148
+  MXUSDT:
+    reason: WS_STALE
+    until: 1771614021
+  NAKAUSDT:
+    reason: WS_STALE
+    until: 1771614023
   NAVXUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771589571
+    until: 1771678148
+  NEARUSDT:
+    reason: WS_STALE
+    until: 1771614061
+  NEIROCTOUSDT:
+    reason: WS_STALE
+    until: 1771613397
+  NEONUSDT:
+    reason: WS_STALE
+    until: 1771613746
+  NEWTUSDT:
+    reason: WS_STALE
+    until: 1771613574
+  NEXOUSDT:
+    reason: WS_STALE
+    until: 1771613397
+  NFTUSDT:
+    reason: WS_STALE
+    until: 1771614023
   NIBIUSDT:
     reason: WS_STALE
     until: 1771607731
+  NIGHTUSDT:
+    reason: WS_STALE
+    until: 1771614062
+  NOMUSDT:
+    reason: WS_STALE
+    until: 1771613576
+  NOTUSDT:
+    reason: WS_STALE
+    until: 1771613430
+  NRNUSDT:
+    reason: WS_STALE
+    until: 1771614024
+  NSUSDT:
+    reason: WS_STALE
+    until: 1771613430
   NXPCUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771589541
+    until: 1771678295
   NYMUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771589082
+    until: 1771678145
+  OASUSDT:
+    reason: WS_STALE
+    until: 1771614021
+  OBOLUSDT:
+    reason: WS_STALE
+    until: 1771613989
   OBTUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771675326
+  OLUSDT:
+    reason: WS_STALE
+    until: 1771614023
+  OMUSDT:
+    reason: WS_STALE
+    until: 1771613430
+  ONDOUSDT:
+    reason: WS_STALE
+    until: 1771614061
   ONEUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771589084
+    until: 1771678147
+  OPUSDT:
+    reason: WS_STALE
+    until: 1771614061
+  ORDERUSDT:
+    reason: WS_STALE
+    until: 1771613574
+  ORDIUSDT:
+    reason: WS_STALE
+    until: 1771613430
   PAALUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771675386
+  PARTIUSDT:
+    reason: WS_STALE
+    until: 1771613430
+  PENDLEUSDT:
+    reason: WS_STALE
+    until: 1771613573
+  PENGUUSDT:
+    reason: WS_STALE
+    until: 1771614061
+  PEOPLEUSDT:
+    reason: WS_STALE
+    until: 1771613431
   PEPEUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771668502
@@ -180,85 +873,373 @@ symbols:
     until: 1771607536
   PIEVERSEUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771589536
+    until: 1771678189
+  PIRATEUSDT:
+    reason: WS_STALE
+    until: 1771614024
+  PLUMEUSDT:
+    reason: WS_STALE
+    until: 1771613887
+  PNUTUSDT:
+    reason: WS_STALE
+    until: 1771613574
+  POLUSDT:
+    reason: WS_STALE
+    until: 1771613888
+  PONKEUSDT:
+    reason: WS_STALE
+    until: 1771613397
+  POPCATUSDT:
+    reason: WS_STALE
+    until: 1771613888
   PORT3USDT:
     reason: WS_STALE
     until: 1771603778
   PORTALSUSDT:
     reason: WS_STALE
     until: 1771605223
+  PORTALUSDT:
+    reason: WS_STALE
+    until: 1771613398
   PRCLUSDT:
     reason: WS_STALE
     until: 1771606057
+  PRIMEUSDT:
+    reason: WS_STALE
+    until: 1771613887
+  PROVEUSDT:
+    reason: WS_STALE
+    until: 1771613572
   PSGUSDT:
     reason: WS_STALE
     until: 1771605193
   PSTAKEUSDT:
     reason: WS_STALE
     until: 1771603778
+  PUFFERUSDT:
+    reason: WS_STALE
+    until: 1771613397
+  PUFFUSDT:
+    reason: WS_STALE
+    until: 1771614023
   PUMPBTCUSDT:
-    reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771589077
+    reason: WS_STALE
+    until: 1771613398
+  PUMPUSDT:
+    reason: WS_STALE
+    until: 1771613529
+  PYBOBOUSDT:
+    reason: WS_STALE
+    until: 1771613529
+  PYTHUSDT:
+    reason: WS_STALE
+    until: 1771613573
+  QNTUSDT:
+    reason: WS_STALE
+    until: 1771613575
+  QORPOUSDT:
+    reason: WS_STALE
+    until: 1771614022
+  QTUMUSDT:
+    reason: WS_STALE
+    until: 1771614021
   RATSUSDT:
-    reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771589074
+    reason: WS_STALE
+    until: 1771613430
+  RDNTUSDT:
+    reason: WS_STALE
+    until: 1771610759
+  RECALLUSDT:
+    reason: WS_STALE
+    until: 1771613430
   REDUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771668537
+  RENDERUSDT:
+    reason: WS_STALE
+    until: 1771613529
+  RESOLVUSDT:
+    reason: WS_STALE
+    until: 1771613328
   RLUSDUSDT:
     reason: WS_STALE
     until: 1771604923
+  ROAMUSDT:
+    reason: WS_STALE
+    until: 1771614022
   ROOTUSDT:
     reason: WS_STALE
     until: 1771603778
+  ROSEUSDT:
+    reason: WS_STALE
+    until: 1771613328
   RPLUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771675386
+  RSS3USDT:
+    reason: WS_STALE
+    until: 1771614022
+  RUNEUSDT:
+    reason: WS_STALE
+    until: 1771613430
+  RVNUSDT:
+    reason: WS_STALE
+    until: 1771613430
+  SAFEUSDT:
+    reason: WS_STALE
+    until: 1771613328
   SAHARAUSDT:
-    reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771589540
+    reason: WS_STALE
+    until: 1771613328
+  SANDUSDT:
+    reason: WS_STALE
+    until: 1771613328
+  SAROSUSDT:
+    reason: WS_STALE
+    until: 1771613529
+  SATSUSDT:
+    reason: WS_STALE
+    until: 1771613431
+  SCAUSDT:
+    reason: WS_STALE
+    until: 1771613398
+  SCORUSDT:
+    reason: WS_STALE
+    until: 1771613361
+  SCRTUSDT:
+    reason: WS_STALE
+    until: 1771613361
+  SCRUSDT:
+    reason: WS_STALE
+    until: 1771613529
   SCUSDT:
     reason: WS_STALE
     until: 1771604983
   SDUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771589086
+    until: 1771678147
+  SEIUSDT:
+    reason: WS_STALE
+    until: 1771613529
+  SENDUSDT:
+    reason: WS_STALE
+    until: 1771613529
+  SENTUSDT:
+    reason: WS_STALE
+    until: 1771613528
   SERAPHUSDT:
     reason: WS_STALE
     until: 1771603778
+  SFUNDUSDT:
+    reason: WS_STALE
+    until: 1771613529
+  SHIBUSDT:
+    reason: WS_STALE
+    until: 1771613327
+  SIGNUSDT:
+    reason: WS_STALE
+    until: 1771613360
   SISUSDT:
     reason: WS_STALE
     until: 1771603808
+  SKATEUSDT:
+    reason: WS_STALE
+    until: 1771613360
+  SKRUSDT:
+    reason: WS_STALE
+    until: 1771613327
+  SKYUSDT:
+    reason: WS_STALE
+    until: 1771613328
+  SLPUSDT:
+    reason: WS_STALE
+    until: 1771613529
+  SNXUSDT:
+    reason: WS_STALE
+    until: 1771613327
+  SOLOUSDT:
+    reason: WS_STALE
+    until: 1771613529
+  SOLUSDT:
+    reason: WS_STALE
+    until: 1771613327
+  SOLVUSDT:
+    reason: WS_STALE
+    until: 1771613361
+  SOMIUSDT:
+    reason: WS_STALE
+    until: 1771613327
+  SONICUSDT:
+    reason: WS_STALE
+    until: 1771613360
+  SOSOUSDT:
+    reason: WS_STALE
+    until: 1771613328
+  SPELLUSDT:
+    reason: WS_STALE
+    until: 1771613529
+  SPKUSDT:
+    reason: WS_STALE
+    until: 1771613328
+  SPXUSDT:
+    reason: WS_STALE
+    until: 1771613327
+  SQDUSDT:
+    reason: WS_STALE
+    until: 1771613360
+  SSVUSDT:
+    reason: WS_STALE
+    until: 1771613361
+  STABLEUSDT:
+    reason: WS_STALE
+    until: 1771613327
+  STETHUSDT:
+    reason: WS_STALE
+    until: 1771613327
   STREAMUSDT:
     reason: WS_STALE
     until: 1771605073
+  STRKUSDT:
+    reason: WS_STALE
+    until: 1771613327
   STXUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771668510
+  SUIUSDT:
+    reason: WS_STALE
+    until: 1771613327
+  SUNDOGUSDT:
+    reason: WS_STALE
+    until: 1771613529
+  SUNUSDT:
+    reason: WS_STALE
+    until: 1771613328
+  SUPRAUSDT:
+    reason: WS_STALE
+    until: 1771613529
+  SUSDT:
+    reason: WS_STALE
+    until: 1771613328
+  SUSHIUSDT:
+    reason: WS_STALE
+    until: 1771613361
   SVLUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771675385
   SWEATUSDT:
     reason: WS_STALE
     until: 1771603808
+  SWELLUSDT:
+    reason: WS_STALE
+    until: 1771613398
+  SXTUSDT:
+    reason: WS_STALE
+    until: 1771613360
+  SYNDUSDT:
+    reason: WS_STALE
+    until: 1771613362
+  TACUSDT:
+    reason: WS_STALE
+    until: 1771613361
+  TAIKOUSDT:
+    reason: WS_STALE
+    until: 1771613328
+  TAIUSDT:
+    reason: WS_STALE
+    until: 1771613362
+  TAUSDT:
+    reason: WS_STALE
+    until: 1771613360
   TELUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771668524
+  THETAUSDT:
+    reason: WS_STALE
+    until: 1771613328
+  TIAUSDT:
+    reason: WS_STALE
+    until: 1771613327
   TIMEUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771668561
+  TNSRUSDT:
+    reason: WS_STALE
+    until: 1771613328
+  TOKENUSDT:
+    reason: WS_STALE
+    until: 1771613361
+  TONUSDT:
+    reason: WS_STALE
+    until: 1771613327
+  TOSHIUSDT:
+    reason: WS_STALE
+    until: 1771613328
+  TOWNSUSDT:
+    reason: WS_STALE
+    until: 1771613360
+  TREEUSDT:
+    reason: WS_STALE
+    until: 1771613360
+  TRUMPUSDT:
+    reason: WS_STALE
+    until: 1771613327
+  TRXUSDT:
+    reason: WS_STALE
+    until: 1771613327
   TUNAUSDT:
     reason: WS_STALE
     until: 1771603838
+  TWTUSDT:
+    reason: WS_STALE
+    until: 1771613360
+  UMAUSDT:
+    reason: WS_STALE
+    until: 1771613362
+  UNIUSDT:
+    reason: WS_STALE
+    until: 1771613327
   USATUSDT:
     reason: WS_STALE
     until: 1771604232
   USDTBUSDT:
     reason: WS_STALE
     until: 1771603808
+  USDYUSDT:
+    reason: WS_STALE
+    until: 1771613327
+  USTCUSDT:
+    reason: WS_STALE
+    until: 1771613362
+  UUSDT:
+    reason: WS_STALE
+    until: 1771613362
   UXLINKUSDT:
     reason: WS_STALE
     until: 1771604142
+  VANAUSDT:
+    reason: WS_STALE
+    until: 1771613360
+  VANRYUSDT:
+    reason: WS_STALE
+    until: 1771613328
+  VELOUSDT:
+    reason: WS_STALE
+    until: 1771613328
+  VENOMUSDT:
+    reason: WS_STALE
+    until: 1771613360
+  VETUSDT:
+    reason: WS_STALE
+    until: 1771613361
+  VICUSDT:
+    reason: WS_STALE
+    until: 1771613362
+  VINUUSDT:
+    reason: WS_STALE
+    until: 1771613398
+  VIRTUALUSDT:
+    reason: WS_STALE
+    until: 1771613327
   VOOIUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771675390
@@ -266,14 +1247,80 @@ symbols:
     reason: WS_STALE
     until: 1771603778
   VTHOUSDT:
-    reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771589081
+    reason: WS_STALE
+    until: 1771613362
+  VVVUSDT:
+    reason: WS_STALE
+    until: 1771613361
+  WALUSDT:
+    reason: WS_STALE
+    until: 1771613328
+  WAVESUSDT:
+    reason: WS_STALE
+    until: 1771613361
+  WAXPUSDT:
+    reason: WS_STALE
+    until: 1771613362
+  WBTCUSDT:
+    reason: WS_STALE
+    until: 1771613361
+  WCTUSDT:
+    reason: WS_STALE
+    until: 1771613328
+  WEMIXUSDT:
+    reason: WS_STALE
+    until: 1771613362
+  WENUSDT:
+    reason: WS_STALE
+    until: 1771613362
+  WETUSDT:
+    reason: WS_STALE
+    until: 1771613328
+  WHITEWHALEUSDT:
+    reason: WS_STALE
+    until: 1771613327
+  WIFUSDT:
+    reason: WS_STALE
+    until: 1771613327
+  WLDUSDT:
+    reason: WS_STALE
+    until: 1771613327
+  WLFIUSDT:
+    reason: WS_STALE
+    until: 1771613327
+  WOOUSDT:
+    reason: WS_STALE
+    until: 1771613361
+  WUSDT:
+    reason: WS_STALE
+    until: 1771613327
+  XAIUSDT:
+    reason: WS_STALE
+    until: 1771613361
+  XANUSDT:
+    reason: WS_STALE
+    until: 1771613361
   XAVAUSDT:
-    reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771589074
+    reason: WS_STALE
+    until: 1771610819
+  XDCUSDT:
+    reason: WS_STALE
+    until: 1771613327
+  XEMUSDT:
+    reason: WS_STALE
+    until: 1771613361
+  XIONUSDT:
+    reason: WS_STALE
+    until: 1771613362
+  XLMUSDT:
+    reason: WS_STALE
+    until: 1771613327
   XOUSDT:
     reason: WS_STALE
     until: 1771603778
+  XPLUSDT:
+    reason: WS_STALE
+    until: 1771613327
   XRPUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771668497
@@ -281,17 +1328,65 @@ symbols:
     reason: WS_STALE
     until: 1771603808
   XTZUSDT:
-    reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771589541
+    reason: WS_STALE
+    until: 1771613360
+  XUSDT:
+    reason: WS_STALE
+    until: 1771612409
+  XUSDUSDT:
+    reason: WS_STALE
+    until: 1771610729
+  YBUSDT:
+    reason: WS_STALE
+    until: 1771613360
+  YFIUSDT:
+    reason: WS_STALE
+    until: 1771613328
   ZBTUSDT:
-    reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771589126
+    reason: WS_STALE
+    until: 1771613360
   ZENTUSDT:
-    reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771589565
+    reason: WS_STALE
+    until: 1771613362
+  ZENUSDT:
+    reason: WS_STALE
+    until: 1771613327
+  ZEREBROUSDT:
+    reason: WS_STALE
+    until: 1771613360
+  ZETAUSDT:
+    reason: WS_STALE
+    until: 1771613328
+  ZEXUSDT:
+    reason: WS_STALE
+    until: 1771613362
+  ZIGUSDT:
+    reason: WS_STALE
+    until: 1771613361
+  ZILUSDT:
+    reason: WS_STALE
+    until: 1771613361
+  ZKCUSDT:
+    reason: WS_STALE
+    until: 1771613360
   ZKJUSDT:
-    reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771589146
+    reason: WS_STALE
+    until: 1771613361
   ZKPUSDT:
-    reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771589133
+    reason: WS_STALE
+    until: 1771613328
+  ZKUSDT:
+    reason: WS_STALE
+    until: 1771613328
+  ZORAUSDT:
+    reason: WS_STALE
+    until: 1771613360
+  ZRCUSDT:
+    reason: WS_STALE
+    until: 1771613362
+  ZROUSDT:
+    reason: WS_STALE
+    until: 1771613327
+  ZRXUSDT:
+    reason: WS_STALE
+    until: 1771613361

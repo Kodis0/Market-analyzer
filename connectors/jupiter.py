@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import asyncio
 import json
@@ -204,6 +204,8 @@ class JupiterClient:
         retry_log_interval_sec: float = 10.0,
         # autosanitization hook
         on_skip: Optional[Callable[[str, str, str, str, str], Awaitable[None]]] = None,
+        # stats: called after each request with (source, count)
+        on_request: Optional[Callable[[str, int], None]] = None,
     ) -> None:
         self._s = session
         self._base = base_url.rstrip("/")
@@ -228,6 +230,7 @@ class JupiterClient:
         self._throttle = LogThrottle()
 
         self._on_skip = on_skip
+        self._on_request = on_request
 
     # -------- internal utils --------
 
@@ -306,6 +309,11 @@ class JupiterClient:
                 async with self._rate_limiter:
                     async with self._s.get(url, params=params, headers=headers, timeout=self._timeout) as r:
                         status = int(r.status)
+                        if self._on_request:
+                            try:
+                                self._on_request("jupiter", 1)
+                            except Exception:
+                                pass
                         retry_after = r.headers.get("Retry-After")
                         if status == 200:
                             j = await r.json(content_type=None)
