@@ -1,5 +1,5 @@
 version: 1
-updated_at_ts: 1771582692
+updated_at_ts: 1771583383
 symbols:
   AAVEUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
@@ -85,6 +85,9 @@ symbols:
   FITFIUSDT:
     reason: WS_STALE
     until: 1771604112
+  FLIPUSDT:
+    reason: WS_STALE
+    until: 1771604923
   FLOKIUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771606658
@@ -208,6 +211,9 @@ symbols:
   REDUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771668537
+  RLUSDUSDT:
+    reason: WS_STALE
+    until: 1771604923
   ROOTUSDT:
     reason: WS_STALE
     until: 1771603778
@@ -223,6 +229,9 @@ symbols:
   SCAUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771588879
+  SCUSDT:
+    reason: WS_STALE
+    until: 1771604983
   SDUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771589086

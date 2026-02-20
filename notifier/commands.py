@@ -63,15 +63,20 @@ def _parse_value(key: str, s: str) -> Any:
     return s
 
 
-async def _register_bot_commands(session: aiohttp.ClientSession, bot_token: str) -> None:
+async def _register_bot_commands(
+    session: aiohttp.ClientSession, bot_token: str, chat_id: Optional[int] = None
+) -> None:
     """Register /settings and /help in Telegram menu (shown when user types /)."""
     url = TG_SET_MY_COMMANDS.format(token=bot_token)
     commands = [
         {"command": "settings", "description": "Настройки: /settings min_profit_usd 20"},
         {"command": "help", "description": "Справка по параметрам"},
     ]
+    payload: dict = {"commands": commands}
+    if chat_id:
+        payload["scope"] = {"type": "chat", "chat_id": chat_id}
     try:
-        async with session.post(url, json={"commands": commands}, timeout=aiohttp.ClientTimeout(total=10)) as r:
+        async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=10)) as r:
             r.raise_for_status()
         log.info("Bot commands registered")
     except Exception as e:
@@ -93,7 +98,7 @@ async def run_settings_command_handler(
     Poll for Telegram updates and handle /settings, /help commands.
     Only processes messages from the configured chat_id.
     """
-    await _register_bot_commands(session, bot_token)
+    await _register_bot_commands(session, bot_token, chat_id)
 
     url_updates = TG_GET_UPDATES.format(token=bot_token)
     url_send = TG_SEND_MESSAGE.format(token=bot_token)
@@ -134,26 +139,41 @@ async def run_settings_command_handler(
                     continue
 
                 text = (msg.get("text") or "").strip()
-                if not text.startswith("/settings"):
+                if not text.startswith("/"):
                     continue
 
-                # /settings or /settings@botname
-                rest = text[8:].strip()
+                cmd = text.split()[0].lower() if text.split() else ""
+                cmd = re.sub(r"@\S+$", "", cmd)  # Remove @botname
+
+                # /help
+                if cmd == "/help":
+                    await send(RuntimeSettings.format_help())
+                    continue
+
+                # /settings
+                if not cmd.startswith("/settings"):
+                    continue
+
+                rest = text[len(cmd):].strip()
                 rest = re.sub(r"@\S+\s*", "", rest).strip()  # Remove @botname if present
 
                 if not rest:
-                    # Show current settings
+                    # Show current settings + list of parameters
                     await send(settings.format_for_telegram())
                     continue
 
                 parsed = _parse_settings_args(rest)
                 if not parsed:
-                    await send("❌ Формат: /settings ключ значение\nПример: /settings min_profit_usd 15")
+                    await send(
+                        "❌ Формат: /settings ключ значение\n"
+                        "Пример: /settings min_profit_usd 20\n"
+                        "Список параметров: /settings"
+                    )
                     continue
 
                 key, value = parsed
                 if not settings.update(key, value):
-                    await send(f"❌ Неизвестный параметр: {key}")
+                    await send(f"❌ Неизвестный параметр: {key}\nСписок: /settings")
                     continue
 
                 save_runtime_settings(settings_path, settings)
