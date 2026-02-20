@@ -49,7 +49,9 @@ def _parse_settings_args(text: str) -> Optional[tuple[str, Any]]:
 
 def _parse_value(key: str, s: str) -> Any:
     """Parse string value to appropriate type for the setting."""
-    if key in ("persistence_hits", "cooldown_sec", "engine_tick_hz", "max_ob_age_ms"):
+    if key == "delete_stale":
+        return str(s).lower() in ("true", "1", "yes", "да", "on")
+    if key in ("persistence_hits", "cooldown_sec", "engine_tick_hz", "max_ob_age_ms", "stale_ttl_sec"):
         return int(float(s))
     if key in (
         "bybit_taker_fee_bps", "solana_tx_fee_usd", "latency_buffer_bps",

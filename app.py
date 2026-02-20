@@ -192,6 +192,30 @@ async def main(cfg_path: str) -> None:
 
     state = MarketState()
 
+    # Runtime settings (config defaults + settings.json overrides)
+    settings_defaults = RuntimeSettings(
+        bybit_taker_fee_bps=float(cfg.thresholds.bybit_taker_fee_bps),
+        solana_tx_fee_usd=float(cfg.thresholds.solana_tx_fee_usd),
+        latency_buffer_bps=float(cfg.thresholds.latency_buffer_bps),
+        usdt_usdc_buffer_bps=float(cfg.thresholds.usdt_usdc_buffer_bps),
+        min_profit_usd=float(cfg.thresholds.min_profit_usd),
+        notional_usd=float(cfg.trading.notional_usd),
+        max_cex_slippage_bps=float(cfg.filters.max_cex_slippage_bps),
+        max_dex_price_impact_pct=float(cfg.filters.max_dex_price_impact_pct),
+        persistence_hits=int(cfg.filters.persistence_hits),
+        cooldown_sec=int(cfg.filters.cooldown_sec),
+        min_delta_profit_usd_to_resend=float(cfg.filters.min_delta_profit_usd_to_resend),
+        price_ratio_max=float(cfg.filters.price_ratio_max),
+        gross_profit_cap_pct=float(cfg.filters.gross_profit_cap_pct),
+        max_spread_bps=float(cfg.filters.max_spread_bps),
+        min_depth_coverage_pct=float(cfg.filters.min_depth_coverage_pct),
+        engine_tick_hz=int(cfg.runtime.engine_tick_hz),
+        jupiter_poll_interval_sec=float(cfg.jupiter.poll_interval_sec),
+        stale_ttl_sec=int(cfg.notifier.stale_ttl_sec),
+        delete_stale=bool(cfg.notifier.delete_stale),
+    )
+    settings = load_runtime_settings(settings_path, settings_defaults)
+
     async with aiohttp.ClientSession() as session:
         tg = TelegramNotifier(
             session,
@@ -200,31 +224,9 @@ async def main(cfg_path: str) -> None:
             cfg.telegram.thread_id,
             edit_min_interval_sec=cfg.notifier.edit_min_interval_sec,
             edit_mode=cfg.notifier.edit_mode,
-            stale_ttl_sec=cfg.notifier.stale_ttl_sec,
-            delete_stale=cfg.notifier.delete_stale,
+            stale_ttl_sec=float(settings.stale_ttl_sec),
+            delete_stale=settings.delete_stale,
         )
-
-        # Runtime settings (config defaults + settings.json overrides)
-        settings_defaults = RuntimeSettings(
-            bybit_taker_fee_bps=float(cfg.thresholds.bybit_taker_fee_bps),
-            solana_tx_fee_usd=float(cfg.thresholds.solana_tx_fee_usd),
-            latency_buffer_bps=float(cfg.thresholds.latency_buffer_bps),
-            usdt_usdc_buffer_bps=float(cfg.thresholds.usdt_usdc_buffer_bps),
-            min_profit_usd=float(cfg.thresholds.min_profit_usd),
-            notional_usd=float(cfg.trading.notional_usd),
-            max_cex_slippage_bps=float(cfg.filters.max_cex_slippage_bps),
-            max_dex_price_impact_pct=float(cfg.filters.max_dex_price_impact_pct),
-            persistence_hits=int(cfg.filters.persistence_hits),
-            cooldown_sec=int(cfg.filters.cooldown_sec),
-            min_delta_profit_usd_to_resend=float(cfg.filters.min_delta_profit_usd_to_resend),
-            price_ratio_max=float(cfg.filters.price_ratio_max),
-            gross_profit_cap_pct=float(cfg.filters.gross_profit_cap_pct),
-            max_spread_bps=float(cfg.filters.max_spread_bps),
-            min_depth_coverage_pct=float(cfg.filters.min_depth_coverage_pct),
-            engine_tick_hz=int(cfg.runtime.engine_tick_hz),
-            jupiter_poll_interval_sec=float(cfg.jupiter.poll_interval_sec),
-        )
-        settings = load_runtime_settings(settings_path, settings_defaults)
 
         thresholds = Thresholds(
             bybit_taker_fee_bps=Decimal(str(settings.bybit_taker_fee_bps)),
@@ -584,6 +586,7 @@ async def main(cfg_path: str) -> None:
 
         def apply_settings_reload(s: RuntimeSettings) -> None:
             engine.reload_settings(s)
+            tg.update_stale_settings(s.stale_ttl_sec, s.delete_stale)
 
         tasks: list[asyncio.Task] = [
             asyncio.create_task(quarantine_sync_loop(), name="quarantine_sync"),

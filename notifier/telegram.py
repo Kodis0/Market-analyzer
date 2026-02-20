@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import time
 import logging
@@ -45,6 +45,11 @@ class TelegramNotifier:
         self._last_sent_markup: Dict[str, dict | None] = {}
         # key -> stale flag
         self._stale: Dict[str, bool] = {}
+
+    def update_stale_settings(self, stale_ttl_sec: float, delete_stale: bool) -> None:
+        """Обновить настройки устаревания (вызывается при /settings)."""
+        self.stale_ttl_sec = float(stale_ttl_sec)
+        self.delete_stale = bool(delete_stale)
 
     def _url(self, method: str) -> str:
         return f"{self.base}/{method}"

@@ -1,0 +1,22 @@
+{
+  "bybit_taker_fee_bps": 10.0,
+  "solana_tx_fee_usd": 0.05,
+  "latency_buffer_bps": 12.0,
+  "usdt_usdc_buffer_bps": 8.0,
+  "min_profit_usd": 0.5,
+  "notional_usd": 1000.0,
+  "max_cex_slippage_bps": 120.0,
+  "max_dex_price_impact_pct": 4.0,
+  "persistence_hits": 1,
+  "cooldown_sec": 2,
+  "min_delta_profit_usd_to_resend": 1.0,
+  "price_ratio_max": 3.0,
+  "gross_profit_cap_pct": 12.0,
+  "max_spread_bps": 220.0,
+  "min_depth_coverage_pct": 50.0,
+  "engine_tick_hz": 2,
+  "jupiter_poll_interval_sec": 10.0,
+  "max_ob_age_ms": 2000,
+  "stale_ttl_sec": 300,
+  "delete_stale": true
+}

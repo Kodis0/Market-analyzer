@@ -42,6 +42,10 @@ class RuntimeSettings:
     jupiter_poll_interval_sec: float = 10
     max_ob_age_ms: int = 2000
 
+    # Notifier: автоудаление устаревших сигналов
+    stale_ttl_sec: int = 300  # 0 = выключено, иначе сек до "устарел"
+    delete_stale: bool = False  # True = удалять, False = редактировать на "устарел"
+
     # Human-readable labels for /settings
     LABELS: Dict[str, str] = field(default_factory=lambda: {
         "bybit_taker_fee_bps": "Комиссия Bybit (bps)",
@@ -62,6 +66,8 @@ class RuntimeSettings:
         "engine_tick_hz": "Частота тика (Hz)",
         "jupiter_poll_interval_sec": "Интервал опроса Jupiter (сек)",
         "max_ob_age_ms": "Макс. возраст стакана (мс)",
+        "stale_ttl_sec": "Время до устаревания сигнала (сек, 0=выкл)",
+        "delete_stale": "Удалять устаревшие (true/false)",
     })
 
     def to_dict(self) -> Dict[str, Any]:
@@ -103,6 +109,8 @@ class RuntimeSettings:
             "<code>engine_tick_hz</code> — частота тика (Hz)",
             "<code>jupiter_poll_interval_sec</code> — интервал опроса Jupiter (сек)",
             "<code>max_ob_age_ms</code> — макс. возраст стакана (мс)",
+            "<code>stale_ttl_sec</code> — время до устаревания (сек, 0=выкл)",
+            "<code>delete_stale</code> — удалять устаревшие (true/false)",
             "<code>bybit_taker_fee_bps</code> — комиссия Bybit (bps)",
             "<code>solana_tx_fee_usd</code> — комиссия Solana ($)",
             "<code>latency_buffer_bps</code> — буфер задержки (bps)",
@@ -153,7 +161,13 @@ class RuntimeSettings:
 • <code>jupiter_poll_interval_sec</code> — интервал опроса котировок Jupiter
 • <code>max_ob_age_ms</code> — макс. возраст стакана в мс (старше = пропускаем)
 
-<b>Пример:</b> <code>/settings min_profit_usd 20</code>"""
+<b>Устаревшие сигналы:</b>
+• <code>stale_ttl_sec</code> — через сколько сек сигнал считается устаревшим (0 = выключено)
+• <code>delete_stale</code> — true = удалять сообщения, false = редактировать на «устарел»
+
+<b>Пример:</b> <code>/settings min_profit_usd 20</code>
+<b>Пример:</b> <code>/settings stale_ttl_sec 300</code> — устаревать через 5 мин
+<b>Пример:</b> <code>/settings delete_stale true</code> — удалять устаревшие"""
 
 
 def load_runtime_settings(path: str, defaults: Optional[RuntimeSettings] = None) -> RuntimeSettings:

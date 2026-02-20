@@ -1,15 +1,15 @@
 version: 1
-updated_at_ts: 1771588354
+updated_at_ts: 1771588990
 symbols:
   AAVEUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588687
+    until: 1771675321
   ACHUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588875
+    until: 1771675325
   AEVOUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588687
+    until: 1771675321
   AFCUSDT:
     reason: WS_STALE
     until: 1771604232
@@ -19,9 +19,6 @@ symbols:
   ALMANAKUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771589086
-  AMIUSDT:
-    reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588924
   AMZNXUSDT:
     reason: WS_STALE
     until: 1771604082
@@ -30,34 +27,25 @@ symbols:
     until: 1771589080
   ARKMUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588687
+    until: 1771675321
   ARTYUSDT:
     reason: WS_STALE
     until: 1771605103
-  ARUSDT:
-    reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588701
-  ATHUSDT:
-    reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588703
   ATOMUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771606635
   AVLUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588855
+    until: 1771675322
   AVNTUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771589525
-  BDXNUSDT:
-    reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588755
   CATUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588876
+    until: 1771675324
   CFGUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588785
+    until: 1771675328
   CITYUSDT:
     reason: WS_STALE
     until: 1771604292
@@ -76,12 +64,6 @@ symbols:
   DYDXUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771589205
-  EIGENUSDT:
-    reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588698
-  ENSOUSDT:
-    reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588701
   EPTUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771589133
@@ -105,31 +87,16 @@ symbols:
     until: 1771603808
   FRAXUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588703
+    until: 1771675383
   FUELUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771589170
-  GAIBUSDT:
-    reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588880
   GLMRUSDT:
     reason: WS_STALE
     until: 1771609237
-  HAEDALUSDT:
-    reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588826
-  HBARUSDT:
-    reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588865
-  HFTUSDT:
-    reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588773
-  HMSTRUSDT:
-    reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588778
   HPOS10IUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588877
+    until: 1771675326
   HTXUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771606672
@@ -150,16 +117,13 @@ symbols:
     until: 1771603808
   KSMUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588918
+    until: 1771675328
   KUBUSDT:
     reason: WS_STALE
     until: 1771606207
   L3USDT:
     reason: WS_STALE
     until: 1771604052
-  LITKEYUSDT:
-    reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588924
   LMWRUSDT:
     reason: WS_STALE
     until: 1771606207
@@ -184,18 +148,9 @@ symbols:
   MODEUSDT:
     reason: WS_STALE
     until: 1771603778
-  MONPROUSDT:
-    reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588921
-  MORPHOUSDT:
-    reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588748
   MOVRUSDT:
     reason: WS_STALE
     until: 1771605907
-  MVLUSDT:
-    reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588753
   NAVXUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771589571
@@ -210,13 +165,13 @@ symbols:
     until: 1771589082
   OBTUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588919
+    until: 1771675326
   ONEUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771589084
   PAALUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588877
+    until: 1771675386
   PEPEUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771668502
@@ -247,9 +202,6 @@ symbols:
   RATSUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771589074
-  RDNTUSDT:
-    reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588987
   REDUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771668537
@@ -261,16 +213,10 @@ symbols:
     until: 1771603778
   RPLUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588917
+    until: 1771675386
   SAHARAUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771589540
-  SATSUSDT:
-    reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588923
-  SCAUSDT:
-    reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588879
   SCUSDT:
     reason: WS_STALE
     until: 1771604983
@@ -283,9 +229,6 @@ symbols:
   SISUSDT:
     reason: WS_STALE
     until: 1771603808
-  SQDUSDT:
-    reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588749
   STREAMUSDT:
     reason: WS_STALE
     until: 1771605073
@@ -294,7 +237,7 @@ symbols:
     until: 1771668510
   SVLUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588875
+    until: 1771675385
   SWEATUSDT:
     reason: WS_STALE
     until: 1771603808
@@ -304,9 +247,6 @@ symbols:
   TIMEUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771668561
-  TONUSDT:
-    reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588698
   TUNAUSDT:
     reason: WS_STALE
     until: 1771603838
@@ -319,30 +259,21 @@ symbols:
   UXLINKUSDT:
     reason: WS_STALE
     until: 1771604142
-  VELOUSDT:
-    reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588774
   VOOIUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588749
+    until: 1771675390
   VRAUSDT:
     reason: WS_STALE
     until: 1771603778
   VTHOUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771589081
-  WAXPUSDT:
-    reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588920
   XAVAUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771589074
   XOUSDT:
     reason: WS_STALE
     until: 1771603778
-  XPLUSDT:
-    reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588698
   XRPUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771668497
@@ -352,9 +283,6 @@ symbols:
   XTZUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771589541
-  XUSDUSDT:
-    reason: JUP_TOKEN_NOT_TRADABLE
-    until: 1771588867
   ZBTUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771589126
