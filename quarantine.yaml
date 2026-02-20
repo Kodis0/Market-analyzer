@@ -1,5 +1,5 @@
 version: 1
-updated_at_ts: 1771583383
+updated_at_ts: 1771584607
 symbols:
   AAVEUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
@@ -31,6 +31,9 @@ symbols:
   ARKMUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771588687
+  ARTYUSDT:
+    reason: WS_STALE
+    until: 1771605103
   ARUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771588701
@@ -61,6 +64,9 @@ symbols:
   COQUSDT:
     reason: WS_STALE
     until: 1771603778
+  DAIUSDT:
+    reason: WS_STALE
+    until: 1771605967
   DOGEUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771668496
@@ -139,12 +145,21 @@ symbols:
   KSMUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771588918
+  KUBUSDT:
+    reason: WS_STALE
+    until: 1771606207
   L3USDT:
     reason: WS_STALE
     until: 1771604052
   LITKEYUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771588924
+  LMWRUSDT:
+    reason: WS_STALE
+    until: 1771606207
+  MAGICUSDT:
+    reason: WS_STALE
+    until: 1771606057
   MASAUSDT:
     reason: WS_STALE
     until: 1771603778
@@ -154,6 +169,9 @@ symbols:
   MCDXUSDT:
     reason: WS_STALE
     until: 1771603808
+  METAXUSDT:
+    reason: WS_STALE
+    until: 1771605223
   MILKUSDT:
     reason: WS_STALE
     until: 1771603778
@@ -166,6 +184,9 @@ symbols:
   MORPHOUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771588748
+  MOVRUSDT:
+    reason: WS_STALE
+    until: 1771605907
   MVLUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771588753
@@ -196,6 +217,15 @@ symbols:
   PORT3USDT:
     reason: WS_STALE
     until: 1771603778
+  PORTALSUSDT:
+    reason: WS_STALE
+    until: 1771605223
+  PRCLUSDT:
+    reason: WS_STALE
+    until: 1771606057
+  PSGUSDT:
+    reason: WS_STALE
+    until: 1771605193
   PSTAKEUSDT:
     reason: WS_STALE
     until: 1771603778
@@ -244,6 +274,9 @@ symbols:
   SQDUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771588749
+  STREAMUSDT:
+    reason: WS_STALE
+    until: 1771605073
   STXUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771668510

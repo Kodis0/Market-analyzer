@@ -7,6 +7,9 @@ from typing import Dict, Optional, List
 class TelegramCfg(BaseModel):
     chat_id: int
     thread_id: Optional[int] = None
+    web_app_url: Optional[str] = None  # URL для кнопки "Навигация" (Web App)
+    pinned_message_text: Optional[str] = None  # Текст закреплённого сообщения (редактируй в config.yaml)
+    web_app_url: Optional[str] = None  # URL для кнопки "Навигация" (Web App)
 
 
 class BybitCfg(BaseModel):

@@ -71,6 +71,7 @@ async def _register_bot_commands(
     commands = [
         {"command": "settings", "description": "Настройки: /settings min_profit_usd 20"},
         {"command": "help", "description": "Справка по параметрам"},
+        {"command": "pin_setup", "description": "Отправить сообщение с кнопкой Навигация (закрепи вручную)"},
     ]
     payload: dict = {"commands": commands}
     if chat_id:
@@ -83,6 +84,49 @@ async def _register_bot_commands(
         log.warning("Failed to register bot commands: %s", e)
 
 
+DEFAULT_PINNED_TEXT = (
+    "Навигация по единой торговой системе.\n"
+    "Здесь собраны все инструменты для мониторинга арбитражных возможностей между Jupiter и Bybit.\n"
+    "Нажмите кнопку ниже для доступа к настройкам и актуальной информации."
+)
+
+
+def _make_navigation_button_payload(
+    chat_id: int,
+    thread_id: Optional[int],
+    web_app_url: Optional[str],
+    pinned_text: Optional[str] = None,
+) -> dict:
+    """Payload для отправки сообщения с кнопкой «Навигация»."""
+    text = (pinned_text or DEFAULT_PINNED_TEXT).strip() or DEFAULT_PINNED_TEXT
+    payload: dict = {
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True,
+    }
+    if thread_id is not None:
+        payload["message_thread_id"] = thread_id
+
+    if web_app_url and web_app_url.strip().startswith("https://"):
+        payload["reply_markup"] = {
+            "inline_keyboard": [[
+                {"text": "НАВИГАЦИЯ", "web_app": {"url": web_app_url.strip()}},
+            ]],
+        }
+    else:
+        payload["reply_markup"] = {
+            "inline_keyboard": [[
+                {"text": "НАВИГАЦИЯ", "url": "https://t.me/BotFather"},
+            ]],
+        }
+        payload["text"] = (
+            "Добавь web_app_url в config.yaml (telegram.web_app_url) — URL твоего Web App. "
+            "Задеплой папку webapp/ на netlify.com/drop или surge.sh."
+        )
+    return payload
+
+
 async def run_settings_command_handler(
     session: aiohttp.ClientSession,
     bot_token: str,
@@ -92,6 +136,8 @@ async def run_settings_command_handler(
     settings_path: str,
     on_reload: Callable[[RuntimeSettings], None],
     stop_event: asyncio.Event,
+    web_app_url: Optional[str] = None,
+    pinned_message_text: Optional[str] = None,
     poll_interval_sec: float = 2.0,
 ) -> None:
     """
@@ -148,6 +194,21 @@ async def run_settings_command_handler(
                 # /help
                 if cmd == "/help":
                     await send(RuntimeSettings.format_help())
+                    continue
+
+                # /pin_setup
+                if cmd == "/pin_setup":
+                    url_send_full = TG_SEND_MESSAGE.format(token=bot_token)
+                    pl = _make_navigation_button_payload(
+                        chat_id, thread_id, web_app_url, pinned_message_text
+                    )
+                    try:
+                        async with session.post(url_send_full, json=pl, timeout=aiohttp.ClientTimeout(total=10)) as r:
+                            j = await r.json()
+                        if not j.get("ok"):
+                            await send(f"Ошибка: {j.get('description', 'unknown')}")
+                    except Exception as e:
+                        await send(f"Ошибка: {e}")
                     continue
 
                 # /settings

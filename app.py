@@ -601,6 +601,8 @@ async def main(cfg_path: str) -> None:
                     settings_path=settings_path,
                     on_reload=apply_settings_reload,
                     stop_event=commands_stop,
+                    web_app_url=getattr(cfg.telegram, "web_app_url", None),
+                    pinned_message_text=getattr(cfg.telegram, "pinned_message_text", None),
                 ),
                 name="settings_cmd",
             ),
