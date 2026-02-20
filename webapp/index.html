@@ -46,33 +46,51 @@
       margin-top: 6px;
     }
 
-    .period-tabs {
+    .toolbar {
       display: flex;
-      gap: 8px;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 12px;
       margin-bottom: 20px;
-      flex-wrap: wrap;
     }
-    .period-tabs button {
-      flex: 1;
-      min-width: 70px;
-      padding: 12px 14px;
+    .btn-refresh {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
       border: 1px solid var(--border);
-      border-radius: 12px;
+      border-radius: 10px;
       background: var(--bg-card);
       color: var(--text);
       font-size: 0.9rem;
-      font-weight: 500;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: all 0.2s;
     }
-    .period-tabs button:hover {
+    .btn-refresh:hover {
       background: var(--bg-card-hover);
-      border-color: var(--text-dim);
-    }
-    .period-tabs button.active {
-      background: var(--accent-jup);
-      color: var(--bg);
       border-color: var(--accent-jup);
+    }
+    .btn-refresh svg {
+      width: 18px;
+      height: 18px;
+    }
+    .period-select {
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--bg-card);
+      color: var(--text);
+      font-size: 0.9rem;
+      cursor: pointer;
+      min-width: 140px;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2371717a' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 32px;
+    }
+    .period-select:hover {
+      border-color: var(--text-dim);
     }
 
     .chart-card {
@@ -182,9 +200,6 @@
         --text-dim: #52525b;
         --border: #e4e4e7;
       }
-      .period-tabs button.active {
-        color: #fff;
-      }
     }
   </style>
 </head>
@@ -195,11 +210,17 @@
       <p>График активности API</p>
     </div>
 
-    <div class="period-tabs">
-      <button data-period="1h" class="active">Час</button>
-      <button data-period="1d">День</button>
-      <button data-period="1w">Неделя</button>
-      <button data-period="all">Всё время</button>
+    <div class="toolbar">
+      <button type="button" class="btn-refresh" id="btn-refresh" title="Обновить">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        Refresh
+      </button>
+      <select class="period-select" id="period-select">
+        <option value="1h">Last Hour</option>
+        <option value="1d">Day</option>
+        <option value="1w">Week</option>
+        <option value="all">All time</option>
+      </select>
     </div>
 
     <div class="chart-card">
@@ -225,10 +246,13 @@
       const params = new URLSearchParams(location.search);
       const tg = window.Telegram?.WebApp;
       const startParam = tg?.startParam;
-      const apiParam = params.get('api');
-      const API_BASE = (apiParam ? decodeURIComponent(apiParam).trim() : null)
+      let rawApi = (params.get('api') ? decodeURIComponent(params.get('api')).trim() : null)
         || (startParam ? decodeURIComponent(startParam) : null)
         || (document.getElementById('app').dataset.apiUrl || 'http://localhost:8080');
+      if (rawApi && !rawApi.match(/:\d+(\/|$)/)) {
+        rawApi = rawApi.replace(/:?\/?$/, '') + ':8080';
+      }
+      const API_BASE = rawApi.replace(/\/$/, '');
       document.getElementById('api-display').textContent = API_BASE;
 
       let currentPeriod = '1h';
@@ -332,13 +356,10 @@
         }
       }
 
-      document.querySelectorAll('.period-tabs button').forEach(btn => {
-        btn.addEventListener('click', () => {
-          document.querySelector('.period-tabs button.active').classList.remove('active');
-          btn.classList.add('active');
-          currentPeriod = btn.dataset.period;
-          fetchAndDraw();
-        });
+      document.getElementById('btn-refresh').addEventListener('click', () => fetchAndDraw());
+      document.getElementById('period-select').addEventListener('change', (e) => {
+        currentPeriod = e.target.value;
+        fetchAndDraw();
       });
 
       const canvas = document.getElementById('chart');
