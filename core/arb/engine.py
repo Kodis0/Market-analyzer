@@ -22,6 +22,11 @@ from .poller import QuotePoller
 from .utils import bybit_spot_url, jup_swap_url_by_symbol, to_raw, from_raw, snapshot_book
 
 log = logging.getLogger("engine")
+
+# Type-only import for reload_settings
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from core.runtime_settings import RuntimeSettings
 getcontext().prec = 28
 
 
@@ -125,6 +130,36 @@ class ArbEngine:
 
     async def stop(self) -> None:
         self._stop.set()
+
+    def reload_settings(self, settings: "RuntimeSettings") -> None:
+        """Apply runtime settings. Called when user updates via /settings."""
+        self.thresholds.bybit_taker_fee_bps = Decimal(str(settings.bybit_taker_fee_bps))
+        self.thresholds.solana_tx_fee_usd = Decimal(str(settings.solana_tx_fee_usd))
+        self.thresholds.latency_buffer_bps = Decimal(str(settings.latency_buffer_bps))
+        self.thresholds.usdt_usdc_buffer_bps = Decimal(str(settings.usdt_usdc_buffer_bps))
+        self.thresholds.min_profit_usd = Decimal(str(settings.min_profit_usd))
+
+        self.notional = Decimal(str(settings.notional_usd))
+        self.max_cex_slippage_bps = Decimal(str(settings.max_cex_slippage_bps))
+        self.max_dex_price_impact_pct = Decimal(str(settings.max_dex_price_impact_pct))
+        self.max_price_ratio = Decimal(str(settings.price_ratio_max))
+        self.max_gross_profit_pct = Decimal(str(settings.gross_profit_cap_pct))
+        self.max_spread_bps = Decimal(str(settings.max_spread_bps))
+        self.min_depth_coverage_pct = Decimal(str(settings.min_depth_coverage_pct))
+        self.max_ob_age_ms = int(settings.max_ob_age_ms)
+        self.tick_sleep = 1 / max(1, int(settings.engine_tick_hz))
+
+        self.persistence.hits = max(1, int(settings.persistence_hits))
+        self.dedup.cooldown_sec = int(settings.cooldown_sec)
+        self.dedup.min_delta_profit = Decimal(str(settings.min_delta_profit_usd_to_resend))
+
+        self._poller.notional = Decimal(str(settings.notional_usd))
+        self._poller.max_spread_bps = Decimal(str(settings.max_spread_bps))
+        self._poller.max_ob_age_ms = int(settings.max_ob_age_ms)
+        self._poller.poll_interval = float(settings.jupiter_poll_interval_sec)
+        self._poller.max_quote_age_ms = int(max(5000, settings.jupiter_poll_interval_sec * 3 * 1000))
+
+        log.info("Settings reloaded: min_profit=%.2f notional=%.0f", settings.min_profit_usd, settings.notional_usd)
 
     def drain_debug_stats(self) -> Optional[Dict[str, int]]:
         return self._skip_stats.flush_if_due()

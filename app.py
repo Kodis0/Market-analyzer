@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import argparse
 import asyncio
@@ -19,6 +19,8 @@ from core.config import AppConfig
 from core.fees import Thresholds
 from core.quarantine import QuarantineEntry, load_quarantine, now_ts, prune_expired, save_quarantine
 from core.state import MarketState
+from core.runtime_settings import RuntimeSettings, load_runtime_settings, save_runtime_settings
+from notifier.commands import run_settings_command_handler
 from notifier.telegram import TelegramNotifier
 from utils.log import setup_logging
 
@@ -105,12 +107,14 @@ async def main(cfg_path: str) -> None:
     cfg = AppConfig.model_validate(raw)
     setup_logging(cfg.logging.level)
 
-    # ---- quarantine path ----
+    # ---- paths ----
+    cfg_dir = os.path.dirname(os.path.abspath(cfg_path))
+    settings_path = os.path.join(cfg_dir, "settings.json")
+
     quarantine_path = raw.get("quarantine_path") if isinstance(raw, dict) else None
     if not quarantine_path:
         quarantine_path = "quarantine.yaml"
     if isinstance(quarantine_path, str) and quarantine_path and not os.path.isabs(quarantine_path):
-        cfg_dir = os.path.dirname(os.path.abspath(cfg_path))
         quarantine_path = os.path.join(cfg_dir, quarantine_path)
 
     # ---- source-of-truth copies (to restore on unquarantine) ----
@@ -200,12 +204,34 @@ async def main(cfg_path: str) -> None:
             delete_stale=cfg.notifier.delete_stale,
         )
 
+        # Runtime settings (config defaults + settings.json overrides)
+        settings_defaults = RuntimeSettings(
+            bybit_taker_fee_bps=float(cfg.thresholds.bybit_taker_fee_bps),
+            solana_tx_fee_usd=float(cfg.thresholds.solana_tx_fee_usd),
+            latency_buffer_bps=float(cfg.thresholds.latency_buffer_bps),
+            usdt_usdc_buffer_bps=float(cfg.thresholds.usdt_usdc_buffer_bps),
+            min_profit_usd=float(cfg.thresholds.min_profit_usd),
+            notional_usd=float(cfg.trading.notional_usd),
+            max_cex_slippage_bps=float(cfg.filters.max_cex_slippage_bps),
+            max_dex_price_impact_pct=float(cfg.filters.max_dex_price_impact_pct),
+            persistence_hits=int(cfg.filters.persistence_hits),
+            cooldown_sec=int(cfg.filters.cooldown_sec),
+            min_delta_profit_usd_to_resend=float(cfg.filters.min_delta_profit_usd_to_resend),
+            price_ratio_max=float(cfg.filters.price_ratio_max),
+            gross_profit_cap_pct=float(cfg.filters.gross_profit_cap_pct),
+            max_spread_bps=float(cfg.filters.max_spread_bps),
+            min_depth_coverage_pct=float(cfg.filters.min_depth_coverage_pct),
+            engine_tick_hz=int(cfg.runtime.engine_tick_hz),
+            jupiter_poll_interval_sec=float(cfg.jupiter.poll_interval_sec),
+        )
+        settings = load_runtime_settings(settings_path, settings_defaults)
+
         thresholds = Thresholds(
-            bybit_taker_fee_bps=Decimal(str(cfg.thresholds.bybit_taker_fee_bps)),
-            solana_tx_fee_usd=Decimal(str(cfg.thresholds.solana_tx_fee_usd)),
-            latency_buffer_bps=Decimal(str(cfg.thresholds.latency_buffer_bps)),
-            usdt_usdc_buffer_bps=Decimal(str(cfg.thresholds.usdt_usdc_buffer_bps)),
-            min_profit_usd=Decimal(str(cfg.thresholds.min_profit_usd)),
+            bybit_taker_fee_bps=Decimal(str(settings.bybit_taker_fee_bps)),
+            solana_tx_fee_usd=Decimal(str(settings.solana_tx_fee_usd)),
+            latency_buffer_bps=Decimal(str(settings.latency_buffer_bps)),
+            usdt_usdc_buffer_bps=Decimal(str(settings.usdt_usdc_buffer_bps)),
+            min_profit_usd=Decimal(str(settings.min_profit_usd)),
         )
 
         # token_cfgs passed into engine (keep dict identity stable)
@@ -332,21 +358,21 @@ async def main(cfg_path: str) -> None:
             state=state,
             jup=jup,
             thresholds=thresholds,
-            notional_usd=Decimal(str(cfg.trading.notional_usd)),
+            notional_usd=Decimal(str(settings.notional_usd)),
             stable_mint=cfg.trading.stable.mint,
             stable_decimals=cfg.trading.stable.decimals,
             token_cfgs=token_cfgs,
-            max_cex_slippage_bps=Decimal(str(cfg.filters.max_cex_slippage_bps)),
-            max_dex_price_impact_pct=Decimal(str(cfg.filters.max_dex_price_impact_pct)),
-            persistence_hits=int(cfg.filters.persistence_hits),
-            cooldown_sec=int(cfg.filters.cooldown_sec),
-            min_delta_profit_usd_to_resend=Decimal(str(cfg.filters.min_delta_profit_usd_to_resend)),
-            engine_tick_hz=int(cfg.runtime.engine_tick_hz),
-            jupiter_poll_interval_sec=float(cfg.jupiter.poll_interval_sec),
-            price_ratio_max=Decimal(str(cfg.filters.price_ratio_max)),
-            gross_profit_cap_pct=Decimal(str(cfg.filters.gross_profit_cap_pct)),
-            max_spread_bps=Decimal(str(cfg.filters.max_spread_bps)),
-            min_depth_coverage_pct=Decimal(str(cfg.filters.min_depth_coverage_pct)),
+            max_cex_slippage_bps=Decimal(str(settings.max_cex_slippage_bps)),
+            max_dex_price_impact_pct=Decimal(str(settings.max_dex_price_impact_pct)),
+            persistence_hits=int(settings.persistence_hits),
+            cooldown_sec=int(settings.cooldown_sec),
+            min_delta_profit_usd_to_resend=Decimal(str(settings.min_delta_profit_usd_to_resend)),
+            engine_tick_hz=int(settings.engine_tick_hz),
+            jupiter_poll_interval_sec=float(settings.jupiter_poll_interval_sec),
+            price_ratio_max=Decimal(str(settings.price_ratio_max)),
+            gross_profit_cap_pct=Decimal(str(settings.gross_profit_cap_pct)),
+            max_spread_bps=Decimal(str(settings.max_spread_bps)),
+            min_depth_coverage_pct=Decimal(str(settings.min_depth_coverage_pct)),
             denylist_symbols=cfg.filters.denylist_symbols,
             denylist_regex=cfg.filters.denylist_regex,
         )
@@ -554,24 +580,43 @@ async def main(cfg_path: str) -> None:
                         ", ".join(stale_syms[:5]),
                     )
 
+        commands_stop = asyncio.Event()
+
+        def apply_settings_reload(s: RuntimeSettings) -> None:
+            engine.reload_settings(s)
+
         tasks: list[asyncio.Task] = [
             asyncio.create_task(quarantine_sync_loop(), name="quarantine_sync"),
             asyncio.create_task(engine.quote_poller(), name="jup_poller"),
             asyncio.create_task(engine.run(on_signal), name="arb_engine"),
             asyncio.create_task(status_loop(), name="status"),
             asyncio.create_task(stale_loop(), name="tg_stale"),
+            asyncio.create_task(
+                run_settings_command_handler(
+                    session=session,
+                    bot_token=tg_token,
+                    chat_id=cfg.telegram.chat_id,
+                    thread_id=cfg.telegram.thread_id,
+                    settings=settings,
+                    settings_path=settings_path,
+                    on_reload=apply_settings_reload,
+                    stop_event=commands_stop,
+                ),
+                name="settings_cmd",
+            ),
         ]
 
         if cfg.runtime.ws_snapshot_timeout_sec > 0:
             tasks.append(asyncio.create_task(ws_health_loop(), name="ws_health"))
 
-        log.info("Bot started. Press Ctrl+C to stop.")
+        log.info("Bot started. /settings available. Press Ctrl+C to stop.")
 
         try:
             await asyncio.gather(*tasks)
         except KeyboardInterrupt:
             log.info("Stopping...")
         finally:
+            commands_stop.set()
             for t in tasks:
                 t.cancel()
             await ws_cluster.stop()

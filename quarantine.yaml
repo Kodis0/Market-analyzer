@@ -1,5 +1,5 @@
 version: 1
-updated_at_ts: 1771582452
+updated_at_ts: 1771582692
 symbols:
   AAVEUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
@@ -10,6 +10,9 @@ symbols:
   AEVOUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771588687
+  AFCUSDT:
+    reason: WS_STALE
+    until: 1771604232
   AGLDUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771589064
@@ -19,6 +22,9 @@ symbols:
   AMIUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771588924
+  AMZNXUSDT:
+    reason: WS_STALE
+    until: 1771604082
   AOUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771589080
@@ -49,6 +55,9 @@ symbols:
   CFGUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771588785
+  CITYUSDT:
+    reason: WS_STALE
+    until: 1771604292
   COQUSDT:
     reason: WS_STALE
     until: 1771603778
@@ -73,6 +82,9 @@ symbols:
   ETHFIUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771589537
+  FITFIUSDT:
+    reason: WS_STALE
+    until: 1771604112
   FLOKIUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771606658
@@ -112,6 +124,12 @@ symbols:
   JASMYUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771589132
+  JUSDT:
+    reason: WS_STALE
+    until: 1771604082
+  JUVUSDT:
+    reason: WS_STALE
+    until: 1771604202
   KILOUSDT:
     reason: WS_STALE
     until: 1771603808
@@ -127,6 +145,9 @@ symbols:
   MASAUSDT:
     reason: WS_STALE
     until: 1771603778
+  MBXUSDT:
+    reason: WS_STALE
+    until: 1771604202
   MCDXUSDT:
     reason: WS_STALE
     until: 1771603808
@@ -235,9 +256,15 @@ symbols:
   TUNAUSDT:
     reason: WS_STALE
     until: 1771603838
+  USATUSDT:
+    reason: WS_STALE
+    until: 1771604232
   USDTBUSDT:
     reason: WS_STALE
     until: 1771603808
+  UXLINKUSDT:
+    reason: WS_STALE
+    until: 1771604142
   VELOUSDT:
     reason: JUP_TOKEN_NOT_TRADABLE
     until: 1771588774
