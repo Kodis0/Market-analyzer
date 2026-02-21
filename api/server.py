@@ -22,7 +22,7 @@ from typing import Awaitable, Callable, Optional, Set
 from aiohttp import web
 
 from api.auth import validate_telegram_init_data
-from api.db import delete_signal, get_signal_history, get_stats, init as db_init, update_signal_status
+from api.db import delete_signal, get_signal_history, get_stats, health_check as db_health_check, init as db_init, update_signal_status
 
 log = logging.getLogger("api")
 
@@ -208,7 +208,10 @@ def create_app(
         return web.json_response(data, headers=_cors_headers(req))
 
     async def handle_root(req: web.Request) -> web.Response:
-        return web.json_response({"ok": True, "api": "market-analyzer"}, headers=_cors_headers(req))
+        data: dict = {"ok": True, "api": "market-analyzer", "db_ok": db_health_check()}
+        if get_status is not None:
+            data.update(get_status())
+        return web.json_response(data, headers=_cors_headers(req))
 
     async def handle_signal_history_patch(req: web.Request) -> web.Response:
         try:

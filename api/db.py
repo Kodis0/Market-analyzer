@@ -96,6 +96,17 @@ def flush() -> None:
     _flush()
 
 
+def health_check() -> bool:
+    """Return True if DB is initialized and responsive."""
+    if _conn is None:
+        return False
+    try:
+        _conn.execute("SELECT 1")
+        return True
+    except Exception:
+        return False
+
+
 def record(source: str, count: int = 1) -> None:
     """Записать запросы. source: 'jupiter' | 'bybit'. Батчинг — сброс каждые 5 сек."""
     if _conn is None:
