@@ -40,6 +40,28 @@ def test_validate_missing_hash():
     assert validate_telegram_init_data("auth_date=123", "token") is None
 
 
+def test_validate_missing_auth_date():
+    """initData with valid hash but no auth_date must be rejected."""
+    bot_token = "test_bot_token"
+    user_str = json.dumps({"id": 123, "first_name": "Test"})
+    parsed = {"user": user_str}
+    data_check_parts = [f"{k}={parsed[k]}" for k in sorted(parsed.keys())]
+    data_check_string = "\n".join(data_check_parts)
+    secret_key = hmac.new(
+        WEBAPP_DATA_CONST.encode(),
+        bot_token.encode(),
+        hashlib.sha256,
+    ).digest()
+    computed_hash = hmac.new(
+        secret_key,
+        data_check_string.encode(),
+        hashlib.sha256,
+    ).hexdigest()
+    init_data = f"user={quote(user_str)}&hash={computed_hash}"
+    result = validate_telegram_init_data(init_data, bot_token, auth_ttl_sec=3600)
+    assert result is None
+
+
 def test_validate_invalid_hash():
     assert validate_telegram_init_data("auth_date=123&hash=badhash", "token") is None
 

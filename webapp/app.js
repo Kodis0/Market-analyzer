@@ -300,7 +300,7 @@ function formatDirection(dir) {
 
 async function markSignalStale(id) {
   try {
-    const r = await fetch(API_BASE.replace(/\/$/, '') + '/api/signal-history', {
+    const r = await fetch(API_BASE + '/api/signal-history', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({ id, status: 'stale' })
@@ -316,7 +316,7 @@ async function markSignalStale(id) {
 async function deleteSignal(id) {
   if (!confirm('Удалить сигнал из истории?')) return;
   try {
-    const r = await fetch(API_BASE.replace(/\/$/, '') + '/api/signal-history?id=' + id, {
+    const r = await fetch(API_BASE + '/api/signal-history?id=' + id, {
       method: 'DELETE',
       headers: getAuthHeaders()
     });
@@ -379,7 +379,7 @@ function renderHistory(data) {
 async function fetchSignalHistory() {
   historyList.innerHTML = '<li class="history-empty">Загрузка...</li>';
   try {
-    const r = await fetch(API_BASE.replace(/\/$/, '') + '/api/signal-history?period=' + historyPeriod, { headers: getAuthHeaders() });
+    const r = await fetch(API_BASE + '/api/signal-history?period=' + historyPeriod, { headers: getAuthHeaders() });
     if (!r.ok) {
       const msg = r.status === 401 ? 'Откройте дашборд через Telegram (кнопка «Навигация»)' : r.status === 429 ? 'Слишком много запросов. Подождите минуту.' : 'HTTP ' + r.status;
       throw new Error(msg);
@@ -566,7 +566,7 @@ async function fetchConsoleLogs() {
   const el = document.getElementById('console-output');
   el.textContent = 'Загрузка...';
   try {
-    const r = await fetch(API_BASE.replace(/\/$/, '') + '/api/logs?limit=100', { headers: getAuthHeaders() });
+    const r = await fetch(API_BASE + '/api/logs?limit=100', { headers: getAuthHeaders() });
     if (!r.ok) {
       if (r.status === 404) {
         el.innerHTML = '<div class="console-empty">Консоль отключена в настройках сервера</div>';
