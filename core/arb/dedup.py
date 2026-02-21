@@ -3,6 +3,8 @@ from __future__ import annotations
 import time
 from decimal import Decimal
 
+DEDUP_PRUNE_INTERVAL_SEC = 60.0
+
 
 class Dedup:
     """
@@ -14,11 +16,10 @@ class Dedup:
         self.min_delta_profit = Decimal(min_delta_profit)
         self._last_sent: dict[str, tuple[float, Decimal]] = {}
         self._last_prune_ts: float = 0.0
-        self._prune_interval_sec: float = 60.0
 
     def _prune_stale(self) -> None:
         now = time.time()
-        if (now - self._last_prune_ts) < self._prune_interval_sec:
+        if (now - self._last_prune_ts) < DEDUP_PRUNE_INTERVAL_SEC:
             return
         self._last_prune_ts = now
         cutoff = now - (self.cooldown_sec * 2)

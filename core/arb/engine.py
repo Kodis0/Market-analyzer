@@ -30,6 +30,9 @@ getcontext().prec = 28
 # B-branch: allowed ratio of expected_raw / sell_amount_raw (tolerance for rounding)
 B_AMOUNT_RATIO_MIN = Decimal("0.997")
 B_AMOUNT_RATIO_MAX = Decimal("1.003")
+# B-branch requote prune: interval between prunes, max age of entries to keep
+B_REQUOTE_PRUNE_INTERVAL_SEC = 60.0
+B_REQUOTE_PRUNE_AGE_SEC = 600  # 10 min
 
 
 class ArbEngine:
@@ -192,10 +195,10 @@ class ArbEngine:
 
     def _prune_b_requote(self) -> None:
         now = time.time()
-        if (now - self._last_b_requote_prune_ts) < 60.0:
+        if (now - self._last_b_requote_prune_ts) < B_REQUOTE_PRUNE_INTERVAL_SEC:
             return
         self._last_b_requote_prune_ts = now
-        cutoff = now - 600  # 10 min
+        cutoff = now - B_REQUOTE_PRUNE_AGE_SEC
         stale = [k for k, ts in self._last_b_requote.items() if ts < cutoff]
         for k in stale:
             del self._last_b_requote[k]
