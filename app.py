@@ -119,7 +119,6 @@ async def main(cfg_path: str) -> None:
     # ---- API (stats for Mini App) ----
     from api import db as api_db
 
-    api_db.log = log
     api_db.init(api_db_path)
 
     quarantine_path = raw.get("quarantine_path") if isinstance(raw, dict) else None

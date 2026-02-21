@@ -4,13 +4,14 @@ SQLite хранилище статистики запросов к Jupiter и By
 """
 from __future__ import annotations
 
+import logging
 import sqlite3
 import threading
 import time
 from pathlib import Path
 from typing import Optional
 
-log = None  # set by app
+log = logging.getLogger(__name__)
 
 DB_PATH: Optional[Path] = None
 _conn: Optional[sqlite3.Connection] = None
@@ -83,8 +84,7 @@ def _flush() -> None:
                 )
         _last_flush = time.monotonic()
     except Exception as e:
-        if log:
-            log.warning("request_stats flush failed: %s", e)
+        log.warning("request_stats flush failed: %s", e)
         # Вернуть в буфер при ошибке
         with _buffer_lock:
             for k, v in to_write.items():
@@ -139,8 +139,7 @@ def get_stats(period: str) -> list[dict]:
         )
         rows = cur.fetchall()
     except Exception as e:
-        if log:
-            log.warning("request_stats get_stats failed: %s", e)
+        log.warning("request_stats get_stats failed: %s", e)
         return []
 
     # Агрегируем по bucket
@@ -187,8 +186,7 @@ def record_signal(token: str, direction: str, profit_usd: float, notional_usd: f
                 (ts, token, direction, profit_rounded, float(notional_usd)),
             )
     except Exception as e:
-        if log:
-            log.warning("signal_history record failed: %s", e)
+        log.warning("signal_history record failed: %s", e)
 
 
 STALE_AGE_SEC = 900  # 15 мин — сигнал считается устаревшим по возрасту
@@ -227,8 +225,7 @@ def get_signal_history(period: str, limit: int = 200) -> list[dict]:
         )
         rows = cur.fetchall()
     except Exception as e:
-        if log:
-            log.warning("signal_history get failed: %s", e)
+        log.warning("signal_history get failed: %s", e)
         return []
 
     result = []
@@ -263,8 +260,7 @@ def update_signal_status(signal_id: int, status: str) -> bool:
         _conn.commit()
         return cur.rowcount > 0
     except Exception as e:
-        if log:
-            log.warning("signal_history update failed: %s", e)
+        log.warning("signal_history update failed: %s", e)
         return False
 
 
@@ -277,6 +273,5 @@ def delete_signal(signal_id: int) -> bool:
         _conn.commit()
         return cur.rowcount > 0
     except Exception as e:
-        if log:
-            log.warning("signal_history delete failed: %s", e)
+        log.warning("signal_history delete failed: %s", e)
         return False
