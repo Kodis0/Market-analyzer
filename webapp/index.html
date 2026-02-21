@@ -114,6 +114,7 @@
       position: relative;
       background: rgba(0,0,0,0.2);
       border-radius: 12px;
+      cursor: crosshair;
     }
     .chart-canvas {
       width: 100%;
@@ -121,6 +122,28 @@
       display: block;
       border-radius: 12px;
     }
+    .chart-tooltip {
+      position: absolute;
+      padding: 8px 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 0.8rem;
+      color: var(--text);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      pointer-events: none;
+      z-index: 10;
+      opacity: 0;
+      transition: opacity 0.15s;
+      white-space: nowrap;
+    }
+    .chart-tooltip.visible {
+      opacity: 1;
+    }
+    .chart-tooltip-row { display: flex; gap: 12px; align-items: center; }
+    .chart-tooltip-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .chart-tooltip-dot.jupiter { background: #22d3ee; }
+    .chart-tooltip-dot.bybit { background: #f59e0b; }
 
     .legend {
       display: flex;
@@ -674,8 +697,9 @@
 
     <div class="chart-card">
       <h2>Количество запросов</h2>
-      <div class="chart-wrap">
+      <div class="chart-wrap" id="chart-wrap">
         <canvas id="chart" class="chart-canvas"></canvas>
+        <div class="chart-tooltip" id="chart-tooltip"></div>
       </div>
       <div class="legend">
         <span class="legend-item"><span class="legend-dot jupiter"></span> Jupiter</span>
@@ -801,10 +825,35 @@
         return d.toLocaleTimeString();
       }
 
+      let chartState = { data: [], padding: null, chartW: 0, chartH: 0, yMax: 1, w: 0, h: 0 };
+
+      function smoothCurveThrough(ctx, points, padding, chartW, chartH, yMax) {
+        const pts = points.map((v, i) => ({
+          x: padding.left + (i / Math.max(1, points.length - 1)) * chartW,
+          y: padding.top + chartH - (v / yMax) * chartH
+        }));
+        if (pts.length < 2) return;
+        const tension = 0.3;
+        ctx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 0; i < pts.length - 1; i++) {
+          const p0 = pts[Math.max(0, i - 1)];
+          const p1 = pts[i];
+          const p2 = pts[i + 1];
+          const p3 = pts[Math.min(pts.length - 1, i + 2)];
+          const cp1x = p1.x + (p2.x - p0.x) * tension / 6;
+          const cp1y = p1.y + (p2.y - p0.y) * tension / 6;
+          const cp2x = p2.x - (p3.x - p1.x) * tension / 6;
+          const cp2y = p2.y - (p3.y - p1.y) * tension / 6;
+          ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+        }
+      }
+
       function drawChart(data) {
         const w = ctx.canvas.width || 300;
         const h = ctx.canvas.height || 220;
         ctx.clearRect(0, 0, w, h);
+        chartState.data = [];
+        chartState.padding = null;
 
         if (!data || data.length === 0) {
           ctx.fillStyle = '#71717a';
@@ -822,17 +871,23 @@
         const bybitMax = Math.max(1, ...data.map(d => d.bybit || 0));
         const yMax = Math.max(jupMax, bybitMax, 1);
 
+        chartState = { data, padding, chartW, chartH, yMax, w, h };
+
         const jupColor = '#22d3ee';
         const bybitColor = '#f59e0b';
 
-        function drawLine(key, color) {
+        function drawSmoothLine(key, color, fill) {
           const arr = data.map(d => d[key] || 0);
           ctx.beginPath();
-          for (let i = 0; i < arr.length; i++) {
-            const x = padding.left + (i / Math.max(1, arr.length - 1)) * chartW;
-            const y = padding.top + chartH - (arr[i] / yMax) * chartH;
-            if (i === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
+          smoothCurveThrough(ctx, arr, padding, chartW, chartH, yMax);
+          if (fill) {
+            ctx.lineTo(padding.left + chartW, padding.top + chartH);
+            ctx.lineTo(padding.left, padding.top + chartH);
+            ctx.closePath();
+            ctx.fillStyle = color === jupColor ? 'rgba(34, 211, 238, 0.12)' : 'rgba(245, 158, 11, 0.12)';
+            ctx.fill();
+            ctx.beginPath();
+            smoothCurveThrough(ctx, arr, padding, chartW, chartH, yMax);
           }
           ctx.strokeStyle = color;
           ctx.lineWidth = 2.5;
@@ -841,8 +896,8 @@
           ctx.stroke();
         }
 
-        drawLine('jupiter', jupColor);
-        drawLine('bybit', bybitColor);
+        drawSmoothLine('jupiter', jupColor, true);
+        drawSmoothLine('bybit', bybitColor, true);
 
         ctx.fillStyle = '#71717a';
         ctx.font = '10px sans-serif';
@@ -853,6 +908,54 @@
           ctx.fillText(formatTime(data[i].ts, currentPeriod), x, h - 10);
         }
       }
+
+      function showChartTooltip(e) {
+        const wrap = document.getElementById('chart-wrap');
+        const tooltip = document.getElementById('chart-tooltip');
+        const { data, padding, chartW, chartH, w } = chartState;
+        if (!data || data.length === 0 || !padding) {
+          tooltip.classList.remove('visible');
+          return;
+        }
+        const rect = wrap.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        if (x < padding.left || x > padding.left + chartW) {
+          tooltip.classList.remove('visible');
+          return;
+        }
+        const idx = Math.round(((x - padding.left) / chartW) * (data.length - 1));
+        const i = Math.max(0, Math.min(idx, data.length - 1));
+        const d = data[i];
+        const jup = d.jupiter || 0;
+        const bybit = d.bybit || 0;
+        const maxVal = Math.max(jup, bybit);
+        const minVal = Math.min(jup, bybit);
+        tooltip.innerHTML =
+          '<div style="font-weight:600;margin-bottom:6px;color:var(--text-dim)">' + formatTime(d.ts, currentPeriod) + '</div>' +
+          '<div class="chart-tooltip-row"><span class="chart-tooltip-dot jupiter"></span> Jupiter: <b>' + jup + '</b></div>' +
+          '<div class="chart-tooltip-row"><span class="chart-tooltip-dot bybit"></span> Bybit: <b>' + bybit + '</b></div>' +
+          (maxVal > 0 ? '<div style="margin-top:6px;font-size:0.75rem;color:var(--text-dim)">Макс: ' + maxVal + ' · Мин: ' + minVal + '</div>' : '');
+        tooltip.style.left = (x + 14) + 'px';
+        tooltip.style.top = (e.clientY - rect.top - 80) + 'px';
+        tooltip.classList.add('visible');
+        const ttRect = tooltip.getBoundingClientRect();
+        let left = x + 14;
+        if (left + ttRect.width > rect.width - 8) left = x - ttRect.width - 14;
+        let top = e.clientY - rect.top - ttRect.height - 10;
+        if (top < 8) top = e.clientY - rect.top + 10;
+        tooltip.style.left = Math.max(8, Math.min(left, rect.width - ttRect.width - 8)) + 'px';
+        tooltip.style.top = Math.max(8, top) + 'px';
+      }
+
+      function hideChartTooltip() {
+        document.getElementById('chart-tooltip').classList.remove('visible');
+      }
+
+      const chartWrap = document.getElementById('chart-wrap');
+      chartWrap.addEventListener('mousemove', showChartTooltip);
+      chartWrap.addEventListener('mouseleave', hideChartTooltip);
+      chartWrap.addEventListener('touchmove', (e) => { if (e.touches[0]) showChartTooltip({ clientX: e.touches[0].clientX, clientY: e.touches[0].clientY }); });
+      chartWrap.addEventListener('touchend', hideChartTooltip);
 
       function updateStats(data) {
         const el = document.getElementById('stats-row');
