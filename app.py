@@ -28,6 +28,7 @@ log = logging.getLogger("app")
 
 
 def chunked(lst, n: int):
+    """Split list into chunks of size n. Yields slices."""
     for i in range(0, len(lst), n):
         yield lst[i : i + n]
 
@@ -707,10 +708,11 @@ async def main(cfg_path: str) -> None:
                     "auth_ttl_sec": api_cfg.auth_ttl_sec,
                     "allowed_user_ids": list(api_cfg.allowed_user_ids or []),
                     "rate_limit_per_min": api_cfg.rate_limit_per_min,
+                    "cors_origins": list(api_cfg.cors_origins or []),
                 },
             }
         elif api_cfg and not getattr(api_cfg, "auth_required", True):
-            auth_config = {"bot_token": None, "api_cfg": {"auth_required": False}}
+            auth_config = {"bot_token": None, "api_cfg": {"auth_required": False, "cors_origins": list(getattr(api_cfg, "cors_origins", None) or [])}}
 
         api_server_mod = __import__("api.server", fromlist=["run_server"])
         tasks: list[asyncio.Task] = [

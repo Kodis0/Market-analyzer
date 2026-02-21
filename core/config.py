@@ -97,6 +97,7 @@ class ApiCfg(BaseModel):
     auth_ttl_sec: int = 3600  # initData older than this is rejected (replay protection)
     allowed_user_ids: List[int] = []  # empty = any valid Telegram user; non-empty = only these IDs
     rate_limit_per_min: int = 60  # max requests per IP per minute
+    cors_origins: List[str] = []  # empty = *; non-empty = only these origins (e.g. https://market.example.com)
 
 
 class AppConfig(BaseModel):

@@ -1,7 +1,8 @@
 """
 HTTP API для Mini App дашборда.
+
 GET /api/stats?period=1h|1d|1w|all
-GET /api/signal-history?period=1h|1d|1w|all
+GET /api/signal-history?period=1h|1d|1w|all&limit=200
 GET /api/status — статус бота (exchange_enabled)
 GET /api/settings — всё настройки (read-only)
 POST /api/exchange — вкл/выкл биржевую логику
@@ -25,13 +26,25 @@ from api.db import get_signal_history, get_stats, init as db_init
 
 log = logging.getLogger("api")
 
-CORS_HEADERS = {
-    "Access-Control-Allow-Origin": "*",
+CORS_BASE = {
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, X-Telegram-Init-Data",
     "Access-Control-Max-Age": "86400",
     "Cache-Control": "no-store",
 }
+
+
+def _cors_headers(request: web.Request) -> dict:
+    """Build CORS headers. origins empty = *; else echo Origin if allowed."""
+    h = dict(CORS_BASE)
+    auth = request.app.get("auth_config", {}) or {}
+    origins = auth.get("api_cfg", {}).get("cors_origins", [])
+    if not origins:
+        h["Access-Control-Allow-Origin"] = "*"
+    else:
+        origin = request.headers.get("Origin", "")
+        h["Access-Control-Allow-Origin"] = origin if origin in origins else (origins[0] if origins else "*")
+    return h
 
 # Rate limit: IP -> list of request timestamps (sliding window)
 _rate_timestamps: dict[str, list[float]] = defaultdict(list)
@@ -71,7 +84,7 @@ async def auth_middleware(request: web.Request, handler):
 
     # CORS preflight: browser sends OPTIONS before GET/POST with custom headers
     if request.method == "OPTIONS":
-        return web.Response(status=200, headers=CORS_HEADERS)
+        return web.Response(status=200, headers=_cors_headers(request))
 
     auth_config = request.app.get("auth_config")
     if not auth_config:
@@ -91,7 +104,7 @@ async def auth_middleware(request: web.Request, handler):
             return web.json_response(
                 {"error": "Too many requests"},
                 status=429,
-                headers={**CORS_HEADERS, "Retry-After": "60"},
+                headers={**_cors_headers(request), "Retry-After": "60"},
             )
 
     if not api_cfg.get("auth_required", True):
@@ -102,7 +115,7 @@ async def auth_middleware(request: web.Request, handler):
         return web.json_response(
             {"error": "Unauthorized", "detail": "Server misconfiguration"},
             status=401,
-            headers=CORS_HEADERS,
+            headers=_cors_headers(request),
         )
 
     init_data = request.headers.get("X-Telegram-Init-Data")
@@ -111,7 +124,7 @@ async def auth_middleware(request: web.Request, handler):
         return web.json_response(
             {"error": "Unauthorized", "detail": "Open dashboard via Telegram (Navigation button)"},
             status=401,
-            headers=CORS_HEADERS,
+            headers=_cors_headers(request),
         )
 
     allowed_ids: Optional[Set[int]] = None
@@ -128,7 +141,7 @@ async def auth_middleware(request: web.Request, handler):
         return web.json_response(
             {"error": "Unauthorized", "detail": "Invalid or expired auth. Open via Telegram."},
             status=401,
-            headers=CORS_HEADERS,
+            headers=_cors_headers(request),
         )
 
     return await handler(request)
@@ -150,7 +163,7 @@ def create_app(
         if period not in ("1h", "1d", "1w", "all"):
             period = "1h"
         data = get_stats(period)
-        return web.json_response(data, headers=CORS_HEADERS)
+        return web.json_response(data, headers=_cors_headers(req))
 
     async def handle_signal_history(req: web.Request) -> web.Response:
         period = req.query.get("period", "1d")
@@ -161,10 +174,10 @@ def create_app(
         except (TypeError, ValueError):
             limit = 200
         data = get_signal_history(period, limit=limit)
-        return web.json_response(data, headers=CORS_HEADERS)
+        return web.json_response(data, headers=_cors_headers(req))
 
     async def handle_root(req: web.Request) -> web.Response:
-        return web.json_response({"ok": True, "api": "market-analyzer"}, headers=CORS_HEADERS)
+        return web.json_response({"ok": True, "api": "market-analyzer"}, headers=_cors_headers(req))
 
     app.router.add_get("/", handle_root)
     app.router.add_get("/api/stats", handle_stats)
@@ -174,7 +187,7 @@ def create_app(
 
         async def handle_status(req: web.Request) -> web.Response:
             data = get_status()
-            return web.json_response(data, headers=CORS_HEADERS)
+            return web.json_response(data, headers=_cors_headers(req))
 
         app.router.add_get("/api/status", handle_status)
 
@@ -182,7 +195,7 @@ def create_app(
 
         async def handle_settings(req: web.Request) -> web.Response:
             data = get_settings()
-            return web.json_response(data, headers=CORS_HEADERS)
+            return web.json_response(data, headers=_cors_headers(req))
 
         app.router.add_get("/api/settings", handle_settings)
 
@@ -190,15 +203,15 @@ def create_app(
 
         async def handle_settings_post(req: web.Request) -> web.Response:
             if req.method != "POST":
-                return web.json_response({"error": "Method not allowed"}, status=405, headers=CORS_HEADERS)
+                return web.json_response({"error": "Method not allowed"}, status=405, headers=_cors_headers(req))
             try:
                 data = await req.json() if req.content_length else {}
             except Exception:
-                return web.json_response({"error": "Invalid JSON"}, status=400, headers=CORS_HEADERS)
+                return web.json_response({"error": "Invalid JSON"}, status=400, headers=_cors_headers(req))
             if not isinstance(data, dict) or not data:
-                return web.json_response({"error": "Expected non-empty object { key: value }"}, status=400, headers=CORS_HEADERS)
+                return web.json_response({"error": "Expected non-empty object { key: value }"}, status=400, headers=_cors_headers(req))
             result = await on_settings_update(data)
-            return web.json_response(result, headers=CORS_HEADERS)
+            return web.json_response(result, headers=_cors_headers(req))
 
         app.router.add_route("POST", "/api/settings", handle_settings_post)
 
@@ -217,12 +230,12 @@ def create_app(
                     return web.json_response(
                         {"error": "Missing enabled (true|false)"},
                         status=400,
-                        headers=CORS_HEADERS,
+                        headers=_cors_headers(req),
                     )
                 val = str(enabled).lower() in ("true", "1", "yes", "on")
                 await on_exchange_toggle(val)
-                return web.json_response({"ok": True, "exchange_enabled": val}, headers=CORS_HEADERS)
-            return web.json_response({"error": "Method not allowed"}, status=405, headers=CORS_HEADERS)
+                return web.json_response({"ok": True, "exchange_enabled": val}, headers=_cors_headers(req))
+            return web.json_response({"error": "Method not allowed"}, status=405, headers=_cors_headers(req))
 
         app.router.add_route("POST", "/api/exchange", handle_exchange)
 
