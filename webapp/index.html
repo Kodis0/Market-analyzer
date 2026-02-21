@@ -100,25 +100,62 @@
       width: 18px;
       height: 18px;
     }
-    .period-select {
-      padding: 10px 14px;
+    .select-styled {
+      padding: 8px 12px;
+      padding-right: 32px;
       border: 1px solid rgba(255,255,255,0.1);
       border-radius: 10px;
       background: rgba(40, 40, 40, 0.6);
       backdrop-filter: blur(8px);
       color: var(--text);
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       font-weight: 500;
       cursor: pointer;
-      min-width: 140px;
       appearance: none;
+      min-width: 90px;
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239e9e9e' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
       background-repeat: no-repeat;
       background-position: right 12px center;
-      padding-right: 32px;
     }
-    .period-select:hover {
+    .select-styled:hover {
       border-color: var(--text-dim);
+    }
+    .period-select { min-width: 140px; padding: 10px 14px; padding-right: 32px; font-size: 0.9rem; }
+
+    .clear { clear: both; }
+    .checkBox {
+      display: inline-block;
+      cursor: pointer;
+      width: 30px;
+      height: 30px;
+      border: 3px solid rgba(255, 255, 255, 0);
+      border-radius: 10px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0px 0px 0px 2px var(--text);
+      flex-shrink: 0;
+    }
+    .checkBox div {
+      width: 60px;
+      height: 60px;
+      background-color: var(--accent);
+      top: -52px;
+      left: -52px;
+      position: absolute;
+      transform: rotateZ(45deg);
+      z-index: 10;
+    }
+    .checkBox input[type=checkbox]:checked + div {
+      left: -10px;
+      top: -10px;
+    }
+    .checkBox input[type=checkbox] {
+      position: absolute;
+      left: 50px;
+      visibility: hidden;
+    }
+    .transition {
+      transition: 300ms ease;
     }
 
     .chart-card {
@@ -321,27 +358,7 @@
       cursor: pointer;
       user-select: none;
     }
-    .history-hide-stale input { accent-color: var(--accent); }
-    .history-period {
-      padding: 8px 12px;
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 10px;
-      background: rgba(40, 40, 40, 0.6);
-      backdrop-filter: blur(8px);
-      color: var(--text);
-      font-size: 0.85rem;
-      font-weight: 500;
-      cursor: pointer;
-      appearance: none;
-      min-width: 100px;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239e9e9e' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 12px center;
-      padding-right: 32px;
-    }
-    .history-period:hover {
-      border-color: var(--text-dim);
-    }
+    .history-period { min-width: 100px; }
     .history-list {
       list-style: none;
       max-height: 320px;
@@ -796,27 +813,6 @@
     .console-line.warning { color: #f6ad55; }
     .console-empty { color: var(--text-dim); text-align: center; padding: 24px; }
     .console-auto-refresh { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--text-dim); }
-    .console-auto-refresh input { accent-color: var(--accent); }
-    .console-auto-refresh select {
-      padding: 8px 12px;
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 10px;
-      background: rgba(40, 40, 40, 0.6);
-      backdrop-filter: blur(8px);
-      color: var(--text);
-      font-size: 0.85rem;
-      font-weight: 500;
-      cursor: pointer;
-      appearance: none;
-      min-width: 90px;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239e9e9e' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 12px center;
-      padding-right: 32px;
-    }
-    .console-auto-refresh select:hover {
-      border-color: var(--text-dim);
-    }
 
     @media (prefers-color-scheme: light) {
       :root {
@@ -853,7 +849,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
         Refresh
       </button>
-      <select class="period-select" id="period-select">
+      <select class="select-styled period-select" id="period-select">
         <option value="1h">Last Hour</option>
         <option value="1d">Day</option>
         <option value="1w">Week</option>
@@ -881,15 +877,18 @@
       </div>
       <div class="history-body">
         <div class="history-toolbar">
-          <select class="history-period" id="history-period">
-            <option value="1h">Час</option>
-            <option value="1d">День</option>
-            <option value="1w">Неделя</option>
-            <option value="all" selected>Всё время</option>
+          <select class="select-styled history-period" id="history-period">
+            <option value="1h">Hour</option>
+            <option value="1d">Day</option>
+            <option value="1w">Week</option>
+            <option value="all" selected>All time</option>
           </select>
-          <label class="history-hide-stale">
-            <input type="checkbox" id="history-hide-stale" />
-            Скрыть устаревшие
+          <label class="history-hide-stale" for="history-hide-stale">
+            <span class="checkBox transition">
+              <input type="checkbox" id="history-hide-stale" />
+              <div class="transition"></div>
+            </span>
+            Hide outdated
           </label>
         </div>
         <ul class="history-list" id="history-list"></ul>
@@ -954,15 +953,18 @@
         <div class="console-toolbar">
           <h2>Логи</h2>
           <div style="display:flex;align-items:center;gap:12px;">
-            <label class="console-auto-refresh">
-              <input type="checkbox" id="console-auto-refresh" checked />
-              Авто-обновление
+            <label class="console-auto-refresh" for="console-auto-refresh">
+              <span class="checkBox transition">
+                <input type="checkbox" id="console-auto-refresh" checked />
+                <div class="transition"></div>
+              </span>
+              Auto-refresh
             </label>
-            <select id="console-refresh-interval">
-              <option value="5">5 сек</option>
-              <option value="10">10 сек</option>
-              <option value="30" selected>30 сек</option>
-              <option value="60">60 сек</option>
+            <select class="select-styled" id="console-refresh-interval">
+              <option value="5">5 sec</option>
+              <option value="10">10 sec</option>
+              <option value="30" selected>30 sec</option>
+              <option value="60">60 sec</option>
             </select>
             <button type="button" class="btn-refresh" id="btn-console-refresh" title="Обновить">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
