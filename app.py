@@ -357,8 +357,8 @@ async def main(cfg_path: str) -> None:
                 from api.db import record
 
                 record(source, count)
-            except Exception:
-                pass
+            except Exception as e:
+                log.warning("Failed to record Jupiter stats: %s", e)
 
         jup = JupiterClient(
             session=session,
@@ -418,8 +418,8 @@ async def main(cfg_path: str) -> None:
                     float(sig.profit_usd),
                     float(sig.notional_usd),
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                log.warning("Failed to record signal: %s", e)
 
         stats_bybit_sample = max(1, int(getattr(cfg.runtime, "stats_bybit_sample", 1)))
         _bybit_record_counter = [0]  # mutable for closure
@@ -432,8 +432,8 @@ async def main(cfg_path: str) -> None:
                 if _bybit_record_counter[0] >= stats_bybit_sample:
                     record("bybit", _bybit_record_counter[0])
                     _bybit_record_counter[0] = 0
-            except Exception:
-                pass
+            except Exception as e:
+                log.warning("Failed to record Bybit stats: %s", e)
 
         async def on_ob(msg: dict) -> None:
             _record_bybit()
@@ -636,8 +636,8 @@ async def main(cfg_path: str) -> None:
 
                     record("jupiter", 1)
                     record("bybit", 1)
-                except Exception:
-                    pass
+                except Exception as e:
+                    log.warning("Stats heartbeat failed: %s", e)
 
         async def ws_health_loop():
             timeout_sec = float(cfg.runtime.ws_snapshot_timeout_sec)
