@@ -537,25 +537,26 @@ async function fetchStatusAndSettings() {
 
 document.getElementById('btn-settings-refresh').addEventListener('click', fetchStatusAndSettings);
 
-autoTuneToggle.addEventListener('click', async () => {
-  const next = !autoTuneToggle.classList.contains('on');
-  autoTuneToggle.classList.toggle('on', next);
-  autoTuneToggle.classList.toggle('off', !next);
-  try {
-    const r = await fetch(API_BASE + '/api/auto_tune', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-      body: JSON.stringify({ enabled: next })
-    });
-    const d = await r.json();
+var atWrap = document.getElementById('auto-tune-wrap');
+if (atWrap) atWrap.onclick = function() {
+  const t = document.getElementById('auto-tune-toggle');
+  if (!t) return;
+  const next = !t.classList.contains('on');
+  t.classList.toggle('on', next);
+  t.classList.toggle('off', !next);
+  fetch(API_BASE + '/api/auto_tune', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+    body: JSON.stringify({ enabled: next })
+  }).then(r => r.json()).then(d => {
     const ok = !!(d?.auto_tune?.enabled ?? d?.enabled);
-    autoTuneToggle.classList.toggle('on', ok);
-    autoTuneToggle.classList.toggle('off', !ok);
-  } catch (_) {
-    autoTuneToggle.classList.toggle('on', !next);
-    autoTuneToggle.classList.toggle('off', next);
-  }
-});
+    t.classList.toggle('on', ok);
+    t.classList.toggle('off', !ok);
+  }).catch(() => {
+    t.classList.toggle('on', !next);
+    t.classList.toggle('off', next);
+  });
+};
 
 async function fetchConsoleLogs() {
   const el = document.getElementById('console-output');

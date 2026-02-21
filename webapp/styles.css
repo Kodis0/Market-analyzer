@@ -723,6 +723,17 @@ body { padding: 20px; padding-bottom: 88px; }
   box-shadow: 0 4px 24px rgba(0,0,0,0.2);
   transition: transform 0.2s, box-shadow 0.2s;
 }
+.auto-tune-btn {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+  position: relative;
+  z-index: 5;
+}
 .exchange-toggle-wrap:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 32px rgba(0,0,0,0.3);
