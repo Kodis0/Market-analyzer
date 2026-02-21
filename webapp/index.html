@@ -693,9 +693,9 @@
         <div class="history-toolbar">
           <select class="history-period" id="history-period">
             <option value="1h">Час</option>
-            <option value="1d" selected>День</option>
+            <option value="1d">День</option>
             <option value="1w">Неделя</option>
-            <option value="all">Всё время</option>
+            <option value="all" selected>Всё время</option>
           </select>
           <label class="history-hide-stale">
             <input type="checkbox" id="history-hide-stale" />
@@ -944,7 +944,7 @@
         fetchAndDraw();
       });
 
-      let historyPeriod = '1d';
+      let historyPeriod = 'all';
       const historyCard = document.getElementById('history-card');
       const historyHeader = document.getElementById('history-header');
       const historyList = document.getElementById('history-list');
@@ -1070,7 +1070,8 @@
           const data = await r.json();
           lastHistoryData = Array.isArray(data) ? data : [];
           if (lastHistoryData.length === 0) {
-            historyList.innerHTML = '<li class="history-empty">Нет сигналов за выбранный период</li>';
+            const hint = historyPeriod !== 'all' ? ' Попробуйте период «Всё время».' : '';
+            historyList.innerHTML = '<li class="history-empty">Нет сигналов за выбранный период.' + hint + '</li>';
             return;
           }
           renderHistory(lastHistoryData);
