@@ -738,6 +738,15 @@ body { padding: 20px; padding-bottom: 88px; }
   border-radius: 14px;
   cursor: pointer;
   transition: background 0.2s;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  -webkit-appearance: none;
+  appearance: none;
 }
 .exchange-toggle.on {
   background: var(--accent);
@@ -755,6 +764,7 @@ body { padding: 20px; padding-bottom: 88px; }
   top: 2px;
   left: 2px;
   transition: transform 0.2s;
+  pointer-events: none;
 }
 .exchange-toggle.on::after {
   transform: translateX(24px);
@@ -768,6 +778,9 @@ body { padding: 20px; padding-bottom: 88px; }
 }
 .auto-tune-block .auto-tune-toggle-wrap.exchange-toggle-wrap {
   margin-bottom: 0;
+}
+.auto-tune-block .auto-tune-toggle-wrap.exchange-toggle-wrap:hover {
+  transform: none;
 }
 .auto-tune-history {
   margin-bottom: 0;
@@ -881,6 +894,8 @@ body { padding: 20px; padding-bottom: 88px; }
 }
 .auto-tune-actions .btn-refresh {
   flex: 1;
+  cursor: pointer;
+  touch-action: manipulation;
 }
 .auto-tune-actions .btn-secondary {
   background: rgba(255,255,255,0.06);
