@@ -1,6 +1,7 @@
 """
 Runtime settings that can be changed via /settings command.
 Stored in settings.json, merged with config.yaml defaults.
+Defaults aligned with core.config (ThresholdsCfg, FiltersCfg, RuntimeCfg, JupiterCfg, NotifierCfg).
 """
 from __future__ import annotations
 
@@ -16,33 +17,33 @@ from typing import Any, Dict, Optional
 class RuntimeSettings:
     """Mutable settings affecting arb signals. All values can be updated at runtime."""
 
-    # Thresholds
+    # Thresholds (aligned with ThresholdsCfg)
     bybit_taker_fee_bps: float = 10
     solana_tx_fee_usd: float = 0.05
-    latency_buffer_bps: float = 15
-    usdt_usdc_buffer_bps: float = 10
-    min_profit_usd: float = 10
+    latency_buffer_bps: float = 5
+    usdt_usdc_buffer_bps: float = 5
+    min_profit_usd: float = 1.0
 
-    # Trading
+    # Trading (aligned with TradingCfg)
     notional_usd: float = 1000
 
-    # Filters
-    max_cex_slippage_bps: float = 80
-    max_dex_price_impact_pct: float = 3.0
-    persistence_hits: int = 1
-    cooldown_sec: int = 3
-    min_delta_profit_usd_to_resend: float = 2
-    price_ratio_max: float = 3
-    gross_profit_cap_pct: float = 10
-    max_spread_bps: float = 150
-    min_depth_coverage_pct: float = 60
+    # Filters (aligned with FiltersCfg)
+    max_cex_slippage_bps: float = 30
+    max_dex_price_impact_pct: float = 0.50
+    persistence_hits: int = 2
+    cooldown_sec: int = 60
+    min_delta_profit_usd_to_resend: float = 0.5
+    price_ratio_max: float = 3.0
+    gross_profit_cap_pct: float = 10.0
+    max_spread_bps: float = 50.0
+    min_depth_coverage_pct: float = 98.0
 
-    # Runtime
-    engine_tick_hz: int = 2
-    jupiter_poll_interval_sec: float = 10
+    # Runtime (aligned with RuntimeCfg, JupiterCfg)
+    engine_tick_hz: int = 10
+    jupiter_poll_interval_sec: float = 1.5
     max_ob_age_ms: int = 2000
 
-    # Notifier: автоудаление устаревших сигналов
+    # Notifier (aligned with NotifierCfg)
     stale_ttl_sec: int = 300  # 0 = выключено, иначе сек до "устарел"
     delete_stale: bool = False  # True = удалять, False = редактировать на "устарел"
 
