@@ -388,9 +388,8 @@ if __name__ == "__main__":
     args = p.parse_args()
 
     logging.basicConfig(level=logging.INFO)
-    db_init(__import__("pathlib").Path(args.db))
 
     async def _main():
-        await run_server(args.host, args.port)
+        await run_server(args.host, args.port, db_path=args.db)
 
     asyncio.run(_main())

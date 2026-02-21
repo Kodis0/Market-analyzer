@@ -78,7 +78,7 @@ class BybitWS:
             self._desired_changed.set()
 
         if notify:
-            asyncio.get_event_loop().call_soon_threadsafe(lambda: asyncio.create_task(_set()))
+            asyncio.get_running_loop().call_soon_threadsafe(lambda: asyncio.create_task(_set()))
         else:
             # used in __init__ before loop runs: best-effort synchronous set
             self._desired_topics = topics
