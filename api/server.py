@@ -12,7 +12,7 @@ from typing import Awaitable, Callable, Optional
 
 from aiohttp import web
 
-from api.db import get_stats, init as db_init
+from api.db import get_signal_history, get_stats, init as db_init
 
 log = logging.getLogger("api")
 
@@ -31,7 +31,16 @@ def create_app(
         data = get_stats(period)
         return web.json_response(data, headers=CORS_HEADERS)
 
+    async def handle_signal_history(req: web.Request) -> web.Response:
+        period = req.query.get("period", "1d")
+        if period not in ("1h", "1d", "1w", "all"):
+            period = "1d"
+        limit = min(500, max(1, int(req.query.get("limit", 200))))
+        data = get_signal_history(period, limit=limit)
+        return web.json_response(data, headers=CORS_HEADERS)
+
     app.router.add_get("/api/stats", handle_stats)
+    app.router.add_get("/api/signal-history", handle_signal_history)
 
     if on_exchange_toggle is not None:
 

@@ -406,6 +406,17 @@ async def main(cfg_path: str) -> None:
         async def on_signal(sig):
             reply_markup = sig.to_reply_markup() if hasattr(sig, "to_reply_markup") else None
             await tg.upsert(sig.key, sig.text, reply_markup=reply_markup)
+            try:
+                from api.db import record_signal
+
+                record_signal(
+                    sig.token,
+                    sig.direction,
+                    float(sig.profit_usd),
+                    float(sig.notional_usd),
+                )
+            except Exception:
+                pass
 
         stats_bybit_sample = max(1, int(getattr(cfg.runtime, "stats_bybit_sample", 1)))
         _bybit_record_counter = [0]  # mutable for closure

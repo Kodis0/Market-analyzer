@@ -28,6 +28,17 @@ CREATE TABLE IF NOT EXISTS request_stats (
 );
 
 CREATE INDEX IF NOT EXISTS idx_request_stats_ts ON request_stats(ts_bucket);
+
+CREATE TABLE IF NOT EXISTS signal_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts INTEGER NOT NULL,
+    token TEXT NOT NULL,
+    direction TEXT NOT NULL,
+    profit_usd REAL NOT NULL,
+    notional_usd REAL NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_signal_history_ts ON signal_history(ts);
 """
 
 
@@ -142,3 +153,63 @@ def get_stats(period: str) -> list[dict]:
 
     result = sorted(buckets.values(), key=lambda x: x["ts"])
     return result
+
+
+def record_signal(token: str, direction: str, profit_usd: float, notional_usd: float) -> None:
+    """Записать сигнал в историю."""
+    if _conn is None:
+        return
+    ts = int(time.time())
+    try:
+        with _conn:
+            _conn.execute(
+                """
+                INSERT INTO signal_history (ts, token, direction, profit_usd, notional_usd)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (ts, token, direction, float(profit_usd), float(notional_usd)),
+            )
+    except Exception as e:
+        if log:
+            log.warning("signal_history record failed: %s", e)
+
+
+def get_signal_history(period: str, limit: int = 200) -> list[dict]:
+    """
+    period: '1h' | '1d' | '1w' | 'all'
+    Возвращает [{ts, token, direction, profit_usd, notional_usd}, ...] отсортировано по ts DESC (новые сверху).
+    """
+    if _conn is None:
+        return []
+    _flush()  # Сбросить буфер request_stats перед чтением (общая БД)
+    now = int(time.time())
+    if period == "1h":
+        since = now - 3600
+    elif period == "1d":
+        since = now - 86400
+    elif period == "1w":
+        since = now - 7 * 86400
+    else:  # all
+        since = 0
+
+    try:
+        cur = _conn.execute(
+            """
+            SELECT ts, token, direction, profit_usd, notional_usd
+            FROM signal_history
+            WHERE ts >= ?
+            ORDER BY ts DESC
+            LIMIT ?
+            """,
+            (since, limit),
+        )
+        rows = cur.fetchall()
+    except Exception as e:
+        if log:
+            log.warning("signal_history get failed: %s", e)
+        return []
+
+    return [
+        {"ts": r[0], "token": r[1], "direction": r[2], "profit_usd": r[3], "notional_usd": r[4]}
+        for r in rows
+    ]

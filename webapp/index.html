@@ -191,6 +191,112 @@
       font-size: 0.7rem;
     }
 
+    .history-card {
+      background: var(--bg-card);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 20px;
+      border: 1px solid var(--border);
+    }
+    .history-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+      padding: 4px 0;
+    }
+    .history-header h2 {
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .history-toggle {
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-dim);
+      transition: transform 0.2s;
+    }
+    .history-card.expanded .history-toggle {
+      transform: rotate(180deg);
+    }
+    .history-body {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+    }
+    .history-card.expanded .history-body {
+      max-height: 500px;
+    }
+    .history-toolbar {
+      display: flex;
+      gap: 12px;
+      margin: 16px 0 12px;
+      align-items: center;
+    }
+    .history-period {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.85rem;
+      cursor: pointer;
+      appearance: none;
+      min-width: 100px;
+    }
+    .history-list {
+      list-style: none;
+      max-height: 320px;
+      overflow-y: auto;
+    }
+    .history-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      border-radius: 10px;
+      margin-bottom: 6px;
+      background: rgba(0,0,0,0.2);
+      border: 1px solid transparent;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .history-item:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border);
+    }
+    .history-item-token {
+      font-weight: 600;
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+    .history-item-direction {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+    .history-item-profit {
+      font-weight: 600;
+      color: var(--success);
+      font-size: 0.9rem;
+    }
+    .history-item-time {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+    .history-empty {
+      padding: 24px;
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 0.9rem;
+    }
+
     @media (prefers-color-scheme: light) {
       :root {
         --bg: #fafafa;
@@ -233,6 +339,24 @@
         <span class="legend-item"><span class="legend-dot bybit"></span> Bybit</span>
       </div>
       <div id="stats-row" class="stats-row" style="display:none;"></div>
+    </div>
+
+    <div class="history-card" id="history-card">
+      <div class="history-header" id="history-header">
+        <h2>История сигналов</h2>
+        <span class="history-toggle">▼</span>
+      </div>
+      <div class="history-body">
+        <div class="history-toolbar">
+          <select class="history-period" id="history-period">
+            <option value="1h">Час</option>
+            <option value="1d" selected>День</option>
+            <option value="1w">Неделя</option>
+            <option value="all">Всё время</option>
+          </select>
+        </div>
+        <ul class="history-list" id="history-list"></ul>
+      </div>
     </div>
 
     <div id="status" class="status loading">Загрузка...</div>
@@ -361,11 +485,78 @@
         }
       }
 
-      document.getElementById('btn-refresh').addEventListener('click', () => fetchAndDraw());
+      document.getElementById('btn-refresh').addEventListener('click', () => {
+        fetchAndDraw();
+        fetchSignalHistory();
+      });
       document.getElementById('period-select').addEventListener('change', (e) => {
         currentPeriod = e.target.value;
         fetchAndDraw();
       });
+
+      let historyPeriod = '1d';
+      const historyCard = document.getElementById('history-card');
+      const historyHeader = document.getElementById('history-header');
+      const historyList = document.getElementById('history-list');
+
+      historyHeader.addEventListener('click', () => {
+        historyCard.classList.toggle('expanded');
+        if (historyCard.classList.contains('expanded')) fetchSignalHistory();
+      });
+
+      document.getElementById('history-period').addEventListener('change', (e) => {
+        historyPeriod = e.target.value;
+        fetchSignalHistory();
+      });
+
+      function formatSignalTime(ts) {
+        const d = new Date(ts * 1000);
+        const now = new Date();
+        const diff = Math.floor((now - d) / 1000);
+        if (diff < 60) return 'только что';
+        if (diff < 3600) return Math.floor(diff / 60) + ' мин назад';
+        if (diff < 86400) return Math.floor(diff / 3600) + ' ч назад';
+        return d.getDate() + '.' + (d.getMonth() + 1) + ' ' + d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0');
+      }
+
+      function formatDirection(dir) {
+        if (dir === 'JUP->BYBIT') return 'Jupiter → Bybit';
+        if (dir === 'BYBIT->JUP') return 'Bybit → Jupiter';
+        return dir;
+      }
+
+      async function fetchSignalHistory() {
+        historyList.innerHTML = '<li class="history-empty">Загрузка...</li>';
+        try {
+          const r = await fetch(API_BASE.replace(/\/$/, '') + '/api/signal-history?period=' + historyPeriod);
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          const data = await r.json();
+          if (!data || data.length === 0) {
+            historyList.innerHTML = '<li class="history-empty">Нет сигналов за выбранный период</li>';
+            return;
+          }
+          historyList.innerHTML = data.map(s => `
+            <li class="history-item">
+              <div>
+                <div class="history-item-token">${escapeHtml(s.token)}</div>
+                <div class="history-item-direction">${escapeHtml(formatDirection(s.direction))}</div>
+              </div>
+              <div style="text-align: right;">
+                <div class="history-item-profit">+${Number(s.profit_usd).toFixed(2)}$</div>
+                <div class="history-item-time">${formatSignalTime(s.ts)}</div>
+              </div>
+            </li>
+          `).join('');
+        } catch (e) {
+          historyList.innerHTML = '<li class="history-empty">Ошибка загрузки: ' + escapeHtml(e.message) + '</li>';
+        }
+      }
+
+      function escapeHtml(s) {
+        const div = document.createElement('div');
+        div.textContent = s;
+        return div.innerHTML;
+      }
 
       const canvas = document.getElementById('chart');
       function resize() {
