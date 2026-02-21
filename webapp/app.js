@@ -508,6 +508,8 @@ async function fetchStatusAndSettings() {
       const s = data.settings || {};
       const labels = data.labels || {};
       renderSettingsList(s, labels);
+      autoTuneToggle?.classList.toggle('on', !!s.auto_tune_enabled);
+      autoTuneToggle?.classList.toggle('off', !s.auto_tune_enabled);
     }
   } catch (e) {
     setStatusDot(apiDot, false);
@@ -581,6 +583,7 @@ autoTuneToggle?.addEventListener('click', async () => {
     autoTuneToggle.classList.toggle('on', enabled);
     autoTuneToggle.classList.toggle('off', !enabled);
     fetchAutoTune();
+    fetchStatusAndSettings();
   } catch (e) {
     fetchAutoTune();
   }
@@ -685,11 +688,12 @@ const SETTING_TOOLTIPS = {
   jupiter_poll_interval_sec: 'Интервал опроса котировок Jupiter',
   max_ob_age_ms: 'Макс. возраст стакана в мс (старше = пропускаем)',
   stale_ttl_sec: 'Через сколько сек сигнал считается устаревшим (0 = выключено)',
-  delete_stale: 'true = удалять сообщения, false = редактировать на «устарел»'
+  delete_stale: 'true = удалять сообщения, false = редактировать на «устарел»',
+  auto_tune_enabled: 'Авто-подстройка параметров (вкл/выкл). Синхронизировано с блоком AutoTune выше.'
 };
 
 function renderSettingsList(s, labels) {
-  const skipKeys = ['exchange_enabled', 'auto_tune_enabled', 'auto_tune_bounds'];
+  const skipKeys = ['exchange_enabled', 'auto_tune_bounds'];
   settingsList.innerHTML = Object.entries(s)
     .filter(([k]) => !skipKeys.includes(k))
     .map(([k, v]) => {
@@ -749,6 +753,10 @@ async function updateSetting(key, value) {
           input.value = data.updated[key];
           input.dataset.lastValid = String(data.updated[key]);
         }
+      }
+      if (key === 'auto_tune_enabled') {
+        autoTuneToggle?.classList.toggle('on', !!data.updated[key]);
+        autoTuneToggle?.classList.toggle('off', !data.updated[key]);
       }
     }
   } catch (e) {

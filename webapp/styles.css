@@ -761,11 +761,16 @@ body { padding: 20px; padding-bottom: 88px; }
 }
 
 /* Auto-tune block */
+.auto-tune-block {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
 .auto-tune-block .auto-tune-toggle-wrap.exchange-toggle-wrap {
-  margin-bottom: 20px;
+  margin-bottom: 0;
 }
 .auto-tune-history {
-  margin-bottom: 20px;
+  margin-bottom: 0;
 }
 .auto-tune-history-list {
   list-style: none;
@@ -809,31 +814,70 @@ body { padding: 20px; padding-bottom: 88px; }
   border-radius: 10px;
   border: 1px dashed var(--border);
 }
-.auto-tune-bound-row {
+.auto-tune-bound-section {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  margin-bottom: 20px;
-  background: rgba(255,255,255,0.04);
-  border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.06);
+  flex-direction: column;
+  gap: 12px;
 }
 .auto-tune-bound-label {
-  font-size: 0.85rem;
-  color: var(--text-dim);
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text);
+}
+.auto-tune-bound-row {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  background: rgba(40, 40, 40, 0.5);
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.08);
 }
 .bound-inputs {
   display: flex;
-  gap: 10px;
+  gap: 16px;
+  align-items: center;
 }
-.bound-inputs .settings-input {
-  width: 72px;
-  text-align: center;
+.bound-inputs .bound-input-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.bound-inputs .bound-input-wrap label {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+.bound-inputs .settings-input,
+.auto-tune-bound-row .settings-input {
+  width: 100%;
+  min-width: 100px;
+  height: 44px;
+  padding: 0 16px;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.95rem;
+  text-align: left;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+.bound-inputs .settings-input::placeholder,
+.auto-tune-bound-row .settings-input::placeholder {
+  color: var(--text-dim);
+  opacity: 0.8;
+}
+.bound-inputs .settings-input:focus,
+.auto-tune-bound-row .settings-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 .auto-tune-actions {
   display: flex;
   gap: 12px;
+  margin-top: 8px;
 }
 .auto-tune-actions .btn-refresh {
   flex: 1;

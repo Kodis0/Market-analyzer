@@ -126,16 +126,24 @@
         <div class="auto-tune-history" id="auto-tune-history">
           <ul id="auto-tune-history-list" class="auto-tune-history-list"></ul>
         </div>
-        <div class="auto-tune-bound-row">
-          <label class="auto-tune-bound-label">Мин. прибыль ($)</label>
-          <div class="bound-inputs">
-            <input type="number" id="bound-min-profit-min" class="settings-input" placeholder="от" step="0.1" />
-            <input type="number" id="bound-min-profit-max" class="settings-input" placeholder="до" step="0.5" />
+        <div class="auto-tune-bound-section">
+          <div class="auto-tune-bound-row">
+            <span class="auto-tune-bound-label">Мин. прибыль ($)</span>
+            <div class="bound-inputs">
+              <div class="bound-input-wrap">
+                <label for="bound-min-profit-min">от</label>
+                <input type="number" id="bound-min-profit-min" class="settings-input" placeholder="0.1" step="0.1" min="0" />
+              </div>
+              <div class="bound-input-wrap">
+                <label for="bound-min-profit-max">до</label>
+                <input type="number" id="bound-min-profit-max" class="settings-input" placeholder="50" step="0.5" min="0" />
+              </div>
+            </div>
+            <div class="auto-tune-actions">
+              <button type="button" class="btn-refresh" id="btn-auto-tune-save-bounds">Сохранить</button>
+              <button type="button" class="btn-refresh btn-secondary" id="btn-auto-tune-reset">Сбросить</button>
+            </div>
           </div>
-        </div>
-        <div class="auto-tune-actions">
-          <button type="button" class="btn-refresh" id="btn-auto-tune-save-bounds">Сохранить</button>
-          <button type="button" class="btn-refresh btn-secondary" id="btn-auto-tune-reset">Сбросить</button>
         </div>
       </div>
       <div class="settings-block">
