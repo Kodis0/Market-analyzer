@@ -329,7 +329,8 @@ async def main(cfg_path: str) -> None:
                     metrics_collector.record_skips(stats)
                     skip_text = (
                         ", ".join(
-                            [f"{k}={v}" for k, v in sorted(stats.items(), key=lambda kv: kv[1], reverse=True)[:5]]
+                            f"{k}={v}"
+                            for k, v in sorted(stats.items(), key=lambda kv: kv[1], reverse=True)[:5]
                         )
                         if stats
                         else "none"
