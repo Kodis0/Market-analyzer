@@ -462,7 +462,12 @@ async def main(cfg_path: str) -> None:
             return {"exchange_enabled": settings.exchange_enabled}
 
         def get_settings() -> dict:
-            return {"settings": settings.to_dict(), "labels": settings.LABELS}
+            s = settings.to_dict()
+            labels = dict(settings.LABELS)
+            for k in ("auto_tune_enabled", "auto_tune_bounds"):
+                s.pop(k, None)
+                labels.pop(k, None)
+            return {"settings": s, "labels": labels}
 
         async def on_settings_update(updates: dict) -> dict:
             updated: dict = {}
@@ -472,7 +477,10 @@ async def main(cfg_path: str) -> None:
             if updated:
                 save_runtime_settings(str(settings_path), settings)
                 apply_settings_reload(settings)
-            return {"ok": True, "updated": updated, "settings": settings.to_dict()}
+            s = settings.to_dict()
+            for k in ("auto_tune_enabled", "auto_tune_bounds"):
+                s.pop(k, None)
+            return {"ok": True, "updated": updated, "settings": s}
 
         def get_auto_tune() -> dict:
             return {

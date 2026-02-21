@@ -692,10 +692,11 @@ const SETTING_TOOLTIPS = {
   delete_stale: 'true = удалять сообщения, false = редактировать на «устарел»'
 };
 
+const SETTINGS_HIDDEN_KEYS = new Set(['exchange_enabled', 'auto_tune_enabled', 'auto_tune_bounds']);
+
 function renderSettingsList(s, labels) {
-  const skipKeys = ['exchange_enabled', 'auto_tune_enabled', 'auto_tune_bounds'];
   settingsList.innerHTML = Object.entries(s)
-    .filter(([k]) => !skipKeys.includes(k))
+    .filter(([k]) => !SETTINGS_HIDDEN_KEYS.has(k))
     .map(([k, v]) => {
       const label = escapeHtml(labels[k] || k);
       const tooltip = SETTING_TOOLTIPS[k];
