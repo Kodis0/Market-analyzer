@@ -23,7 +23,7 @@ from core.runtime_settings import RuntimeSettings, load_runtime_settings, save_r
 from core.ws_cluster import BybitWSCluster
 from notifier.commands import run_settings_command_handler
 from notifier.telegram import TelegramNotifier
-from utils.log import setup_logging
+from utils.log import log_task_exception, setup_logging
 
 log = logging.getLogger("app")
 
@@ -122,7 +122,8 @@ async def main(cfg_path: str) -> None:
             try:
                 from api.db import record_async
 
-                asyncio.get_running_loop().create_task(record_async(source, count))
+                t = asyncio.create_task(record_async(source, count))
+                t.add_done_callback(log_task_exception)
             except Exception as e:
                 log.warning("Failed to record Jupiter stats: %s", e)
 
@@ -196,9 +197,10 @@ async def main(cfg_path: str) -> None:
 
                 _bybit_record_counter[0] += 1
                 if _bybit_record_counter[0] >= stats_bybit_sample:
-                    asyncio.get_running_loop().create_task(
+                    t = asyncio.create_task(
                         record_async("bybit", _bybit_record_counter[0])
                     )
+                    t.add_done_callback(log_task_exception)
                     _bybit_record_counter[0] = 0
             except Exception as e:
                 log.warning("Failed to record Bybit stats: %s", e)

@@ -272,7 +272,10 @@ class JupiterClient:
         if not cb:
             return
         try:
-            asyncio.create_task(cb(code, input_mint, output_mint, bad_mint, msg))
+            from utils.log import log_task_exception
+
+            t = asyncio.create_task(cb(code, input_mint, output_mint, bad_mint, msg))
+            t.add_done_callback(lambda task: log_task_exception(task, log))
         except Exception:
             # never fail quotes because of observer
             pass
