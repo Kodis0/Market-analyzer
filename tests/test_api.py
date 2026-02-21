@@ -45,6 +45,8 @@ async def test_root_returns_200(tmp_path: Path):
         async with TestClient(TestServer(app)) as client:
             resp = await client.get("/")
             assert resp.status == 200
+            assert "X-Request-ID" in resp.headers
+            assert len(resp.headers["X-Request-ID"]) > 0
             data = await resp.json()
             assert data.get("ok") is True
             assert data.get("api") == "market-analyzer"

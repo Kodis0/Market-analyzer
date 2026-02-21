@@ -17,6 +17,7 @@ import argparse
 import asyncio
 import logging
 import time
+import uuid
 from collections import defaultdict
 from collections.abc import Awaitable, Callable
 
@@ -40,7 +41,7 @@ log = logging.getLogger("api")
 
 CORS_BASE = {
     "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, X-Telegram-Init-Data",
+    "Access-Control-Allow-Headers": "Content-Type, X-Telegram-Init-Data, X-Request-ID",
     "Access-Control-Max-Age": "86400",
     "Cache-Control": "no-store",
 }
@@ -116,6 +117,16 @@ async def _check_logs_rate_limit(ip: str, limit_per_min: int) -> bool:
             return False
         times.append(now)
     return True
+
+
+@web.middleware
+async def request_id_middleware(request: web.Request, handler):
+    """Add X-Request-ID to request and response for log tracing."""
+    request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex
+    request["request_id"] = request_id
+    response = await handler(request)
+    response.headers["X-Request-ID"] = request_id
+    return response
 
 
 @web.middleware
@@ -212,7 +223,7 @@ def create_app(
     on_auto_tune_update: Callable[[dict], Awaitable[dict]] | None = None,
     auth_config: dict | None = None,
 ) -> web.Application:
-    app = web.Application(middlewares=[auth_middleware])
+    app = web.Application(middlewares=[request_id_middleware, auth_middleware])
     if auth_config:
         app["auth_config"] = auth_config
 

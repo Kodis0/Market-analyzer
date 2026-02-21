@@ -13,7 +13,7 @@
 ## Требования
 
 - Python 3.10+
-- `.env` с `TG_BOT_TOKEN`, `JUP_API_KEY`
+- `.env` с `TG_BOT_TOKEN`, `JUP_API_KEY` (скопируй `cp .env.example .env` и заполни)
 - `config.yaml` (см. `config.yaml` в репозитории)
 
 ## Установка

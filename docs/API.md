@@ -2,6 +2,10 @@
 
 HTTP API для Mini App дашборда. Защита: Telegram initData, auth_date TTL, allowlist user_id, rate limiting.
 
+## Request ID
+
+Все ответы содержат заголовок `X-Request-ID` — уникальный ID запроса для трассировки в логах. Клиент может передать свой ID в заголовке `X-Request-ID`, он будет использован вместо генерации нового.
+
 ## Аутентификация
 
 Все `/api/*` эндпоинты (кроме OPTIONS) требуют заголовок:
