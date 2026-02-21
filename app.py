@@ -22,15 +22,10 @@ from core.state import MarketState
 from core.runtime_settings import RuntimeSettings, load_runtime_settings, save_runtime_settings
 from notifier.commands import run_settings_command_handler
 from notifier.telegram import TelegramNotifier
+from utils.collections import chunked
 from utils.log import setup_logging
 
 log = logging.getLogger("app")
-
-
-def chunked(lst, n: int):
-    """Split list into chunks of size n. Yields slices."""
-    for i in range(0, len(lst), n):
-        yield lst[i : i + n]
 
 
 class BybitWSCluster:

@@ -5,16 +5,13 @@ import json
 import logging
 import time
 import uuid
-from typing import Any, Awaitable, Callable, Iterable, List, Optional, Set
+from typing import Any, Awaitable, Callable, List, Optional, Set
 
 import websockets
 
+from utils.collections import chunked
+
 log = logging.getLogger("bybit_ws")
-
-
-def _chunks(seq: List[str], n: int) -> Iterable[List[str]]:
-    for i in range(0, len(seq), n):
-        yield seq[i : i + n]
 
 
 class BybitWS:
@@ -186,14 +183,14 @@ class BybitWS:
 
         # unsubscribe first (reduce load)
         if to_unsub:
-            for part in _chunks(to_unsub, self.subscribe_batch):
+            for part in chunked(to_unsub, self.subscribe_batch):
                 await self._send_with_ack(ws, op="unsubscribe", topics=part)
 
             async with self._state_lock:
                 self._subscribed_topics -= set(to_unsub)
 
         if to_sub:
-            for part in _chunks(to_sub, self.subscribe_batch):
+            for part in chunked(to_sub, self.subscribe_batch):
                 await self._send_with_ack(ws, op="subscribe", topics=part)
 
             async with self._state_lock:
