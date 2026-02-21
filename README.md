@@ -36,6 +36,16 @@ python app.py -c config.yaml
 - `settings.json` — runtime-настройки (перезаписываются через /settings)
 - `.env` — секреты (TG_BOT_TOKEN, JUP_API_KEY)
 
+### settings.json
+
+При первом запуске `settings.json` создаётся из дефолтов. Для кастомной настройки скопируй шаблон:
+
+```bash
+cp settings.json.example settings.json
+```
+
+Затем отредактируй и настрой параметры (min_profit_usd, notional_usd и др.).
+
 Подробнее: [webapp/MINIAPP_SETUP.md](webapp/MINIAPP_SETUP.md), [RAILWAY.md](RAILWAY.md), [docs/STATS_FLOW.md](docs/STATS_FLOW.md).
 
 ## Структура
