@@ -25,7 +25,13 @@ from api.db import get_signal_history, get_stats, init as db_init
 
 log = logging.getLogger("api")
 
-CORS_HEADERS = {"Access-Control-Allow-Origin": "*", "Cache-Control": "no-store"}
+CORS_HEADERS = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, X-Telegram-Init-Data",
+    "Access-Control-Max-Age": "86400",
+    "Cache-Control": "no-store",
+}
 
 # Rate limit: IP -> list of request timestamps (sliding window)
 _rate_timestamps: dict[str, list[float]] = defaultdict(list)
@@ -62,6 +68,10 @@ async def auth_middleware(request: web.Request, handler):
     """Protect /api/* with Telegram initData validation and rate limiting."""
     if not request.path.startswith("/api/"):
         return await handler(request)
+
+    # CORS preflight: browser sends OPTIONS before GET/POST with custom headers
+    if request.method == "OPTIONS":
+        return web.Response(status=200, headers=CORS_HEADERS)
 
     auth_config = request.app.get("auth_config")
     if not auth_config:
