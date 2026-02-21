@@ -40,6 +40,7 @@ class QuarantineManager:
 
         self.quarantined_set: set[str] = set()
         self._lock = asyncio.Lock()
+        self._file_lock = asyncio.Lock()  # protects file I/O from add vs sync_loop race
         self._last_write: dict[str, int] = {}
 
     def _rebuild_denylist_inplace(self) -> None:
@@ -105,8 +106,8 @@ class QuarantineManager:
         if not symbol:
             return
 
-        async with self._lock:
-            now = now_ts()
+        now = now_ts()
+        async with self._file_lock:
             last = self._last_write.get(symbol, 0)
             if (now - last) < 15:
                 return
@@ -118,14 +119,16 @@ class QuarantineManager:
             prev = q.get(symbol)
 
             if prev is not None and prev.until_ts > (now + 1800):
-                self.quarantined_set.add(symbol)
-                self._apply_quarantine_to_cfg()
-                self._rebuild_token_cfgs_inplace()
+                async with self._lock:
+                    self.quarantined_set.add(symbol)
+                    self._apply_quarantine_to_cfg()
+                    self._rebuild_token_cfgs_inplace()
                 return
 
             q[symbol] = QuarantineEntry(reason=reason, until_ts=until)
             save_quarantine(str(self.quarantine_path), q)
 
+        async with self._lock:
             self.quarantined_set.add(symbol)
             self._apply_quarantine_to_cfg()
             self._rebuild_token_cfgs_inplace()
@@ -155,11 +158,12 @@ class QuarantineManager:
 
             if changed:
                 try:
-                    q = load_quarantine(str(self.quarantine_path))
-                    q2 = prune_expired(q)
-                    if q2.keys() != q.keys():
-                        save_quarantine(str(self.quarantine_path), q2)
-                    new_set = set(q2.keys())
+                    async with self._file_lock:
+                        q = load_quarantine(str(self.quarantine_path))
+                        q2 = prune_expired(q)
+                        if q2.keys() != q.keys():
+                            save_quarantine(str(self.quarantine_path), q2)
+                        new_set = set(q2.keys())
                 except Exception:
                     log.exception("Failed to sync quarantine file=%s", self.quarantine_path)
                     new_set = set()
