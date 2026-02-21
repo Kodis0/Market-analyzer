@@ -119,9 +119,9 @@
       </div>
       <div class="auto-tune-block settings-block">
         <h2>AutoTune</h2>
-        <div class="auto-tune-toggle-wrap exchange-toggle-wrap">
+        <div class="auto-tune-toggle-wrap exchange-toggle-wrap" id="auto-tune-toggle-wrap" role="button" tabindex="0">
           <span class="exchange-toggle-label">Включить авто-подстройку</span>
-          <button type="button" id="auto-tune-toggle" class="exchange-toggle off" title="Вкл/выкл" aria-pressed="false"></button>
+          <div id="auto-tune-toggle" class="exchange-toggle off" title="Вкл/выкл" aria-pressed="false"></div>
         </div>
         <div class="auto-tune-history" id="auto-tune-history">
           <ul id="auto-tune-history-list" class="auto-tune-history-list"></ul>
@@ -129,7 +129,7 @@
         <div class="auto-tune-bound-section">
           <div class="auto-tune-bound-row">
             <span class="auto-tune-bound-label">Мин. прибыль ($)</span>
-            <div class="bound-inputs">
+            <div class="auto-tune-bound-controls">
               <div class="bound-input-wrap">
                 <label for="bound-min-profit-min">от</label>
                 <input type="number" id="bound-min-profit-min" class="settings-input" placeholder="0.1" step="0.1" min="0" />
@@ -138,8 +138,6 @@
                 <label for="bound-min-profit-max">до</label>
                 <input type="number" id="bound-min-profit-max" class="settings-input" placeholder="50" step="0.5" min="0" />
               </div>
-            </div>
-            <div class="auto-tune-actions">
               <button type="button" class="btn-refresh" id="btn-auto-tune-save-bounds">Сохранить</button>
               <button type="button" class="btn-refresh btn-secondary" id="btn-auto-tune-reset">Сбросить</button>
             </div>

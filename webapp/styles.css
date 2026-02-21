@@ -778,6 +778,10 @@ body { padding: 20px; padding-bottom: 88px; }
 }
 .auto-tune-block .auto-tune-toggle-wrap.exchange-toggle-wrap {
   margin-bottom: 0;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 .auto-tune-block .auto-tune-toggle-wrap.exchange-toggle-wrap:hover {
   transform: none;
@@ -846,62 +850,58 @@ body { padding: 20px; padding-bottom: 88px; }
   border-radius: 12px;
   border: 1px solid rgba(255,255,255,0.08);
 }
-.bound-inputs {
+.auto-tune-bound-controls {
   display: flex;
-  gap: 16px;
-  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
 }
-.bound-inputs .bound-input-wrap {
-  flex: 1;
+.auto-tune-bound-controls .bound-input-wrap {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 80px;
 }
-.bound-inputs .bound-input-wrap label {
+.auto-tune-bound-controls .bound-input-wrap label {
   font-size: 0.8rem;
   color: var(--text-dim);
 }
-.bound-inputs .settings-input,
-.auto-tune-bound-row .settings-input {
+.auto-tune-bound-controls .settings-input {
   width: 100%;
-  min-width: 100px;
-  height: 44px;
-  padding: 0 16px;
+  min-width: 70px;
+  max-width: 100px;
+  height: 40px;
+  padding: 0 12px;
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 10px;
   background: var(--bg);
   color: var(--text);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   text-align: left;
   box-sizing: border-box;
   transition: border-color 0.2s;
 }
-.bound-inputs .settings-input::placeholder,
-.auto-tune-bound-row .settings-input::placeholder {
+.auto-tune-bound-controls .settings-input::placeholder {
   color: var(--text-dim);
   opacity: 0.8;
 }
-.bound-inputs .settings-input:focus,
-.auto-tune-bound-row .settings-input:focus {
+.auto-tune-bound-controls .settings-input:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
-.auto-tune-actions {
-  display: flex;
-  gap: 12px;
-  margin-top: 8px;
-}
-.auto-tune-actions .btn-refresh {
-  flex: 1;
+.auto-tune-bound-controls .btn-refresh {
+  height: 40px;
+  padding: 0 16px;
   cursor: pointer;
   touch-action: manipulation;
+  flex-shrink: 0;
 }
-.auto-tune-actions .btn-secondary {
+.auto-tune-bound-controls .btn-secondary {
   background: rgba(255,255,255,0.06);
   border-color: rgba(255,255,255,0.12);
 }
-.auto-tune-actions .btn-secondary:hover {
+.auto-tune-bound-controls .btn-secondary:hover {
   background: rgba(255,255,255,0.1);
   border-color: var(--text-dim);
 }

@@ -526,6 +526,7 @@ document.getElementById('btn-settings-refresh').addEventListener('click', () => 
 });
 
 const autoTuneToggle = document.getElementById('auto-tune-toggle');
+const autoTuneToggleWrap = document.getElementById('auto-tune-toggle-wrap');
 const autoTuneHistoryList = document.getElementById('auto-tune-history-list');
 
 async function fetchAutoTune() {
@@ -570,23 +571,32 @@ async function fetchAutoTune() {
   }
 }
 
-autoTuneToggle?.addEventListener('click', async () => {
+function handleAutoTuneToggle() {
   const next = !autoTuneToggle.classList.contains('on');
-  try {
-    const r = await fetch(API_BASE + '/api/auto_tune', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-      body: JSON.stringify({ enabled: next })
-    });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const data = await r.json();
-    const enabled = !!(data?.auto_tune?.enabled ?? data?.enabled);
-    autoTuneToggle.classList.toggle('on', enabled);
-    autoTuneToggle.classList.toggle('off', !enabled);
-    autoTuneToggle.setAttribute?.('aria-pressed', String(enabled));
-    fetchAutoTune();
-  } catch (e) {
-    fetchAutoTune();
+  fetch(API_BASE + '/api/auto_tune', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+    body: JSON.stringify({ enabled: next })
+  })
+    .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
+    .then(data => {
+      const enabled = !!(data?.auto_tune?.enabled ?? data?.enabled);
+      autoTuneToggle?.classList.toggle('on', enabled);
+      autoTuneToggle?.classList.toggle('off', !enabled);
+      autoTuneToggle?.setAttribute?.('aria-pressed', String(enabled));
+      fetchAutoTune();
+    })
+    .catch(() => fetchAutoTune());
+}
+autoTuneToggleWrap?.addEventListener('click', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  handleAutoTuneToggle();
+});
+autoTuneToggleWrap?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    handleAutoTuneToggle();
   }
 });
 
