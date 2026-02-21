@@ -459,7 +459,10 @@ async def main(cfg_path: str) -> None:
         api_port = int(os.environ.get("PORT") or os.environ.get("API_PORT") or "8080")
 
         def get_status() -> dict:
-            return {"exchange_enabled": settings.exchange_enabled}
+            return {
+                "exchange_enabled": settings.exchange_enabled,
+                "auto_tune_enabled": settings.auto_tune_enabled,
+            }
 
         def get_settings() -> dict:
             s = settings.to_dict()

@@ -418,6 +418,13 @@ if (window.Telegram && window.Telegram.WebApp) {
   window.Telegram.WebApp.expand();
 }
 
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && document.getElementById('tab-settings')?.classList.contains('active')) {
+    fetchStatusAndSettings();
+    fetchAutoTune();
+  }
+});
+
 document.querySelectorAll('.nav-item').forEach(btn => {
   btn.addEventListener('click', () => {
     const tab = btn.dataset.tab;
@@ -502,6 +509,12 @@ async function fetchStatusAndSettings() {
     exchangeVal.textContent = exEnabled ? 'Включена' : 'Выключена';
     exchangeToggle.classList.toggle('on', exEnabled);
     exchangeToggle.classList.toggle('off', !exEnabled);
+    if ('auto_tune_enabled' in status) {
+      const atEnabled = !!status.auto_tune_enabled;
+      autoTuneToggle?.classList.toggle('on', atEnabled);
+      autoTuneToggle?.classList.toggle('off', !atEnabled);
+      autoTuneToggle?.setAttribute?.('aria-pressed', String(atEnabled));
+    }
 
     if (settingsRes.ok) {
       const data = await settingsRes.json();
