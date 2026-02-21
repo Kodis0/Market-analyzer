@@ -118,41 +118,44 @@
         <div id="exchange-toggle" class="exchange-toggle off" title="Вкл/выкл"></div>
       </div>
       <div class="auto-tune-block settings-block">
-        <h2>Авто-подстройка</h2>
-        <p class="auto-tune-desc">Подстройка min_profit, persistence, cooldown по метрикам. По умолчанию выключена.</p>
+        <div class="auto-tune-header">
+          <h2>Бот сам подстраивает параметры</h2>
+          <span class="auto-tune-help" data-tooltip="Включите — и бот каждые 15 минут будет смотреть: мало сигналов и много пропусков по прибыли? Понизит мин. прибыль. Много сигналов? Повысит. Так он сам ищет баланс." title="Подсказка">?</span>
+        </div>
+        <p class="auto-tune-desc">Бот сам подбирает мин. прибыль, persistence и cooldown по тому, сколько сигналов отправляет и сколько возможностей пропускает.</p>
         <div class="auto-tune-toggle-wrap exchange-toggle-wrap">
-          <span class="exchange-toggle-label">Авто-подстройка параметров</span>
+          <span class="exchange-toggle-label">Включить авто-подстройку</span>
           <div id="auto-tune-toggle" class="exchange-toggle off" title="Вкл/выкл"></div>
         </div>
         <div class="auto-tune-metrics" id="auto-tune-metrics">
-          <h3 class="auto-tune-section-title">Метрики за окно</h3>
+          <h3 class="auto-tune-section-title">Что видит бот (за 30 мин)</h3>
           <div class="auto-tune-metrics-row">
-            <span class="auto-tune-stat"><span class="auto-tune-stat-label">Сигналов</span><span id="at-signals" class="auto-tune-stat-val">—</span></span>
-            <span class="auto-tune-stat"><span class="auto-tune-stat-label">profit_le0</span><span id="at-skip-profit" class="auto-tune-stat-val">—</span></span>
-            <span class="auto-tune-stat"><span class="auto-tune-stat-label">persistence</span><span id="at-skip-pers" class="auto-tune-stat-val">—</span></span>
-            <span class="auto-tune-stat"><span class="auto-tune-stat-label">dedup</span><span id="at-skip-dedup" class="auto-tune-stat-val">—</span></span>
-            <span class="auto-tune-stat"><span class="auto-tune-stat-label">spread</span><span id="at-skip-spread" class="auto-tune-stat-val">—</span></span>
-            <span class="auto-tune-stat"><span class="auto-tune-stat-label">depth</span><span id="at-skip-depth" class="auto-tune-stat-val">—</span></span>
-            <span class="auto-tune-stat"><span class="auto-tune-stat-label">cex_slip</span><span id="at-skip-cex" class="auto-tune-stat-val">—</span></span>
+            <span class="auto-tune-stat" title="Сколько сигналов отправлено"><span class="auto-tune-stat-label">Сигналов</span><span id="at-signals" class="auto-tune-stat-val">—</span></span>
+            <span class="auto-tune-stat" title="Пропущено: мало прибыли"><span class="auto-tune-stat-label">Мало прибыли</span><span id="at-skip-profit" class="auto-tune-stat-val">—</span></span>
+            <span class="auto-tune-stat" title="Пропущено: persistence"><span class="auto-tune-stat-label">Persistence</span><span id="at-skip-pers" class="auto-tune-stat-val">—</span></span>
+            <span class="auto-tune-stat" title="Пропущено: cooldown"><span class="auto-tune-stat-label">Cooldown</span><span id="at-skip-dedup" class="auto-tune-stat-val">—</span></span>
+            <span class="auto-tune-stat" title="Пропущено: спред"><span class="auto-tune-stat-label">Спред</span><span id="at-skip-spread" class="auto-tune-stat-val">—</span></span>
+            <span class="auto-tune-stat" title="Пропущено: глубина стакана"><span class="auto-tune-stat-label">Глубина</span><span id="at-skip-depth" class="auto-tune-stat-val">—</span></span>
+            <span class="auto-tune-stat" title="Пропущено: слип CEX"><span class="auto-tune-stat-label">Слип CEX</span><span id="at-skip-cex" class="auto-tune-stat-val">—</span></span>
           </div>
         </div>
         <div class="auto-tune-history" id="auto-tune-history">
-          <h3 class="auto-tune-section-title">История изменений</h3>
+          <h3 class="auto-tune-section-title">Последние изменения</h3>
           <ul id="auto-tune-history-list" class="auto-tune-history-list"></ul>
         </div>
         <div class="auto-tune-bounds" id="auto-tune-bounds">
-          <h3 class="auto-tune-section-title">Границы (bounds)</h3>
+          <h3 class="auto-tune-section-title">Границы мин. прибыли ($)</h3>
+          <p class="auto-tune-bounds-hint">В каких пределах бот может менять мин. прибыль. Пусто = без ограничений.</p>
           <div class="auto-tune-bound-row">
-            <label class="auto-tune-bound-label">min_profit_usd</label>
-            <div class="bound-inputs">
-              <input type="number" id="bound-min-profit-min" class="settings-input bound-input" placeholder="min" step="0.1" />
-              <input type="number" id="bound-min-profit-max" class="settings-input bound-input" placeholder="max" step="0.5" />
-            </div>
+            <label class="auto-tune-bound-label">от</label>
+            <input type="number" id="bound-min-profit-min" class="settings-input bound-input" placeholder="0.1" step="0.1" />
+            <label class="auto-tune-bound-label">до</label>
+            <input type="number" id="bound-min-profit-max" class="settings-input bound-input" placeholder="50" step="0.5" />
           </div>
-          <button type="button" class="btn-refresh btn-small" id="btn-auto-tune-save-bounds">Сохранить bounds</button>
         </div>
         <div class="auto-tune-actions">
-          <button type="button" class="btn-refresh" id="btn-auto-tune-reset" title="Сбросить параметры к базовым из config">Сбросить к базовым</button>
+          <button type="button" class="btn-refresh btn-auto-tune" id="btn-auto-tune-save-bounds">Сохранить границы</button>
+          <button type="button" class="btn-refresh btn-auto-tune btn-secondary" id="btn-auto-tune-reset" title="Вернуть мин. прибыль, persistence, cooldown, спред к значениям из config">Сбросить к базовым</button>
         </div>
       </div>
       <div class="settings-block">
