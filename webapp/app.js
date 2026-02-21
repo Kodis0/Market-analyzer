@@ -16,7 +16,10 @@ if (rawApi && !rawApi.match(/:\d+(\/|$)/)) {
   }
 }
 let API_BASE = rawApi.replace(/\/$/, '');
-const isFrontendOnly = typeof location !== 'undefined' && /market\.arbmarketsystem\.ru$/i.test(location.hostname || '');
+const appEl = document.getElementById('app');
+const API_DOMAIN = appEl?.dataset?.apiDomain || 'api.arbmarketsystem.ru';
+const MARKET_DOMAIN = appEl?.dataset?.marketDomain || 'market.arbmarketsystem.ru';
+const isFrontendOnly = typeof location !== 'undefined' && new RegExp(MARKET_DOMAIN.replace(/\./g, '\\.') + '$', 'i').test(location.hostname || '');
 const API_FALLBACK = (typeof location !== 'undefined' && location.origin && !isFrontendOnly) ? location.origin.replace(/\/$/, '') : '';
 document.getElementById('api-display').textContent = API_BASE;
 
@@ -190,7 +193,7 @@ async function fetchFromUrl(base) {
   if (!r.ok) {
     let msg = 'HTTP ' + r.status;
     if (r.status === 401) msg = 'Откройте дашборд через Telegram (кнопка «Навигация»)';
-    else if (r.status === 404) msg = 'API не найден. Проверь URL (должен быть api.arbmarketsystem.ru), бот и туннель.';
+    else if (r.status === 404) msg = 'API не найден. Проверь URL (должен быть ' + API_DOMAIN + '), бот и туннель.';
     else if (r.status === 429) msg = 'Слишком много запросов. Подождите минуту и обновите страницу.';
     const err = new Error(msg);
     err.status = r.status;
@@ -201,7 +204,7 @@ async function fetchFromUrl(base) {
     data = await r.json();
   } catch (e) {
     const msg = (r.headers.get('content-type') || '').includes('text/html')
-      ? 'API вернул HTML вместо JSON. Проверь: api.arbmarketsystem.ru (не market), бот запущен, туннель cloudflared. Тест: curl https://api.arbmarketsystem.ru/api/stats?period=1h'
+      ? 'API вернул HTML вместо JSON. Проверь: ' + API_DOMAIN + ' (не market), бот запущен, туннель cloudflared. Тест: curl https://' + API_DOMAIN + '/api/stats?period=1h'
       : (e.message || String(e));
     throw new Error(msg);
   }

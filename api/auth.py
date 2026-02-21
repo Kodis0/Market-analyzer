@@ -67,15 +67,17 @@ def validate_telegram_init_data(
             return None
 
         auth_date = parsed.get("auth_date")
-        if auth_date:
-            try:
-                ts = int(auth_date)
-                if time.time() - ts > auth_ttl_sec:
-                    log.warning("api auth: initData expired (auth_date too old)")
-                    return None
-            except (TypeError, ValueError):
-                log.warning("api auth: invalid auth_date")
+        if not auth_date:
+            log.warning("api auth: initData missing auth_date")
+            return None
+        try:
+            ts = int(auth_date)
+            if time.time() - ts > auth_ttl_sec:
+                log.warning("api auth: initData expired (auth_date too old)")
                 return None
+        except (TypeError, ValueError):
+            log.warning("api auth: invalid auth_date")
+            return None
 
         if allowed_user_ids is not None and len(allowed_user_ids) > 0:
             user_str = parsed.get("user")
