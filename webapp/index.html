@@ -786,6 +786,14 @@
     .console-line.error { color: #fc8181; }
     .console-line.warning { color: #f6ad55; }
     .console-empty { color: var(--text-dim); text-align: center; padding: 24px; }
+    .console-auto-refresh { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--text-dim); }
+    .console-auto-refresh input { accent-color: var(--accent); }
+    .console-server-section { margin-top: 20px; }
+    .console-server-header { display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 12px 0; color: var(--text-dim); font-size: 0.85rem; user-select: none; }
+    .console-server-header:hover { color: var(--text); }
+    .console-server-body { padding: 16px; background: rgba(0,0,0,0.2); border-radius: 10px; font-size: 0.8rem; color: var(--text-dim); line-height: 1.6; }
+    .console-server-body code { background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; }
+    .console-server-body p { margin-bottom: 10px; }
 
     @media (prefers-color-scheme: light) {
       :root {
@@ -922,12 +930,29 @@
       <div class="console-card">
         <div class="console-toolbar">
           <h2>Логи</h2>
-          <button type="button" class="btn-refresh" id="btn-console-refresh" title="Обновить">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-            Обновить
-          </button>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <label class="console-auto-refresh">
+              <input type="checkbox" id="console-auto-refresh" checked />
+              Авто-обновление (30 сек)
+            </label>
+            <button type="button" class="btn-refresh" id="btn-console-refresh" title="Обновить">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              Обновить
+            </button>
+          </div>
         </div>
         <div id="console-output" class="console-output"></div>
+        <div class="console-server-section">
+          <div class="console-server-header" id="console-server-toggle">
+            <span>▼ Подключение к серверу</span>
+          </div>
+          <div class="console-server-body" id="console-server-body" style="display:none;">
+            <p><b>Почему нет веб-терминала?</b> Выполнение произвольных команд через браузер — критическая уязвимость. При компрометации сессии злоумышленник получит полный доступ к серверу.</p>
+            <p><b>Рекомендуемый способ:</b> подключайтесь по SSH с вашего компьютера:</p>
+            <p><code>ssh user@ваш-сервер</code></p>
+            <p><b>Настройки бота</b> — вкладка «Настройки» выше. Включение/выключение биржи — там же.</p>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1380,8 +1405,31 @@
           }
           if (tab === 'console') {
             fetchConsoleLogs();
+            startConsoleAutoRefresh();
+          } else {
+            stopConsoleAutoRefresh();
           }
         });
+      });
+
+      let consoleRefreshInterval = null;
+      function startConsoleAutoRefresh() {
+        stopConsoleAutoRefresh();
+        if (document.getElementById('console-auto-refresh')?.checked) {
+          consoleRefreshInterval = setInterval(fetchConsoleLogs, 30000);
+        }
+      }
+      function stopConsoleAutoRefresh() {
+        if (consoleRefreshInterval) {
+          clearInterval(consoleRefreshInterval);
+          consoleRefreshInterval = null;
+        }
+      }
+      document.getElementById('console-auto-refresh')?.addEventListener('change', function() {
+        if (document.getElementById('tab-console')?.classList.contains('active')) {
+          if (this.checked) startConsoleAutoRefresh();
+          else stopConsoleAutoRefresh();
+        }
       });
 
       const apiDot = document.getElementById('status-api-dot');
@@ -1471,6 +1519,13 @@
       }
 
       document.getElementById('btn-console-refresh').addEventListener('click', fetchConsoleLogs);
+
+      document.getElementById('console-server-toggle')?.addEventListener('click', function() {
+        const body = document.getElementById('console-server-body');
+        const isHidden = body.style.display === 'none';
+        body.style.display = isHidden ? 'block' : 'none';
+        this.querySelector('span').textContent = isHidden ? '▲ Подключение к серверу' : '▼ Подключение к серверу';
+      });
 
       const SETTING_TOOLTIPS = {
         bybit_taker_fee_bps: 'Комиссия Bybit в базисных пунктах (1 bps = 0.01%)',
