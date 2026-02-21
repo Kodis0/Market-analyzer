@@ -459,6 +459,15 @@
       font-size: 0.85rem;
       text-align: right;
     }
+    .settings-input::-webkit-outer-spin-button,
+    .settings-input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    .settings-input[type="number"] {
+      -moz-appearance: textfield;
+      appearance: textfield;
+    }
     .settings-input:focus {
       outline: none;
       border-color: var(--accent-jup);
@@ -663,8 +672,10 @@
       let rawApi = (params.get('api') ? decodeURIComponent(params.get('api')).trim() : null)
         || (startParam ? decodeURIComponent(startParam) : null)
         || (document.getElementById('app').dataset.apiUrl || 'http://localhost:8080');
+      if (!rawApi.startsWith('http://') && !rawApi.startsWith('https://')) {
+        rawApi = 'https://' + rawApi.replace(/^\/+/, '');
+      }
       if (rawApi && !rawApi.match(/:\d+(\/|$)/)) {
-        // Добавляем :8080 только для http (localhost, IP). Для https порт 443 по умолчанию
         if (!rawApi.startsWith('https://')) {
           rawApi = rawApi.replace(/:?\/?$/, '') + ':8080';
         } else {
@@ -760,9 +771,11 @@
         statusEl.textContent = 'Загрузка...';
 
         try {
-          const r = await fetch(API_BASE.replace(/\/$/, '') + '/api/stats?period=' + currentPeriod);
+          const url = (API_BASE.replace(/\/$/, '') + '/api/stats?period=' + currentPeriod);
+          const r = await fetch(url);
           if (!r.ok) throw new Error('HTTP ' + r.status);
-          const data = await r.json();
+          let data = await r.json();
+          if (!Array.isArray(data)) data = [];
           statusEl.className = 'status success';
           statusEl.textContent = 'Данные загружены';
           drawChart(data);
@@ -950,12 +963,19 @@
         });
         const intKeys = ['persistence_hits', 'cooldown_sec', 'engine_tick_hz', 'max_ob_age_ms', 'stale_ttl_sec'];
         settingsList.querySelectorAll('.settings-input').forEach(inp => {
+          inp.dataset.lastValid = inp.value;
           inp.addEventListener('change', () => {
-            const num = parseFloat(inp.value);
-            if (!isNaN(num)) {
+            const num = parseFloat(String(inp.value).replace(',', '.'));
+            if (!isNaN(num) && isFinite(num)) {
               const val = intKeys.includes(inp.dataset.key) ? Math.round(num) : num;
               updateSetting(inp.dataset.key, val);
+            } else {
+              inp.value = inp.dataset.lastValid || '';
             }
+          });
+          inp.addEventListener('blur', () => {
+            const num = parseFloat(String(inp.value).replace(',', '.'));
+            if (isNaN(num) || !isFinite(num)) inp.value = inp.dataset.lastValid || '';
           });
           inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') inp.blur(); });
         });
@@ -979,7 +999,10 @@
                 toggle.classList.toggle('on', data.updated[key]);
                 toggle.classList.toggle('off', !data.updated[key]);
               }
-              if (input) input.value = data.updated[key];
+              if (input) {
+                input.value = data.updated[key];
+                input.dataset.lastValid = String(data.updated[key]);
+              }
             }
           }
         } catch (e) {
