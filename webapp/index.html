@@ -878,6 +878,7 @@
           let msg = 'HTTP ' + r.status;
           if (r.status === 401) msg = 'Откройте дашборд через Telegram (кнопка «Навигация»)';
           else if (r.status === 404) msg = 'API не найден. Проверь URL (должен быть api.arbmarketsystem.ru), бот и туннель.';
+          else if (r.status === 429) msg = 'Слишком много запросов. Подождите минуту и обновите страницу.';
           const err = new Error(msg);
           err.status = r.status;
           throw err;
@@ -913,7 +914,7 @@
             break;
           } catch (e) {
             lastError = e;
-            if (e.status === 401 || e.status === 404) break;
+            if (e.status === 401 || e.status === 404 || e.status === 429) break;
           }
         }
         if (data.length > 0) {
@@ -923,7 +924,8 @@
           updateStats(data);
         } else if (lastError) {
           statusEl.className = 'status error';
-          statusEl.textContent = 'Ошибка: ' + lastError.message + '. Проверь, что бот запущен, туннель работает, и API доступен.';
+          const suffix = lastError.status === 429 ? '' : '. Проверь, что бот запущен, туннель работает, и API доступен.';
+          statusEl.textContent = 'Ошибка: ' + lastError.message + suffix;
           drawChart([]);
           document.getElementById('stats-row').style.display = 'none';
         } else {
@@ -1062,7 +1064,10 @@
         historyList.innerHTML = '<li class="history-empty">Загрузка...</li>';
         try {
           const r = await fetch(API_BASE.replace(/\/$/, '') + '/api/signal-history?period=' + historyPeriod, { headers: getAuthHeaders() });
-          if (!r.ok) throw new Error(r.status === 401 ? 'Откройте дашборд через Telegram (кнопка «Навигация»)' : 'HTTP ' + r.status);
+          if (!r.ok) {
+            const msg = r.status === 401 ? 'Откройте дашборд через Telegram (кнопка «Навигация»)' : r.status === 429 ? 'Слишком много запросов. Подождите минуту.' : 'HTTP ' + r.status;
+            throw new Error(msg);
+          }
           const data = await r.json();
           lastHistoryData = Array.isArray(data) ? data : [];
           if (lastHistoryData.length === 0) {
@@ -1136,7 +1141,10 @@
             fetch(API_BASE + '/api/settings', { headers: getAuthHeaders() })
           ]);
 
-          if (!statusRes.ok) throw new Error(statusRes.status === 401 ? 'Откройте дашборд через Telegram (кнопка «Навигация»)' : 'Status ' + statusRes.status);
+          if (!statusRes.ok) {
+            const msg = statusRes.status === 401 ? 'Откройте дашборд через Telegram (кнопка «Навигация»)' : statusRes.status === 429 ? 'Слишком много запросов. Подождите минуту.' : 'Status ' + statusRes.status;
+            throw new Error(msg);
+          }
           const status = await statusRes.json();
           setStatusDot(apiDot, true);
           apiVal.textContent = 'Онлайн';
