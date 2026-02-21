@@ -2342,8 +2342,8 @@ logging:
 telegram:
   chat_id: -1003881338901
   thread_id: null
-  # URL кнопки «Навигация»: либо прямой https://market.arbmarketsystem.ru, либо t.me shortcut
-  web_app_url: https://t.me/AutoArbitrage0Bot/market
+  # URL кнопки «Навигация» — должен совпадать с Direct Links в BotFather
+  web_app_url: https://market.arbmarketsystem.ru
   pinned_message_text: |
     Навигация по единой торговой системе.
     Здесь собраны все инструменты для мониторинга арбитражных возможностей между Jupiter и Bybit.

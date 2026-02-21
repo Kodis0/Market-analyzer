@@ -1,0 +1,24 @@
+# Cloudflare Tunnel: api.arbmarketsystem.ru -> localhost:8080
+# Нужен для Mini App — фронт на market.arbmarketsystem.ru запрашивает API по HTTPS.
+#
+# Установка (один раз):
+#   1. cloudflared tunnel login   # выбрать arbmarketsystem.ru
+#   2. cloudflared tunnel create market-api
+#   3. В Cloudflare Zero Trust -> Tunnels -> market-api -> Public Hostname:
+#      api.arbmarketsystem.ru -> http://localhost:8080
+#   4. Подставь TUNNEL_ID ниже и путь к credentials
+#   5. cp deploy/cloudflared-tunnel.service /etc/systemd/system/
+#   6. systemctl daemon-reload && systemctl enable cloudflared-tunnel && systemctl start cloudflared-tunnel
+
+[Unit]
+Description=Cloudflare Tunnel api.arbmarketsystem.ru
+After=network.target market-analyzer.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/cloudflared tunnel --config /root/.cloudflared/config.yml run market-api
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

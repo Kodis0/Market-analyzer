@@ -1,0 +1,14 @@
+# Пример конфига Cloudflare Tunnel
+# Скопируй в ~/.cloudflared/config.yml на сервере
+# Замени TUNNEL_ID на ID из "cloudflared tunnel create market-api"
+#
+# Сначала: cloudflared tunnel login  (создаст cert.pem)
+# Потом:   cloudflared tunnel create market-api
+
+tunnel: TUNNEL_ID
+credentials-file: /root/.cloudflared/TUNNEL_ID.json
+
+ingress:
+  - hostname: api.arbmarketsystem.ru
+    service: http://localhost:8080
+  - service: http_status:404
