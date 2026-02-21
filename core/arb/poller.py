@@ -44,6 +44,7 @@ class QuotePoller:
         backoff_on_err_sec: float = 10.0,
         skip_stats: SkipStats | None = None,
         stop_event: asyncio.Event | None = None,
+        exchange_enabled_event: asyncio.Event | None = None,
     ) -> None:
         self.state = state
         self.jup = jup
@@ -69,6 +70,7 @@ class QuotePoller:
 
         self._skip_stats = skip_stats
         self._stop = stop_event or asyncio.Event()
+        self._exchange_enabled = exchange_enabled_event  # None = always enabled
 
     def stop(self) -> None:
         self._stop.set()
@@ -153,6 +155,9 @@ class QuotePoller:
                 await self._poll_one_token(token_key, cfg)
 
         while not self._stop.is_set():
+            if self._exchange_enabled is not None and not self._exchange_enabled.is_set():
+                await asyncio.sleep(1)
+                continue
             started = time.time()
             items = list(self.token_cfgs.items())
             batch_size = max(1, int(self.poll_concurrency) * int(self._poll_batch_mult))

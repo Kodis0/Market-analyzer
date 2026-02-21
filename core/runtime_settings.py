@@ -46,6 +46,9 @@ class RuntimeSettings:
     stale_ttl_sec: int = 300  # 0 = выключено, иначе сек до "устарел"
     delete_stale: bool = False  # True = удалять, False = редактировать на "устарел"
 
+    # Exchange: вкл/выкл биржевую логику (Jupiter, Bybit, арбитраж)
+    exchange_enabled: bool = True
+
     # Human-readable labels for /settings
     LABELS: Dict[str, str] = field(default_factory=lambda: {
         "bybit_taker_fee_bps": "Комиссия Bybit (bps)",
@@ -68,6 +71,7 @@ class RuntimeSettings:
         "max_ob_age_ms": "Макс. возраст стакана (мс)",
         "stale_ttl_sec": "Время до устаревания сигнала (сек, 0=выкл)",
         "delete_stale": "Удалять устаревшие (true/false)",
+        "exchange_enabled": "Биржевая логика вкл (true/false)",
     })
 
     def to_dict(self) -> Dict[str, Any]:
@@ -87,6 +91,8 @@ class RuntimeSettings:
     def update(self, key: str, value: Any) -> bool:
         if not hasattr(self, key) or key == "LABELS":
             return False
+        if key == "exchange_enabled":
+            value = str(value).lower() in ("true", "1", "yes", "да", "on")
         setattr(self, key, value)
         return True
 
@@ -111,6 +117,7 @@ class RuntimeSettings:
             "<code>max_ob_age_ms</code> — макс. возраст стакана (мс)",
             "<code>stale_ttl_sec</code> — время до устаревания (сек, 0=выкл)",
             "<code>delete_stale</code> — удалять устаревшие (true/false)",
+            "<code>exchange_enabled</code> — биржевая логика вкл (true/false). Быстрее: /exchange on|off",
             "<code>bybit_taker_fee_bps</code> — комиссия Bybit (bps)",
             "<code>solana_tx_fee_usd</code> — комиссия Solana ($)",
             "<code>latency_buffer_bps</code> — буфер задержки (bps)",

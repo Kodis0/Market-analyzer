@@ -65,6 +65,7 @@ class ArbEngine:
         denylist_regex: list[str] | None = None,
         max_ob_age_ms: int = 2000,
         max_quote_age_ms: int | None = None,
+        exchange_enabled_event: asyncio.Event | None = None,
     ) -> None:
         self.state = state
         self.jup = jup
@@ -98,6 +99,7 @@ class ArbEngine:
         # Debug instrumentation
         self._skip_stats = SkipStats(window_sec=30)
         self._stop = asyncio.Event()
+        self._exchange_enabled = exchange_enabled_event  # None = always enabled
 
         # Denylist
         self.denylist = Denylist.build(symbols=denylist_symbols, regex=denylist_regex)
@@ -126,6 +128,7 @@ class ArbEngine:
             max_quote_age_ms=self.max_quote_age_ms,
             skip_stats=self._skip_stats,
             stop_event=self._stop,
+            exchange_enabled_event=exchange_enabled_event,
         )
 
     async def stop(self) -> None:
@@ -448,6 +451,9 @@ class ArbEngine:
 
     async def run(self, on_signal: Callable[[Signal], Any]) -> None:
         while not self._stop.is_set():
+            if self._exchange_enabled is not None and not self._exchange_enabled.is_set():
+                await asyncio.sleep(1)
+                continue
             started = time.time()
             items = list(self.token_cfgs.items())
             batch_size = max(1, int(self.engine_concurrency) * int(self._engine_batch_mult))

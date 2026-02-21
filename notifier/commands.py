@@ -7,7 +7,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-from typing import Any, Callable, Optional
+from typing import Any, Awaitable, Callable, Optional
 
 import aiohttp
 
@@ -49,7 +49,7 @@ def _parse_settings_args(text: str) -> Optional[tuple[str, Any]]:
 
 def _parse_value(key: str, s: str) -> Any:
     """Parse string value to appropriate type for the setting."""
-    if key == "delete_stale":
+    if key in ("delete_stale", "exchange_enabled"):
         return str(s).lower() in ("true", "1", "yes", "да", "on")
     if key in ("persistence_hits", "cooldown_sec", "engine_tick_hz", "max_ob_age_ms", "stale_ttl_sec"):
         return int(float(s))
@@ -72,6 +72,7 @@ async def _register_bot_commands(
     url = TG_SET_MY_COMMANDS.format(token=bot_token)
     commands = [
         {"command": "settings", "description": "Настройки: /settings min_profit_usd 20"},
+        {"command": "exchange", "description": "Вкл/выкл биржевую логику: /exchange on|off"},
         {"command": "help", "description": "Справка по параметрам"},
         {"command": "pin_setup", "description": "Отправить сообщение с кнопкой Навигация (закрепи вручную)"},
     ]
@@ -138,6 +139,7 @@ async def run_settings_command_handler(
     web_app_url: Optional[str] = None,
     pinned_message_text: Optional[str] = None,
     poll_interval_sec: float = 2.0,
+    on_exchange_toggle: Optional[Callable[[bool], Awaitable[None]]] = None,
 ) -> None:
     """
     Poll for Telegram updates and handle /settings, /help commands.
@@ -195,6 +197,25 @@ async def run_settings_command_handler(
                     await send(RuntimeSettings.format_help())
                     continue
 
+                # /exchange on|off
+                if cmd == "/exchange" and on_exchange_toggle is not None:
+                    rest = text[len(cmd):].strip().lower()
+                    if rest in ("on", "1", "yes", "вкл", "включить"):
+                        settings.exchange_enabled = True
+                        save_runtime_settings(settings_path, settings)
+                        await on_exchange_toggle(True)
+                        await send("✅ Биржевая логика <b>включена</b> (Jupiter, Bybit, арбитраж)")
+                        continue
+                    if rest in ("off", "0", "no", "выкл", "выключить"):
+                        settings.exchange_enabled = False
+                        save_runtime_settings(settings_path, settings)
+                        await on_exchange_toggle(False)
+                        await send("⏸ Биржевая логика <b>выключена</b> (запросы к биржам остановлены)")
+                        continue
+                    status = "включена" if settings.exchange_enabled else "выключена"
+                    await send(f"Биржевая логика: <b>{status}</b>\nИспользуй: /exchange on | /exchange off")
+                    continue
+
                 # /pin_setup
                 if cmd == "/pin_setup":
                     url_send_full = TG_SEND_MESSAGE.format(token=bot_token)
@@ -238,6 +259,8 @@ async def run_settings_command_handler(
 
                 save_runtime_settings(settings_path, settings)
                 on_reload(settings)
+                if key == "exchange_enabled" and on_exchange_toggle is not None:
+                    await on_exchange_toggle(bool(settings.exchange_enabled))
                 await send(f"✅ Обновлено: {settings.LABELS.get(key, key)} = {value}")
 
         except asyncio.CancelledError:

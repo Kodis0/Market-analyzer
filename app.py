@@ -372,6 +372,13 @@ async def main(cfg_path: str) -> None:
             on_request=_record_jupiter,
         )
 
+        exchange_enabled_event = asyncio.Event()
+        if settings.exchange_enabled:
+            exchange_enabled_event.set()
+        else:
+            exchange_enabled_event.clear()
+            log.info("Exchange logic disabled at startup (settings.exchange_enabled=false)")
+
         engine = ArbEngine(
             state=state,
             jup=jup,
@@ -393,6 +400,7 @@ async def main(cfg_path: str) -> None:
             min_depth_coverage_pct=Decimal(str(settings.min_depth_coverage_pct)),
             denylist_symbols=cfg.filters.denylist_symbols,
             denylist_regex=cfg.filters.denylist_regex,
+            exchange_enabled_event=exchange_enabled_event,
         )
 
         async def on_signal(sig):
@@ -468,8 +476,23 @@ async def main(cfg_path: str) -> None:
             max_symbols_per_ws=100,
         )
 
-        await ws_cluster.start(cfg.bybit.symbols)
-        log.info("Bybit WS clients=%d, symbols=%d", len(ws_cluster.clients), len(cfg.bybit.symbols))
+        if settings.exchange_enabled:
+            await ws_cluster.start(cfg.bybit.symbols)
+            log.info("Bybit WS clients=%d, symbols=%d", len(ws_cluster.clients), len(cfg.bybit.symbols))
+        else:
+            log.info("Bybit WS not started (exchange_enabled=false)")
+
+        async def on_exchange_toggle(enabled: bool) -> None:
+            settings.exchange_enabled = enabled
+            save_runtime_settings(settings_path, settings)
+            if enabled:
+                exchange_enabled_event.set()
+                await ws_cluster.start(cfg.bybit.symbols)
+                log.info("Exchange logic ENABLED (Jupiter, Bybit WS, arb engine)")
+            else:
+                exchange_enabled_event.clear()
+                await ws_cluster.stop()
+                log.info("Exchange logic DISABLED (ws stopped, poller+engine paused)")
 
         # ---- quarantine sync loop ----
         async def quarantine_sync_loop(poll_sec: float = 10.0) -> None:
@@ -633,9 +656,14 @@ async def main(cfg_path: str) -> None:
 
         api_port = int(os.environ.get("PORT") or os.environ.get("API_PORT") or "8080")
 
+        api_server_mod = __import__("api.server", fromlist=["run_server"])
         tasks: list[asyncio.Task] = [
             asyncio.create_task(
-                __import__("api.server", fromlist=["run_server"]).run_server(host="0.0.0.0", port=api_port),
+                api_server_mod.run_server(
+                    host="0.0.0.0",
+                    port=api_port,
+                    on_exchange_toggle=on_exchange_toggle,
+                ),
                 name="api_server",
             ),
             asyncio.create_task(quarantine_sync_loop(), name="quarantine_sync"),
@@ -655,6 +683,7 @@ async def main(cfg_path: str) -> None:
                     stop_event=commands_stop,
                     web_app_url=getattr(cfg.telegram, "web_app_url", None),
                     pinned_message_text=getattr(cfg.telegram, "pinned_message_text", None),
+                    on_exchange_toggle=on_exchange_toggle,
                 ),
                 name="settings_cmd",
             ),

@@ -1,13 +1,14 @@
 """
 HTTP API для Mini App дашборда.
 GET /api/stats?period=1h|1d|1w|all
+POST /api/exchange?enabled=true|false — вкл/выкл биржевую логику (для скриптов/консоли)
 """
 from __future__ import annotations
 
 import argparse
 import asyncio
 import logging
-from typing import Optional
+from typing import Awaitable, Callable, Optional
 
 from aiohttp import web
 
@@ -18,7 +19,9 @@ log = logging.getLogger("api")
 CORS_HEADERS = {"Access-Control-Allow-Origin": "*", "Cache-Control": "no-store"}
 
 
-def create_app() -> web.Application:
+def create_app(
+    on_exchange_toggle: Optional[Callable[[bool], Awaitable[None]]] = None,
+) -> web.Application:
     app = web.Application()
 
     async def handle_stats(req: web.Request) -> web.Response:
@@ -30,15 +33,44 @@ def create_app() -> web.Application:
 
     app.router.add_get("/api/stats", handle_stats)
 
+    if on_exchange_toggle is not None:
+
+        async def handle_exchange(req: web.Request) -> web.Response:
+            if req.method == "POST":
+                try:
+                    data = await req.json() if req.content_length else {}
+                except Exception:
+                    data = {}
+                enabled = data.get("enabled")
+                if enabled is None:
+                    enabled = req.query.get("enabled")
+                if enabled is None:
+                    return web.json_response(
+                        {"error": "Missing enabled (true|false)"},
+                        status=400,
+                        headers=CORS_HEADERS,
+                    )
+                val = str(enabled).lower() in ("true", "1", "yes", "on")
+                await on_exchange_toggle(val)
+                return web.json_response({"ok": True, "exchange_enabled": val}, headers=CORS_HEADERS)
+            return web.json_response({"error": "Method not allowed"}, status=405, headers=CORS_HEADERS)
+
+        app.router.add_route("POST", "/api/exchange", handle_exchange)
+
     return app
 
 
-async def run_server(host: str = "0.0.0.0", port: int = 8080, db_path: Optional[str] = None) -> None:
+async def run_server(
+    host: str = "0.0.0.0",
+    port: int = 8080,
+    db_path: Optional[str] = None,
+    on_exchange_toggle: Optional[Callable[[bool], Awaitable[None]]] = None,
+) -> None:
     if db_path:
         from pathlib import Path
 
         db_init(Path(db_path))
-    app = create_app()
+    app = create_app(on_exchange_toggle=on_exchange_toggle)
     runner = web.AppRunner(app)
     await runner.setup()
     site = web.TCPSite(runner, host, port)
