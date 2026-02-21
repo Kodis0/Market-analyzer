@@ -28,7 +28,7 @@
       font-size: 14px;
       -webkit-font-smoothing: antialiased;
     }
-    body { padding: 16px; padding-bottom: 32px; }
+    body { padding: 16px; padding-bottom: 80px; }
 
     .header {
       text-align: center;
@@ -297,6 +297,200 @@
       font-size: 0.9rem;
     }
 
+    .nav-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 56px;
+      background: var(--bg-card);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      z-index: 100;
+      padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+    .nav-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      padding: 8px;
+      color: var(--text-dim);
+      font-size: 0.75rem;
+      cursor: pointer;
+      border: none;
+      background: none;
+      transition: color 0.2s;
+    }
+    .nav-item.active {
+      color: var(--accent-jup);
+      font-weight: 600;
+    }
+    .nav-item:hover {
+      color: var(--text);
+    }
+    .nav-item svg {
+      width: 22px;
+      height: 22px;
+    }
+
+    .tab-panel {
+      display: none;
+    }
+    .tab-panel.active {
+      display: block;
+    }
+
+    .status-block {
+      background: var(--bg-card);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 20px;
+      border: 1px solid var(--border);
+    }
+    .status-block h2 {
+      font-size: 0.9rem;
+      font-weight: 500;
+      margin-bottom: 16px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .status-row:last-child {
+      border-bottom: none;
+    }
+    .status-indicator {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 12px;
+      flex-shrink: 0;
+    }
+    .status-indicator.ok {
+      background: var(--success);
+      box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6);
+      animation: pulse-green 1.5s ease-in-out infinite;
+    }
+    .status-indicator.err {
+      background: var(--error);
+      box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6);
+      animation: pulse-red 1.5s ease-in-out infinite;
+    }
+    .status-indicator.unknown {
+      background: var(--text-dim);
+      opacity: 0.6;
+    }
+    @keyframes pulse-green {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5); }
+      50% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+    }
+    @keyframes pulse-red {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
+      50% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+    }
+    .status-label {
+      display: flex;
+      align-items: center;
+      flex: 1;
+    }
+    .status-value {
+      font-size: 0.85rem;
+      color: var(--text-dim);
+    }
+
+    .settings-block {
+      background: var(--bg-card);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 20px;
+      border: 1px solid var(--border);
+    }
+    .settings-block h2 {
+      font-size: 0.9rem;
+      font-weight: 500;
+      margin-bottom: 16px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .settings-list {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .settings-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 12px;
+      border-radius: 8px;
+      margin-bottom: 4px;
+      background: rgba(0,0,0,0.15);
+      font-size: 0.85rem;
+    }
+    .settings-item-key {
+      color: var(--text-dim);
+      flex: 1;
+    }
+    .settings-item-val {
+      font-weight: 500;
+      color: var(--text);
+      margin-left: 12px;
+    }
+
+    .exchange-toggle-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px;
+      background: var(--bg-card);
+      border-radius: 16px;
+      margin-bottom: 20px;
+      border: 1px solid var(--border);
+    }
+    .exchange-toggle-label {
+      font-weight: 500;
+    }
+    .exchange-toggle {
+      position: relative;
+      width: 52px;
+      height: 28px;
+      background: var(--border);
+      border-radius: 14px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .exchange-toggle.on {
+      background: var(--success);
+    }
+    .exchange-toggle.off {
+      background: var(--error);
+    }
+    .exchange-toggle::after {
+      content: '';
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      background: #fff;
+      border-radius: 50%;
+      top: 2px;
+      left: 2px;
+      transition: transform 0.2s;
+    }
+    .exchange-toggle.on::after {
+      transform: translateX(24px);
+    }
+
     @media (prefers-color-scheme: light) {
       :root {
         --bg: #fafafa;
@@ -311,6 +505,7 @@
 </head>
 <body>
   <div id="app" data-api-url="https://api.arbmarketsystem.ru">
+    <div id="tab-main" class="tab-panel active">
     <div class="header">
       <h1>Запросы Jupiter / Bybit</h1>
       <p>График активности API</p>
@@ -363,6 +558,56 @@
     <div class="footer">
       API: <code id="api-display">—</code> • Обнови страницу для новых данных
     </div>
+    </div>
+
+    <div id="tab-settings" class="tab-panel">
+      <div class="header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+        <div>
+          <h1>Настройки бота</h1>
+          <p>Статус и параметры</p>
+        </div>
+        <button type="button" class="btn-refresh" id="btn-settings-refresh" title="Обновить">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          Обновить
+        </button>
+      </div>
+      <div class="status-block">
+        <h2>Статус</h2>
+        <div class="status-row">
+          <span class="status-label">
+            <span id="status-api-dot" class="status-indicator unknown"></span>
+            API / Туннель
+          </span>
+          <span id="status-api-val" class="status-value">—</span>
+        </div>
+        <div class="status-row">
+          <span class="status-label">
+            <span id="status-exchange-dot" class="status-indicator unknown"></span>
+            Биржевая логика
+          </span>
+          <span id="status-exchange-val" class="status-value">—</span>
+        </div>
+      </div>
+      <div class="exchange-toggle-wrap">
+        <span class="exchange-toggle-label">Биржевая логика (Jupiter, Bybit, арбитраж)</span>
+        <div id="exchange-toggle" class="exchange-toggle off" title="Вкл/выкл"></div>
+      </div>
+      <div class="settings-block">
+        <h2>Параметры</h2>
+        <div id="settings-list" class="settings-list"></div>
+      </div>
+    </div>
+
+    <nav class="nav-bar">
+      <button type="button" class="nav-item active" data-tab="main">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Главная
+      </button>
+      <button type="button" class="nav-item" data-tab="settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Настройки
+      </button>
+    </nav>
   </div>
 
   <script>
@@ -574,6 +819,93 @@
         window.Telegram.WebApp.ready();
         window.Telegram.WebApp.expand();
       }
+
+      document.querySelectorAll('.nav-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const tab = btn.dataset.tab;
+          document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+          document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+          document.getElementById('tab-' + tab).classList.add('active');
+          btn.classList.add('active');
+          if (tab === 'settings') {
+            fetchStatusAndSettings();
+          }
+        });
+      });
+
+      const apiDot = document.getElementById('status-api-dot');
+      const apiVal = document.getElementById('status-api-val');
+      const exchangeDot = document.getElementById('status-exchange-dot');
+      const exchangeVal = document.getElementById('status-exchange-val');
+      const exchangeToggle = document.getElementById('exchange-toggle');
+      const settingsList = document.getElementById('settings-list');
+
+      function setStatusDot(el, ok) {
+        el.classList.remove('ok', 'err', 'unknown');
+        el.classList.add(ok === true ? 'ok' : (ok === false ? 'err' : 'unknown'));
+      }
+
+      async function fetchStatusAndSettings() {
+        setStatusDot(apiDot, null);
+        apiVal.textContent = 'Проверка...';
+        setStatusDot(exchangeDot, null);
+        exchangeVal.textContent = '—';
+
+        try {
+          const [statusRes, settingsRes] = await Promise.all([
+            fetch(API_BASE + '/api/status'),
+            fetch(API_BASE + '/api/settings')
+          ]);
+
+          if (!statusRes.ok) throw new Error('Status ' + statusRes.status);
+          const status = await statusRes.json();
+          setStatusDot(apiDot, true);
+          apiVal.textContent = 'Онлайн';
+          const exEnabled = !!status.exchange_enabled;
+          setStatusDot(exchangeDot, exEnabled);
+          exchangeVal.textContent = exEnabled ? 'Включена' : 'Выключена';
+          exchangeToggle.classList.toggle('on', exEnabled);
+          exchangeToggle.classList.toggle('off', !exEnabled);
+
+          if (settingsRes.ok) {
+            const data = await settingsRes.json();
+            const s = data.settings || {};
+            const labels = data.labels || {};
+            settingsList.innerHTML = Object.entries(s).map(([k, v]) =>
+              '<div class="settings-item"><span class="settings-item-key">' + escapeHtml(labels[k] || k) + '</span><span class="settings-item-val">' + escapeHtml(String(v)) + '</span></div>'
+            ).join('');
+          }
+        } catch (e) {
+          setStatusDot(apiDot, false);
+          apiVal.textContent = 'Офлайн: ' + e.message;
+          setStatusDot(exchangeDot, null);
+          exchangeVal.textContent = '—';
+          exchangeToggle.classList.add('off');
+          exchangeToggle.classList.remove('on');
+          settingsList.innerHTML = '<div class="history-empty">Не удалось загрузить настройки</div>';
+        }
+      }
+
+      document.getElementById('btn-settings-refresh').addEventListener('click', fetchStatusAndSettings);
+
+      exchangeToggle.addEventListener('click', async () => {
+        const next = !exchangeToggle.classList.contains('on');
+        try {
+          const r = await fetch(API_BASE + '/api/exchange', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enabled: next })
+          });
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          const data = await r.json();
+          exchangeToggle.classList.toggle('on', data.exchange_enabled);
+          exchangeToggle.classList.toggle('off', !data.exchange_enabled);
+          setStatusDot(exchangeDot, data.exchange_enabled);
+          exchangeVal.textContent = data.exchange_enabled ? 'Включена' : 'Выключена';
+        } catch (e) {
+          fetchStatusAndSettings();
+        }
+      });
     })();
   </script>
 </body>

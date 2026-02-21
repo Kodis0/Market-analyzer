@@ -667,6 +667,12 @@ async def main(cfg_path: str) -> None:
 
         api_port = int(os.environ.get("PORT") or os.environ.get("API_PORT") or "8080")
 
+        def get_status() -> dict:
+            return {"exchange_enabled": settings.exchange_enabled}
+
+        def get_settings() -> dict:
+            return {"settings": settings.to_dict(), "labels": settings.LABELS}
+
         api_server_mod = __import__("api.server", fromlist=["run_server"])
         tasks: list[asyncio.Task] = [
             asyncio.create_task(
@@ -674,6 +680,8 @@ async def main(cfg_path: str) -> None:
                     host="0.0.0.0",
                     port=api_port,
                     on_exchange_toggle=on_exchange_toggle,
+                    get_status=get_status,
+                    get_settings=get_settings,
                 ),
                 name="api_server",
             ),

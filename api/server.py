@@ -1,7 +1,10 @@
 """
 HTTP API для Mini App дашборда.
 GET /api/stats?period=1h|1d|1w|all
-POST /api/exchange?enabled=true|false — вкл/выкл биржевую логику (для скриптов/консоли)
+GET /api/signal-history?period=1h|1d|1w|all
+GET /api/status — статус бота (exchange_enabled)
+GET /api/settings — всё настройки (read-only)
+POST /api/exchange — вкл/выкл биржевую логику
 """
 from __future__ import annotations
 
@@ -21,6 +24,8 @@ CORS_HEADERS = {"Access-Control-Allow-Origin": "*", "Cache-Control": "no-store"}
 
 def create_app(
     on_exchange_toggle: Optional[Callable[[bool], Awaitable[None]]] = None,
+    get_status: Optional[Callable[[], dict]] = None,
+    get_settings: Optional[Callable[[], dict]] = None,
 ) -> web.Application:
     app = web.Application()
 
@@ -41,6 +46,22 @@ def create_app(
 
     app.router.add_get("/api/stats", handle_stats)
     app.router.add_get("/api/signal-history", handle_signal_history)
+
+    if get_status is not None:
+
+        async def handle_status(req: web.Request) -> web.Response:
+            data = get_status()
+            return web.json_response(data, headers=CORS_HEADERS)
+
+        app.router.add_get("/api/status", handle_status)
+
+    if get_settings is not None:
+
+        async def handle_settings(req: web.Request) -> web.Response:
+            data = get_settings()
+            return web.json_response(data, headers=CORS_HEADERS)
+
+        app.router.add_get("/api/settings", handle_settings)
 
     if on_exchange_toggle is not None:
 
@@ -74,12 +95,18 @@ async def run_server(
     port: int = 8080,
     db_path: Optional[str] = None,
     on_exchange_toggle: Optional[Callable[[bool], Awaitable[None]]] = None,
+    get_status: Optional[Callable[[], dict]] = None,
+    get_settings: Optional[Callable[[], dict]] = None,
 ) -> None:
     if db_path:
         from pathlib import Path
 
         db_init(Path(db_path))
-    app = create_app(on_exchange_toggle=on_exchange_toggle)
+    app = create_app(
+        on_exchange_toggle=on_exchange_toggle,
+        get_status=get_status,
+        get_settings=get_settings,
+    )
     runner = web.AppRunner(app)
     await runner.setup()
     site = web.TCPSite(runner, host, port)
