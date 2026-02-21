@@ -782,6 +782,12 @@ body { padding: 20px; padding-bottom: 88px; }
   user-select: none;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
+}
+.auto-tune-block .auto-tune-toggle-wrap.exchange-toggle-wrap * {
+  pointer-events: none;
 }
 .auto-tune-block .auto-tune-toggle-wrap.exchange-toggle-wrap:hover {
   transform: none;

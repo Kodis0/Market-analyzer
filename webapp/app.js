@@ -584,8 +584,12 @@ async function fetchAutoTune() {
 }
 
 function handleAutoTuneToggle() {
+  if (!autoTuneToggle) return;
   window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('light');
   const next = !autoTuneToggle.classList.contains('on');
+  autoTuneToggle.classList.toggle('on', next);
+  autoTuneToggle.classList.toggle('off', !next);
+  autoTuneToggle.setAttribute('aria-pressed', String(next));
   fetch(API_BASE + '/api/auto_tune', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
@@ -594,21 +598,21 @@ function handleAutoTuneToggle() {
     .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
     .then(data => {
       const enabled = !!(data?.auto_tune?.enabled ?? data?.enabled);
-      autoTuneToggle?.classList.toggle('on', enabled);
-      autoTuneToggle?.classList.toggle('off', !enabled);
-      autoTuneToggle?.setAttribute?.('aria-pressed', String(enabled));
+      autoTuneToggle.classList.toggle('on', enabled);
+      autoTuneToggle.classList.toggle('off', !enabled);
+      autoTuneToggle.setAttribute('aria-pressed', String(enabled));
       fetchAutoTune();
     })
     .catch(() => fetchAutoTune());
 }
-document.body.addEventListener('click', (e) => {
-  const wrap = e.target.closest?.('.auto-tune-toggle-wrap');
-  if (wrap && wrap.querySelector('#auto-tune-toggle')) {
+(function() {
+  const wrap = document.getElementById('auto-tune-toggle-wrap');
+  if (wrap) wrap.onclick = function(e) {
     e.preventDefault();
     e.stopPropagation();
     handleAutoTuneToggle();
-  }
-});
+  };
+})();
 autoTuneToggle?.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' || e.key === ' ') {
     e.preventDefault();
