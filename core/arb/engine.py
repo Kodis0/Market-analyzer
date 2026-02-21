@@ -27,6 +27,10 @@ if TYPE_CHECKING:
     from core.runtime_settings import RuntimeSettings
 getcontext().prec = 28
 
+# B-branch: allowed ratio of expected_raw / sell_amount_raw (tolerance for rounding)
+B_AMOUNT_RATIO_MIN = Decimal("0.997")
+B_AMOUNT_RATIO_MAX = Decimal("1.003")
+
 
 class ArbEngine:
     """
@@ -381,7 +385,7 @@ class ArbEngine:
                                 need_requote = True
                             else:
                                 ratio = Decimal(expected_raw) / Decimal(sell_amount_raw)
-                                if not (Decimal("0.997") <= ratio <= Decimal("1.003")):
+                                if not (B_AMOUNT_RATIO_MIN <= ratio <= B_AMOUNT_RATIO_MAX):
                                     self._dbg_inc("B_amount_mismatch_requote")
                                     need_requote = True
 
