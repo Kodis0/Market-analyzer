@@ -370,7 +370,14 @@ async def run_server(
     site = web.TCPSite(runner, host, port)
     await site.start()
     log.info("API server listening on %s:%d", host, port)
-    await asyncio.Event().wait()  # run forever
+    try:
+        await asyncio.Event().wait()  # run forever
+    finally:
+        try:
+            await runner.cleanup()
+            log.info("API server stopped")
+        except Exception as e:
+            log.warning("API server cleanup error: %s", e)
 
 
 if __name__ == "__main__":
