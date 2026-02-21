@@ -622,6 +622,20 @@ async def main(cfg_path: str) -> None:
                 await tg.expire_stale()
                 await asyncio.sleep(5)
 
+        async def stats_heartbeat_loop():
+            """Раз в минуту записывать heartbeat в БД, чтобы дашборд показывал активность бота."""
+            while True:
+                await asyncio.sleep(60)
+                if not settings.exchange_enabled:
+                    continue
+                try:
+                    from api.db import record
+
+                    record("jupiter", 1)
+                    record("bybit", 1)
+                except Exception:
+                    pass
+
         async def ws_health_loop():
             timeout_sec = float(cfg.runtime.ws_snapshot_timeout_sec)
             if timeout_sec <= 0:
@@ -701,6 +715,7 @@ async def main(cfg_path: str) -> None:
             asyncio.create_task(engine.run(on_signal), name="arb_engine"),
             asyncio.create_task(status_loop(), name="status"),
             asyncio.create_task(stale_loop(), name="tg_stale"),
+            asyncio.create_task(stats_heartbeat_loop(), name="stats_heartbeat"),
             asyncio.create_task(
                 run_settings_command_handler(
                     session=session,
