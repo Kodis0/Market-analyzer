@@ -553,7 +553,6 @@ async function fetchAutoTune() {
     autoTuneToggle?.classList.toggle('on', enabled);
     autoTuneToggle?.classList.toggle('off', !enabled);
     autoTuneToggle?.setAttribute?.('aria-pressed', String(enabled));
-    renderAutoTuneBounds(data.bounds);
     const history = data.history || [];
     if (autoTuneHistoryList) {
       if (history.length === 0) {
@@ -617,53 +616,6 @@ autoTuneToggle?.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' || e.key === ' ') {
     e.preventDefault();
     handleAutoTuneToggle();
-  }
-});
-
-const boundMinProfitMin = document.getElementById('bound-min-profit-min');
-const boundMinProfitMax = document.getElementById('bound-min-profit-max');
-
-function renderAutoTuneBounds(bounds) {
-  const b = bounds?.min_profit_usd || {};
-  if (boundMinProfitMin) boundMinProfitMin.value = b.min ?? '';
-  if (boundMinProfitMax) boundMinProfitMax.value = b.max ?? '';
-}
-
-document.getElementById('btn-auto-tune-save-bounds')?.addEventListener('click', async () => {
-  const minVal = boundMinProfitMin?.value ? parseFloat(boundMinProfitMin.value) : null;
-  const maxVal = boundMinProfitMax?.value ? parseFloat(boundMinProfitMax.value) : null;
-  const bounds = {};
-  if (minVal != null || maxVal != null) {
-    bounds.min_profit_usd = {};
-    if (minVal != null) bounds.min_profit_usd.min = minVal;
-    if (maxVal != null) bounds.min_profit_usd.max = maxVal;
-  }
-  try {
-    const r = await fetch(API_BASE + '/api/auto_tune', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-      body: JSON.stringify({ bounds })
-    });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    fetchAutoTune();
-  } catch (e) {
-    if (window.Telegram?.WebApp?.showAlert) window.Telegram.WebApp.showAlert('Ошибка: ' + (e.message || e));
-  }
-});
-
-document.getElementById('btn-auto-tune-reset')?.addEventListener('click', async () => {
-  if (!confirm('Сбросить параметры (min_profit_usd, persistence_hits, cooldown_sec, max_spread_bps) к базовым из config?')) return;
-  try {
-    const r = await fetch(API_BASE + '/api/auto_tune', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-      body: JSON.stringify({ action: 'reset_to_defaults' })
-    });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    fetchStatusAndSettings();
-    fetchAutoTune();
-  } catch (e) {
-    if (window.Telegram?.WebApp?.showAlert) window.Telegram.WebApp.showAlert('Ошибка: ' + (e.message || e));
   }
 });
 

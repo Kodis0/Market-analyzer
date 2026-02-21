@@ -776,6 +776,12 @@ body { padding: 20px; padding-bottom: 88px; }
   flex-direction: column;
   gap: 24px;
 }
+.auto-tune-hint {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  margin-top: 4px;
+  opacity: 0.85;
+}
 .auto-tune-block .auto-tune-toggle-wrap.exchange-toggle-wrap {
   margin-bottom: 0;
   cursor: pointer;
