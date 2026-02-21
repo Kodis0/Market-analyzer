@@ -539,7 +539,6 @@ document.getElementById('btn-settings-refresh').addEventListener('click', () => 
 });
 
 const autoTuneToggle = document.getElementById('auto-tune-toggle');
-const autoTuneToggleWrap = document.getElementById('auto-tune-toggle-wrap');
 const autoTuneHistoryList = document.getElementById('auto-tune-history-list');
 
 async function fetchAutoTune() {
@@ -585,6 +584,7 @@ async function fetchAutoTune() {
 }
 
 function handleAutoTuneToggle() {
+  window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('light');
   const next = !autoTuneToggle.classList.contains('on');
   fetch(API_BASE + '/api/auto_tune', {
     method: 'POST',
@@ -601,12 +601,15 @@ function handleAutoTuneToggle() {
     })
     .catch(() => fetchAutoTune());
 }
-autoTuneToggleWrap?.addEventListener('click', (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  handleAutoTuneToggle();
+document.body.addEventListener('click', (e) => {
+  const wrap = e.target.closest?.('.auto-tune-toggle-wrap');
+  if (wrap && wrap.querySelector('#auto-tune-toggle')) {
+    e.preventDefault();
+    e.stopPropagation();
+    handleAutoTuneToggle();
+  }
 });
-autoTuneToggleWrap?.addEventListener('keydown', (e) => {
+autoTuneToggle?.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' || e.key === ' ') {
     e.preventDefault();
     handleAutoTuneToggle();
