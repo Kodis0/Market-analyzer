@@ -421,7 +421,6 @@ if (window.Telegram && window.Telegram.WebApp) {
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && document.getElementById('tab-settings')?.classList.contains('active')) {
     fetchStatusAndSettings();
-    fetchAutoTune();
   }
 });
 
@@ -434,7 +433,9 @@ document.querySelectorAll('.nav-item').forEach(btn => {
     btn.classList.add('active');
     if (tab === 'settings') {
       fetchStatusAndSettings();
-      fetchAutoTune();
+      fetch(API_BASE + '/api/auto_tune', { headers: getAuthHeaders() })
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d && autoTuneToggle) { autoTuneToggle.classList.toggle('on', !!d.enabled); autoTuneToggle.classList.toggle('off', !d.enabled); } });
     }
     if (tab === 'console') {
       fetchConsoleLogs();
@@ -478,6 +479,7 @@ const apiVal = document.getElementById('status-api-val');
 const exchangeDot = document.getElementById('status-exchange-dot');
 const exchangeVal = document.getElementById('status-exchange-val');
 const exchangeToggle = document.getElementById('exchange-toggle');
+const autoTuneToggle = document.getElementById('auto-tune-toggle');
 const settingsList = document.getElementById('settings-list');
 
 function setStatusDot(el, ok) {
@@ -510,10 +512,8 @@ async function fetchStatusAndSettings() {
     exchangeToggle.classList.toggle('on', exEnabled);
     exchangeToggle.classList.toggle('off', !exEnabled);
     if ('auto_tune_enabled' in status) {
-      const atEnabled = !!status.auto_tune_enabled;
-      autoTuneToggle?.classList.toggle('on', atEnabled);
-      autoTuneToggle?.classList.toggle('off', !atEnabled);
-      autoTuneToggle?.setAttribute?.('aria-pressed', String(atEnabled));
+      autoTuneToggle.classList.toggle('on', !!status.auto_tune_enabled);
+      autoTuneToggle.classList.toggle('off', !status.auto_tune_enabled);
     }
 
     if (settingsRes.ok) {
@@ -529,93 +529,31 @@ async function fetchStatusAndSettings() {
     exchangeVal.textContent = '—';
     exchangeToggle.classList.add('off');
     exchangeToggle.classList.remove('on');
+    autoTuneToggle?.classList.add('off');
+    autoTuneToggle?.classList.remove('on');
     settingsList.innerHTML = '<div class="history-empty">Не удалось загрузить настройки</div>';
   }
 }
 
-document.getElementById('btn-settings-refresh').addEventListener('click', () => {
-  fetchStatusAndSettings();
-  fetchAutoTune();
-});
+document.getElementById('btn-settings-refresh').addEventListener('click', fetchStatusAndSettings);
 
-const autoTuneToggle = document.getElementById('auto-tune-toggle');
-const autoTuneHistoryList = document.getElementById('auto-tune-history-list');
-
-async function fetchAutoTune() {
-  try {
-    const r = await fetch(API_BASE + '/api/auto_tune', { headers: getAuthHeaders() });
-    if (!r.ok) {
-      if (r.status === 404) return;
-      throw new Error('HTTP ' + r.status);
-    }
-    const data = await r.json();
-    const enabled = !!data.enabled;
-    autoTuneToggle?.classList.toggle('on', enabled);
-    autoTuneToggle?.classList.toggle('off', !enabled);
-    autoTuneToggle?.setAttribute?.('aria-pressed', String(enabled));
-    const history = data.history || [];
-    if (autoTuneHistoryList) {
-      if (history.length === 0) {
-        autoTuneHistoryList.innerHTML = '<li class="history-empty">Нет изменений</li>';
-      } else {
-        autoTuneHistoryList.innerHTML = history.slice().reverse().map(h => {
-          const d = new Date((h.ts || 0) * 1000);
-          const timeStr = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-          const src = h.source === 'auto' ? 'auto' : 'manual';
-          if (h.action === 'reset_to_defaults') {
-            return '<li class="auto-tune-history-item"><span class="at-badge manual">manual</span> ' + escapeHtml(timeStr) + ' — сброс к базовым</li>';
-          }
-          const param = escapeHtml(h.param || '');
-          const oldV = escapeHtml(String(h.old_value ?? ''));
-          const newV = escapeHtml(String(h.new_value ?? ''));
-          const reason = escapeHtml((h.reason || '').slice(0, 60));
-          return '<li class="auto-tune-history-item"><span class="at-badge ' + src + '">' + src + '</span> ' + escapeHtml(timeStr) + ' — ' + param + ': ' + oldV + ' → ' + newV + (reason ? ' (' + reason + ')' : '') + '</li>';
-        }).join('');
-      }
-    }
-  } catch (e) {
-    if (autoTuneToggle) {
-      autoTuneToggle.classList.add('off');
-      autoTuneToggle.classList.remove('on');
-      autoTuneToggle.setAttribute?.('aria-pressed', 'false');
-    }
-  }
-}
-
-function handleAutoTuneToggle() {
-  if (!autoTuneToggle) return;
-  window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('light');
+autoTuneToggle.addEventListener('click', async () => {
   const next = !autoTuneToggle.classList.contains('on');
   autoTuneToggle.classList.toggle('on', next);
   autoTuneToggle.classList.toggle('off', !next);
-  autoTuneToggle.setAttribute('aria-pressed', String(next));
-  fetch(API_BASE + '/api/auto_tune', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-    body: JSON.stringify({ enabled: next })
-  })
-    .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
-    .then(data => {
-      const enabled = !!(data?.auto_tune?.enabled ?? data?.enabled);
-      autoTuneToggle.classList.toggle('on', enabled);
-      autoTuneToggle.classList.toggle('off', !enabled);
-      autoTuneToggle.setAttribute('aria-pressed', String(enabled));
-      fetchAutoTune();
-    })
-    .catch(() => fetchAutoTune());
-}
-(function() {
-  const wrap = document.getElementById('auto-tune-toggle-wrap');
-  if (wrap) wrap.onclick = function(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    handleAutoTuneToggle();
-  };
-})();
-autoTuneToggle?.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' || e.key === ' ') {
-    e.preventDefault();
-    handleAutoTuneToggle();
+  try {
+    const r = await fetch(API_BASE + '/api/auto_tune', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify({ enabled: next })
+    });
+    const d = await r.json();
+    const ok = !!(d?.auto_tune?.enabled ?? d?.enabled);
+    autoTuneToggle.classList.toggle('on', ok);
+    autoTuneToggle.classList.toggle('off', !ok);
+  } catch (_) {
+    autoTuneToggle.classList.toggle('on', !next);
+    autoTuneToggle.classList.toggle('off', next);
   }
 });
 
