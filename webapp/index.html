@@ -238,7 +238,18 @@
       gap: 12px;
       margin: 16px 0 12px;
       align-items: center;
+      flex-wrap: wrap;
     }
+    .history-hide-stale {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      cursor: pointer;
+      user-select: none;
+    }
+    .history-hide-stale input { accent-color: var(--accent-jup); }
     .history-period {
       padding: 8px 12px;
       border: 1px solid var(--border);
@@ -290,6 +301,39 @@
       color: var(--text-dim);
       margin-top: 2px;
     }
+    .history-item.stale {
+      opacity: 0.65;
+    }
+    .history-item.stale .history-item-token,
+    .history-item.stale .history-item-profit {
+      text-decoration: line-through;
+      color: var(--text-dim);
+    }
+    .history-item-actions {
+      display: flex;
+      gap: 6px;
+      margin-left: 8px;
+    }
+    .history-btn {
+      width: 28px;
+      height: 28px;
+      border: none;
+      border-radius: 6px;
+      background: var(--border);
+      color: var(--text-dim);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      transition: background 0.15s, color 0.15s;
+    }
+    .history-btn:hover {
+      background: var(--bg-card-hover);
+      color: var(--text);
+    }
+    .history-btn.stale-btn:hover { color: var(--accent-bybit); }
+    .history-btn.del-btn:hover { color: var(--error); }
     .history-empty {
       padding: 24px;
       text-align: center;
@@ -603,6 +647,10 @@
             <option value="1w">Неделя</option>
             <option value="all">Всё время</option>
           </select>
+          <label class="history-hide-stale">
+            <input type="checkbox" id="history-hide-stale" />
+            Скрыть устаревшие
+          </label>
         </div>
         <ul class="history-list" id="history-list"></ul>
       </div>
@@ -858,6 +906,12 @@
         fetchSignalHistory();
       });
 
+      document.getElementById('history-hide-stale').addEventListener('change', () => {
+        if (lastHistoryData) renderHistory(lastHistoryData);
+      });
+
+      let lastHistoryData = [];
+
       function formatSignalTime(ts) {
         const d = new Date(ts * 1000);
         const now = new Date();
@@ -874,28 +928,96 @@
         return dir;
       }
 
+      async function markSignalStale(id) {
+        try {
+          const r = await fetch(API_BASE.replace(/\/$/, '') + '/api/signal-history', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+            body: JSON.stringify({ id, status: 'stale' })
+          });
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          const data = await r.json();
+          if (data.ok) fetchSignalHistory();
+        } catch (e) {
+          if (window.Telegram?.WebApp?.showAlert) window.Telegram.WebApp.showAlert('Ошибка: ' + (e.message || e));
+        }
+      }
+
+      async function deleteSignal(id) {
+        if (!confirm('Удалить сигнал из истории?')) return;
+        try {
+          const r = await fetch(API_BASE.replace(/\/$/, '') + '/api/signal-history?id=' + id, {
+            method: 'DELETE',
+            headers: getAuthHeaders()
+          });
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          const data = await r.json();
+          if (data.ok) fetchSignalHistory();
+        } catch (e) {
+          if (window.Telegram?.WebApp?.showAlert) window.Telegram.WebApp.showAlert('Ошибка: ' + (e.message || e));
+        }
+      }
+
+      function renderHistory(data) {
+        const hideStale = document.getElementById('history-hide-stale')?.checked ?? false;
+        const filtered = hideStale ? data.filter(s => !(s.is_stale || s.status === 'stale')) : data;
+        if (filtered.length === 0) {
+          historyList.innerHTML = hideStale && data.length > 0
+            ? '<li class="history-empty">Все сигналы устарели. Снимите галочку «Скрыть устаревшие»</li>'
+            : '<li class="history-empty">Нет сигналов за выбранный период</li>';
+          return;
+        }
+        historyList.innerHTML = filtered.map(s => {
+          const stale = s.is_stale || s.status === 'stale';
+          const hasId = s.id != null && !isNaN(Number(s.id));
+          return `
+            <li class="history-item ${stale ? 'stale' : ''}" data-id="${hasId ? s.id : ''}">
+              <div>
+                <div class="history-item-token">${escapeHtml(s.token)}${stale ? ' <span style="font-size:0.7em;color:var(--text-dim)">(устарел)</span>' : ''}</div>
+                <div class="history-item-direction">${escapeHtml(formatDirection(s.direction))}</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div class="history-item-actions">
+                  ${hasId && !stale ? '<button type="button" class="history-btn stale-btn" title="Пометить устаревшим">⏱</button>' : ''}
+                  ${hasId ? '<button type="button" class="history-btn del-btn" title="Удалить">✕</button>' : ''}
+                </div>
+                <div style="text-align: right;">
+                  <div class="history-item-profit">+${Number(s.profit_usd).toFixed(2)}$</div>
+                  <div class="history-item-time">${formatSignalTime(s.ts)}</div>
+                </div>
+              </div>
+            </li>
+          `}).join('');
+        historyList.querySelectorAll('.history-btn.stale-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const li = btn.closest('.history-item');
+            const id = li?.dataset?.id;
+            if (id) markSignalStale(parseInt(id, 10));
+          });
+        });
+        historyList.querySelectorAll('.history-btn.del-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const li = btn.closest('.history-item');
+            const id = li?.dataset?.id;
+            if (id) deleteSignal(parseInt(id, 10));
+          });
+        });
+      }
+
       async function fetchSignalHistory() {
         historyList.innerHTML = '<li class="history-empty">Загрузка...</li>';
         try {
           const r = await fetch(API_BASE.replace(/\/$/, '') + '/api/signal-history?period=' + historyPeriod, { headers: getAuthHeaders() });
           if (!r.ok) throw new Error(r.status === 401 ? 'Откройте дашборд через Telegram (кнопка «Навигация»)' : 'HTTP ' + r.status);
           const data = await r.json();
-          if (!data || data.length === 0) {
+          lastHistoryData = Array.isArray(data) ? data : [];
+          if (lastHistoryData.length === 0) {
             historyList.innerHTML = '<li class="history-empty">Нет сигналов за выбранный период</li>';
             return;
           }
-          historyList.innerHTML = data.map(s => `
-            <li class="history-item">
-              <div>
-                <div class="history-item-token">${escapeHtml(s.token)}</div>
-                <div class="history-item-direction">${escapeHtml(formatDirection(s.direction))}</div>
-              </div>
-              <div style="text-align: right;">
-                <div class="history-item-profit">+${Number(s.profit_usd).toFixed(2)}$</div>
-                <div class="history-item-time">${formatSignalTime(s.ts)}</div>
-              </div>
-            </li>
-          `).join('');
+          renderHistory(lastHistoryData);
         } catch (e) {
           historyList.innerHTML = '<li class="history-empty">Ошибка загрузки: ' + escapeHtml(e.message || String(e)) + '</li>';
         }

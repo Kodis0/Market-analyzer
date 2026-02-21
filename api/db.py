@@ -48,7 +48,11 @@ def init(db_path: Path) -> None:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     _conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
     _conn.executescript(SCHEMA)
-    # WAL mode — меньше блокировок, лучше для частых записей
+    try:
+        _conn.execute("ALTER TABLE signal_history ADD COLUMN status TEXT DEFAULT 'active'")
+        _conn.commit()
+    except sqlite3.OperationalError:
+        pass
     _conn.execute("PRAGMA journal_mode=WAL")
     _conn.execute("PRAGMA synchronous=NORMAL")
     _conn.execute("PRAGMA cache_size=-64000")  # 64MB cache
@@ -187,14 +191,18 @@ def record_signal(token: str, direction: str, profit_usd: float, notional_usd: f
             log.warning("signal_history record failed: %s", e)
 
 
+STALE_AGE_SEC = 900  # 15 мин — сигнал считается устаревшим по возрасту
+
+
 def get_signal_history(period: str, limit: int = 200) -> list[dict]:
     """
     period: '1h' | '1d' | '1w' | 'all'
-    Возвращает [{ts, token, direction, profit_usd, notional_usd}, ...] отсортировано по ts DESC (новые сверху).
+    Возвращает [{id, ts, token, direction, profit_usd, notional_usd, status, is_stale}, ...].
+    is_stale = True если status='stale' или возраст > STALE_AGE_SEC.
     """
     if _conn is None:
         return []
-    _flush()  # Сбросить буфер request_stats перед чтением (общая БД)
+    _flush()
     now = int(time.time())
     if period == "1h":
         since = now - 3600
@@ -202,13 +210,14 @@ def get_signal_history(period: str, limit: int = 200) -> list[dict]:
         since = now - 86400
     elif period == "1w":
         since = now - 7 * 86400
-    else:  # all
+    else:
         since = 0
 
     try:
         cur = _conn.execute(
             """
-            SELECT ts, token, direction, profit_usd, notional_usd
+            SELECT id, ts, token, direction, profit_usd, notional_usd,
+                   COALESCE(status, 'active') as status
             FROM signal_history
             WHERE ts >= ?
             ORDER BY ts DESC
@@ -222,7 +231,52 @@ def get_signal_history(period: str, limit: int = 200) -> list[dict]:
             log.warning("signal_history get failed: %s", e)
         return []
 
-    return [
-        {"ts": r[0], "token": r[1], "direction": r[2], "profit_usd": r[3], "notional_usd": r[4]}
-        for r in rows
-    ]
+    result = []
+    for r in rows:
+        sid, ts, token, direction, profit_usd, notional_usd, status = r
+        age_sec = now - ts
+        is_stale = status == "stale" or age_sec > STALE_AGE_SEC
+        result.append({
+            "id": sid,
+            "ts": ts,
+            "token": token,
+            "direction": direction,
+            "profit_usd": profit_usd,
+            "notional_usd": notional_usd,
+            "status": status,
+            "is_stale": is_stale,
+        })
+    return result
+
+
+def update_signal_status(signal_id: int, status: str) -> bool:
+    """Обновить статус сигнала. status: 'active' | 'stale'. Возвращает True если обновлено."""
+    if _conn is None:
+        return False
+    if status not in ("active", "stale"):
+        return False
+    try:
+        cur = _conn.execute(
+            "UPDATE signal_history SET status = ? WHERE id = ?",
+            (status, signal_id),
+        )
+        _conn.commit()
+        return cur.rowcount > 0
+    except Exception as e:
+        if log:
+            log.warning("signal_history update failed: %s", e)
+        return False
+
+
+def delete_signal(signal_id: int) -> bool:
+    """Удалить сигнал по id. Возвращает True если удалено."""
+    if _conn is None:
+        return False
+    try:
+        cur = _conn.execute("DELETE FROM signal_history WHERE id = ?", (signal_id,))
+        _conn.commit()
+        return cur.rowcount > 0
+    except Exception as e:
+        if log:
+            log.warning("signal_history delete failed: %s", e)
+        return False

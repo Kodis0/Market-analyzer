@@ -22,12 +22,12 @@ from typing import Awaitable, Callable, Optional, Set
 from aiohttp import web
 
 from api.auth import validate_telegram_init_data
-from api.db import get_signal_history, get_stats, init as db_init
+from api.db import delete_signal, get_signal_history, get_stats, init as db_init, update_signal_status
 
 log = logging.getLogger("api")
 
 CORS_BASE = {
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, X-Telegram-Init-Data",
     "Access-Control-Max-Age": "86400",
     "Cache-Control": "no-store",
@@ -179,9 +179,42 @@ def create_app(
     async def handle_root(req: web.Request) -> web.Response:
         return web.json_response({"ok": True, "api": "market-analyzer"}, headers=_cors_headers(req))
 
+    async def handle_signal_history_patch(req: web.Request) -> web.Response:
+        try:
+            data = await req.json() if req.content_length else {}
+        except Exception:
+            return web.json_response({"error": "Invalid JSON"}, status=400, headers=_cors_headers(req))
+        sid = data.get("id")
+        status = data.get("status")
+        if sid is None or status not in ("active", "stale"):
+            return web.json_response(
+                {"error": "Expected { id: number, status: 'active'|'stale' }"},
+                status=400,
+                headers=_cors_headers(req),
+            )
+        ok = update_signal_status(int(sid), status)
+        return web.json_response({"ok": ok}, headers=_cors_headers(req))
+
+    async def handle_signal_history_delete(req: web.Request) -> web.Response:
+        sid = req.query.get("id")
+        if sid is None:
+            return web.json_response(
+                {"error": "Missing id (query param)"},
+                status=400,
+                headers=_cors_headers(req),
+            )
+        try:
+            sid = int(sid)
+        except (TypeError, ValueError):
+            return web.json_response({"error": "id must be number"}, status=400, headers=_cors_headers(req))
+        ok = delete_signal(sid)
+        return web.json_response({"ok": ok}, headers=_cors_headers(req))
+
     app.router.add_get("/", handle_root)
     app.router.add_get("/api/stats", handle_stats)
     app.router.add_get("/api/signal-history", handle_signal_history)
+    app.router.add_route("PATCH", "/api/signal-history", handle_signal_history_patch)
+    app.router.add_route("DELETE", "/api/signal-history", handle_signal_history_delete)
 
     if get_status is not None:
 
