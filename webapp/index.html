@@ -250,7 +250,12 @@
         || (startParam ? decodeURIComponent(startParam) : null)
         || (document.getElementById('app').dataset.apiUrl || 'http://localhost:8080');
       if (rawApi && !rawApi.match(/:\d+(\/|$)/)) {
-        rawApi = rawApi.replace(/:?\/?$/, '') + ':8080';
+        // Добавляем :8080 только для http (localhost, IP). Для https порт 443 по умолчанию
+        if (!rawApi.startsWith('https://')) {
+          rawApi = rawApi.replace(/:?\/?$/, '') + ':8080';
+        } else {
+          rawApi = rawApi.replace(/\/$/, '');
+        }
       }
       const API_BASE = rawApi.replace(/\/$/, '');
       document.getElementById('api-display').textContent = API_BASE;
