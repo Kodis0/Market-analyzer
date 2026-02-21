@@ -577,9 +577,10 @@ autoTuneToggle?.addEventListener('click', async () => {
     });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const data = await r.json();
-    const enabled = !!data?.auto_tune?.enabled;
+    const enabled = !!(data?.auto_tune?.enabled ?? data?.enabled);
     autoTuneToggle.classList.toggle('on', enabled);
     autoTuneToggle.classList.toggle('off', !enabled);
+    fetchAutoTune();
   } catch (e) {
     fetchAutoTune();
   }

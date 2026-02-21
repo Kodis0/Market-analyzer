@@ -123,7 +123,7 @@ class MetricsCollector:
                     skip_persistence += ev.stats.get(k, 0)
                 for k in self.SKIP_DEDUP_KEYS:
                     skip_dedup += ev.stats.get(k, 0)
-                skip_spread += ev.stats.get("skip_spread", 0)
+                skip_spread += ev.stats.get("skip_spread", 0) + ev.stats.get("poll_skip_spread", 0)
                 for k in self.SKIP_DEPTH_KEYS:
                     skip_depth += ev.stats.get(k, 0)
                 for k in self.SKIP_CEX_SLIP_KEYS:

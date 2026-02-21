@@ -102,6 +102,11 @@ class AutoTuner:
         skip_persistence = metrics.get("skip_persistence", 0)
         skip_dedup = metrics.get("skip_dedup", 0)
         skip_spread = metrics.get("skip_spread", 0)
+        events_count = metrics.get("events_count", 0)
+
+        # Не трогать параметры при недостатке данных
+        if events_count < 2:
+            return changes
 
         # Bounds for min_profit_usd
         bp = bounds.min_profit_usd or {}
@@ -110,7 +115,7 @@ class AutoTuner:
 
         current_min_profit = float(settings.min_profit_usd)
 
-        # Rule: few signals + many skip_profit_le0 → lower min_profit
+        # Rule 1 (приоритет): мало сигналов + много skip_profit_le0 → понижаем min_profit
         if signals_sent < self._config.target_signals_min and skip_profit_le0 > 0:
             if current_min_profit > min_profit_min:
                 step = self._config.min_profit_step
@@ -121,12 +126,12 @@ class AutoTuner:
                             param="min_profit_usd",
                             old_value=current_min_profit,
                             new_value=round(new_val, 2),
-                            reason=f"Мало сигналов ({signals_sent}), много skip_profit_le0 ({skip_profit_le0}) → понижаем min_profit",
+                            reason=f"Мало сигналов ({signals_sent}), много skip_profit_le0 ({skip_profit_le0})",
                         )
                     )
 
-        # Rule: many signals → raise min_profit
-        if signals_sent > self._config.target_signals_max:
+        # Rule 2: много сигналов → повышаем min_profit
+        if not changes and signals_sent > self._config.target_signals_max:
             if current_min_profit < min_profit_max:
                 step = self._config.min_profit_step
                 new_val = min(min_profit_max, current_min_profit + step)
@@ -136,59 +141,59 @@ class AutoTuner:
                             param="min_profit_usd",
                             old_value=current_min_profit,
                             new_value=round(new_val, 2),
-                            reason=f"Много сигналов ({signals_sent}) → повышаем min_profit",
+                            reason=f"Много сигналов ({signals_sent})",
                         )
                     )
 
-        # Rule: many skip_persistence → consider lowering persistence_hits (if > 1)
-        ph_b = bounds.persistence_hits or {}
-        ph_min = int(ph_b.get("min", self._config.persistence_hits_min))
-        ph_max = int(ph_b.get("max", self._config.persistence_hits_max))
-        current_ph = int(settings.persistence_hits)
-        if skip_persistence > 20 and current_ph > ph_min:
-            new_ph = max(ph_min, current_ph - 1)
-            if new_ph < current_ph:
+        # Rule 3: много skip_persistence → понижаем persistence_hits
+        if not changes:
+            ph_b = bounds.persistence_hits or {}
+            ph_min = int(ph_b.get("min", self._config.persistence_hits_min))
+            current_ph = int(settings.persistence_hits)
+            if skip_persistence > 20 and current_ph > ph_min:
+                new_ph = max(ph_min, current_ph - 1)
                 changes.append(
                     ParamChange(
                         param="persistence_hits",
                         old_value=current_ph,
                         new_value=new_ph,
-                        reason=f"Много skip_persistence ({skip_persistence}) → понижаем persistence_hits",
+                        reason=f"Много skip_persistence ({skip_persistence})",
                     )
                 )
 
-        # Rule: many skip_dedup → consider raising cooldown (reduce spam)
-        cd_b = bounds.cooldown_sec or {}
-        cd_min = int(cd_b.get("min", self._config.cooldown_sec_min))
-        cd_max = int(cd_b.get("max", self._config.cooldown_sec_max))
-        current_cd = int(settings.cooldown_sec)
-        if skip_dedup > 30 and current_cd < cd_max:
-            new_cd = min(cd_max, current_cd + 5)
-            if new_cd > current_cd:
-                changes.append(
-                    ParamChange(
-                        param="cooldown_sec",
-                        old_value=current_cd,
-                        new_value=new_cd,
-                        reason=f"Много skip_dedup ({skip_dedup}) → повышаем cooldown",
+        # Rule 4: много skip_dedup → повышаем cooldown
+        if not changes:
+            cd_b = bounds.cooldown_sec or {}
+            cd_max = int(cd_b.get("max", self._config.cooldown_sec_max))
+            current_cd = int(settings.cooldown_sec)
+            if skip_dedup > 30 and current_cd < cd_max:
+                new_cd = min(cd_max, current_cd + 5)
+                if new_cd > current_cd:
+                    changes.append(
+                        ParamChange(
+                            param="cooldown_sec",
+                            old_value=current_cd,
+                            new_value=new_cd,
+                            reason=f"Много skip_dedup ({skip_dedup})",
+                        )
                     )
-                )
 
-        # Rule: many skip_spread → consider raising max_spread_bps (if within bounds)
-        sp_b = bounds.max_spread_bps or {}
-        spread_min = float(sp_b.get("min", self._config.max_spread_bps_min))
-        spread_max = float(sp_b.get("max", self._config.max_spread_bps_max))
-        current_spread = float(settings.max_spread_bps)
-        if skip_spread > 50 and current_spread < spread_max:
-            new_spread = min(spread_max, current_spread + 10)
-            if new_spread > current_spread:
-                changes.append(
-                    ParamChange(
-                        param="max_spread_bps",
-                        old_value=current_spread,
-                        new_value=round(new_spread, 1),
-                        reason=f"Много skip_spread ({skip_spread}) → повышаем max_spread_bps",
+        # Rule 5: много skip_spread → повышаем max_spread_bps
+        if not changes:
+            sp_b = bounds.max_spread_bps or {}
+            spread_max = float(sp_b.get("max", self._config.max_spread_bps_max))
+            current_spread = float(settings.max_spread_bps)
+            if skip_spread > 50 and current_spread < spread_max:
+                new_spread = min(spread_max, current_spread + 10)
+                if new_spread > current_spread:
+                    changes.append(
+                        ParamChange(
+                            param="max_spread_bps",
+                            old_value=current_spread,
+                            new_value=round(new_spread, 1),
+                            reason=f"Много skip_spread ({skip_spread})",
+                        )
                     )
-                )
 
-        return changes
+        # Применяем только одно изменение за цикл — избегаем осцилляции
+        return changes[:1]

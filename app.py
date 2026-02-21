@@ -361,10 +361,15 @@ async def main(cfg_path: str) -> None:
         tuner = AutoTuner(config=TunerConfig())
 
         async def auto_tune_loop():
+            last_eval_ts = 0.0
             while True:
-                await asyncio.sleep(interval_sec)
+                await asyncio.sleep(60)  # Проверка каждую минуту — быстрое срабатывание при включении
                 if not settings.auto_tune_enabled or not settings.exchange_enabled:
                     continue
+                now = time.time()
+                if (now - last_eval_ts) < interval_sec:
+                    continue
+                last_eval_ts = now
                 try:
                     metrics = metrics_collector.get_window_stats()
                     bounds = TunerBounds.from_dict(settings.auto_tune_bounds)
