@@ -476,12 +476,13 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 10px 12px;
+      padding: 12px 14px;
+      min-height: 48px;
       border-radius: 8px;
       margin-bottom: 4px;
       background: rgba(0,0,0,0.15);
       font-size: 0.85rem;
-      gap: 12px;
+      gap: 16px;
     }
     .settings-item-key {
       color: var(--text-dim);
@@ -489,7 +490,8 @@
       min-width: 0;
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
+      line-height: 1.4;
     }
     .settings-help {
       display: inline-flex;
@@ -537,13 +539,15 @@
     }
     .settings-input {
       width: 90px;
-      padding: 6px 10px;
+      height: 36px;
+      padding: 0 12px;
       border: 1px solid var(--border);
       border-radius: 8px;
       background: var(--bg);
       color: var(--text);
       font-size: 0.85rem;
       text-align: right;
+      box-sizing: border-box;
     }
     .settings-input::-webkit-outer-spin-button,
     .settings-input::-webkit-inner-spin-button {
@@ -561,7 +565,7 @@
     .settings-toggle {
       position: relative;
       width: 44px;
-      height: 24px;
+      height: 26px;
       background: var(--border);
       border-radius: 12px;
       cursor: pointer;
@@ -580,8 +584,8 @@
       height: 20px;
       background: #fff;
       border-radius: 50%;
-      top: 2px;
-      left: 2px;
+      top: 3px;
+      left: 3px;
       transition: transform 0.2s;
     }
     .settings-toggle.on::after {
