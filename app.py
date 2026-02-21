@@ -16,6 +16,7 @@ from core.bootstrap import get_paths, load_config, require_env
 from core.fees import Thresholds
 from core.jupiter_sanitizer import make_on_jup_skip
 from core.quarantine_manager import QuarantineManager
+from core.quarantine_verifier import verify_loop
 from core.runtime_settings import RuntimeSettings, load_runtime_settings, save_runtime_settings
 from core.state import MarketState
 from core.ws_cluster import BybitWSCluster
@@ -485,6 +486,24 @@ async def main(cfg_path: str) -> None:
 
         if cfg.runtime.ws_snapshot_timeout_sec > 0:
             tasks.append(asyncio.create_task(ws_health_loop(), name="ws_health"))
+
+        verify_interval = float(getattr(cfg.runtime, "quarantine_verify_interval_sec", 30 * 60))
+        tasks.append(
+            asyncio.create_task(
+                verify_loop(
+                    q_manager=q_manager,
+                    jup=jup,
+                    full_tokens=full_tokens,
+                    stable_mint=cfg.trading.stable.mint,
+                    stable_decimals=cfg.trading.stable.decimals,
+                    notional_usd=Decimal(str(settings.notional_usd)),
+                    on_symbols_changed=on_symbols_changed,
+                    interval_sec=verify_interval,
+                    exchange_enabled_getter=lambda: settings.exchange_enabled,
+                ),
+                name="quarantine_verify",
+            )
+        )
 
         log.info("Bot started. /settings available. Press Ctrl+C to stop.")
 

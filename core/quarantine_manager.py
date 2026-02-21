@@ -140,6 +140,32 @@ class QuarantineManager:
         async with self._lock:
             return symbol in self.quarantined_set
 
+    async def remove_recovered(
+        self,
+        symbols: list[str],
+        on_symbols_changed: Callable[[], Any] | None = None,
+    ) -> None:
+        """Remove symbols from quarantine (they can trade again)."""
+        if not symbols:
+            return
+        sym_set = set(symbols)
+
+        async with self._file_lock:
+            q = prune_expired(load_quarantine(str(self.quarantine_path)))
+            for sym in sym_set:
+                q.pop(sym, None)
+            save_quarantine(str(self.quarantine_path), q)
+
+        async with self._lock:
+            self.quarantined_set -= sym_set
+            self._apply_quarantine_to_cfg()
+            self._rebuild_token_cfgs_inplace()
+
+            if on_symbols_changed:
+                result = on_symbols_changed()
+                if asyncio.iscoroutine(result):
+                    await result
+
     async def sync_loop(
         self,
         poll_sec: float = 10.0,
