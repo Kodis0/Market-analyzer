@@ -117,6 +117,45 @@
         <span class="exchange-toggle-label">Биржевая логика (Jupiter, Bybit, арбитраж)</span>
         <div id="exchange-toggle" class="exchange-toggle off" title="Вкл/выкл"></div>
       </div>
+      <div class="auto-tune-block settings-block">
+        <h2>Авто-подстройка</h2>
+        <p class="auto-tune-desc">Автоматическая подстройка min_profit, persistence, cooldown по метрикам. По умолчанию выключена.</p>
+        <div class="auto-tune-toggle-wrap">
+          <span class="exchange-toggle-label">Авто-подстройка параметров</span>
+          <div id="auto-tune-toggle" class="exchange-toggle off" title="Вкл/выкл"></div>
+        </div>
+        <div class="auto-tune-metrics" id="auto-tune-metrics">
+          <div class="auto-tune-metrics-grid">
+            <span class="auto-tune-metric"><span class="auto-tune-metric-label">Сигналов за окно</span><span id="at-signals" class="auto-tune-metric-val">—</span></span>
+            <span class="auto-tune-metric"><span class="auto-tune-metric-label">skip_profit_le0</span><span id="at-skip-profit" class="auto-tune-metric-val">—</span></span>
+            <span class="auto-tune-metric"><span class="auto-tune-metric-label">skip_persistence</span><span id="at-skip-pers" class="auto-tune-metric-val">—</span></span>
+            <span class="auto-tune-metric"><span class="auto-tune-metric-label">skip_dedup</span><span id="at-skip-dedup" class="auto-tune-metric-val">—</span></span>
+            <span class="auto-tune-metric"><span class="auto-tune-metric-label">skip_spread</span><span id="at-skip-spread" class="auto-tune-metric-val">—</span></span>
+            <span class="auto-tune-metric"><span class="auto-tune-metric-label">skip_depth</span><span id="at-skip-depth" class="auto-tune-metric-val">—</span></span>
+            <span class="auto-tune-metric"><span class="auto-tune-metric-label">skip_cex_slip</span><span id="at-skip-cex" class="auto-tune-metric-val">—</span></span>
+          </div>
+        </div>
+        <div class="auto-tune-history" id="auto-tune-history">
+          <h3>История изменений</h3>
+          <ul id="auto-tune-history-list" class="auto-tune-history-list"></ul>
+        </div>
+        <div class="auto-tune-bounds" id="auto-tune-bounds">
+          <h3>Bounds (границы для авто-подстройки)</h3>
+          <div class="auto-tune-bounds-grid">
+            <div class="auto-tune-bound-item">
+              <label>min_profit_usd</label>
+              <div class="bound-inputs">
+                <input type="number" id="bound-min-profit-min" placeholder="min" step="0.1" />
+                <input type="number" id="bound-min-profit-max" placeholder="max" step="0.5" />
+              </div>
+            </div>
+          </div>
+          <button type="button" class="btn-refresh btn-small" id="btn-auto-tune-save-bounds">Сохранить bounds</button>
+        </div>
+        <div class="auto-tune-actions">
+          <button type="button" class="btn-refresh" id="btn-auto-tune-reset" title="Сбросить параметры к базовым из config">Сбросить к базовым</button>
+        </div>
+      </div>
       <div class="settings-block">
         <h2>Параметры</h2>
         <div id="settings-list" class="settings-list"></div>

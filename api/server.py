@@ -208,6 +208,8 @@ def create_app(
     get_status: Callable[[], dict] | None = None,
     get_settings: Callable[[], dict] | None = None,
     on_settings_update: Callable[[dict], Awaitable[dict]] | None = None,
+    get_auto_tune: Callable[[], dict] | None = None,
+    on_auto_tune_update: Callable[[dict], Awaitable[dict]] | None = None,
     auth_config: dict | None = None,
 ) -> web.Application:
     app = web.Application(middlewares=[auth_middleware])
@@ -322,6 +324,34 @@ def create_app(
 
         app.router.add_route("POST", "/api/settings", handle_settings_post)
 
+    if get_auto_tune is not None:
+
+        async def handle_auto_tune_get(req: web.Request) -> web.Response:
+            data = get_auto_tune()
+            return web.json_response(data, headers=_cors_headers(req))
+
+        app.router.add_get("/api/auto_tune", handle_auto_tune_get)
+
+    if on_auto_tune_update is not None:
+
+        async def handle_auto_tune_post(req: web.Request) -> web.Response:
+            if req.method != "POST":
+                return web.json_response({"error": "Method not allowed"}, status=405, headers=_cors_headers(req))
+            try:
+                data = await req.json() if req.content_length else {}
+            except Exception:
+                return web.json_response({"error": "Invalid JSON"}, status=400, headers=_cors_headers(req))
+            if not isinstance(data, dict):
+                return web.json_response(
+                    {"error": "Expected object { enabled?, bounds?, action? }"},
+                    status=400,
+                    headers=_cors_headers(req),
+                )
+            result = await on_auto_tune_update(data)
+            return web.json_response(result, headers=_cors_headers(req))
+
+        app.router.add_route("POST", "/api/auto_tune", handle_auto_tune_post)
+
     if on_exchange_toggle is not None:
 
         async def handle_exchange(req: web.Request) -> web.Response:
@@ -357,6 +387,8 @@ async def run_server(
     get_status: Callable[[], dict] | None = None,
     get_settings: Callable[[], dict] | None = None,
     on_settings_update: Callable[[dict], Awaitable[dict]] | None = None,
+    get_auto_tune: Callable[[], dict] | None = None,
+    on_auto_tune_update: Callable[[dict], Awaitable[dict]] | None = None,
     auth_config: dict | None = None,
 ) -> None:
     if db_path:
@@ -368,6 +400,8 @@ async def run_server(
         get_status=get_status,
         get_settings=get_settings,
         on_settings_update=on_settings_update,
+        get_auto_tune=get_auto_tune,
+        on_auto_tune_update=on_auto_tune_update,
         auth_config=auth_config,
     )
     runner = web.AppRunner(app)

@@ -12,6 +12,8 @@ import aiohttp
 
 from connectors.jupiter import JupiterClient
 from core.arb_engine import ArbEngine
+from core.auto_tune.metrics import MetricsCollector
+from core.auto_tune.tuner import AutoTuner, ParamChange, TunerBounds, TunerConfig
 from core.bootstrap import get_paths, load_config, require_env
 from core.fees import Thresholds
 from core.jupiter_sanitizer import make_on_jup_skip
@@ -89,6 +91,7 @@ async def main(cfg_path: str) -> None:
         jupiter_poll_interval_sec=float(cfg.jupiter.poll_interval_sec),
         stale_ttl_sec=int(cfg.notifier.stale_ttl_sec),
         delete_stale=bool(cfg.notifier.delete_stale),
+        auto_tune_enabled=bool(getattr(cfg.auto_tune, "enabled", False)),
     )
     settings = load_runtime_settings(str(settings_path), settings_defaults)
 
@@ -148,6 +151,10 @@ async def main(cfg_path: str) -> None:
             exchange_enabled_event.clear()
             log.info("Exchange logic disabled at startup (settings.exchange_enabled=false)")
 
+        auto_tune_cfg = getattr(cfg, "auto_tune", None)
+        window_sec = float(auto_tune_cfg.window_sec) if auto_tune_cfg else 30 * 60
+        metrics_collector = MetricsCollector(window_sec=window_sec)
+
         engine = ArbEngine(
             state=state,
             jup=jup,
@@ -172,7 +179,11 @@ async def main(cfg_path: str) -> None:
             exchange_enabled_event=exchange_enabled_event,
         )
 
+        auto_tune_history: list[dict] = []
+        AUTO_TUNE_HISTORY_MAX = 50
+
         async def on_signal(sig):
+            metrics_collector.record_signal()
             reply_markup = sig.to_reply_markup() if hasattr(sig, "to_reply_markup") else None
             await tg.upsert(sig.key, sig.text, reply_markup=reply_markup)
             try:
@@ -315,6 +326,7 @@ async def main(cfg_path: str) -> None:
 
                 stats = engine.drain_debug_stats()
                 if stats is not None:
+                    metrics_collector.record_skips(stats)
                     skip_text = (
                         ", ".join(
                             [f"{k}={v}" for k, v in sorted(stats.items(), key=lambda kv: kv[1], reverse=True)[:5]]
@@ -344,6 +356,45 @@ async def main(cfg_path: str) -> None:
             while True:
                 await tg.expire_stale()
                 await asyncio.sleep(5)
+
+        interval_sec = float(auto_tune_cfg.interval_sec) if auto_tune_cfg else 15 * 60
+        tuner = AutoTuner(config=TunerConfig())
+
+        async def auto_tune_loop():
+            while True:
+                await asyncio.sleep(interval_sec)
+                if not settings.auto_tune_enabled or not settings.exchange_enabled:
+                    continue
+                try:
+                    metrics = metrics_collector.get_window_stats()
+                    bounds = TunerBounds.from_dict(settings.auto_tune_bounds)
+                    changes = tuner.evaluate(metrics, settings, bounds)
+                    if not changes:
+                        continue
+                    for c in changes:
+                        if settings.update(c.param, c.new_value):
+                            apply_settings_reload(settings)
+                            save_runtime_settings(str(settings_path), settings)
+                            entry = {
+                                "ts": time.time(),
+                                "source": "auto",
+                                "param": c.param,
+                                "old_value": c.old_value,
+                                "new_value": c.new_value,
+                                "reason": c.reason,
+                            }
+                            auto_tune_history.append(entry)
+                            if len(auto_tune_history) > AUTO_TUNE_HISTORY_MAX:
+                                auto_tune_history.pop(0)
+                            log.info(
+                                "[AUTO_TUNE] %s: %s -> %s (%s)",
+                                c.param,
+                                c.old_value,
+                                c.new_value,
+                                c.reason,
+                            )
+                except Exception as e:
+                    log.warning("Auto-tune loop error: %s", e, exc_info=True)
 
         async def stats_heartbeat_loop():
             while True:
@@ -418,6 +469,51 @@ async def main(cfg_path: str) -> None:
                 apply_settings_reload(settings)
             return {"ok": True, "updated": updated, "settings": settings.to_dict()}
 
+        def get_auto_tune() -> dict:
+            return {
+                "enabled": settings.auto_tune_enabled,
+                "metrics": metrics_collector.get_window_stats(),
+                "history": list(auto_tune_history),
+                "bounds": settings.auto_tune_bounds or {},
+            }
+
+        async def on_auto_tune_update(updates: dict) -> dict:
+            updated: dict = {}
+            if updates.get("action") == "reset_to_defaults":
+                base = {
+                    "min_profit_usd": float(cfg.thresholds.min_profit_usd),
+                    "persistence_hits": int(cfg.filters.persistence_hits),
+                    "cooldown_sec": int(cfg.filters.cooldown_sec),
+                    "max_spread_bps": float(cfg.filters.max_spread_bps),
+                }
+                for k, v in base.items():
+                    if settings.update(k, v):
+                        updated[k] = v
+                if updated:
+                    save_runtime_settings(str(settings_path), settings)
+                    apply_settings_reload(settings)
+                    entry = {
+                        "ts": time.time(),
+                        "source": "manual",
+                        "action": "reset_to_defaults",
+                        "params": base,
+                    }
+                    auto_tune_history.append(entry)
+                    if len(auto_tune_history) > AUTO_TUNE_HISTORY_MAX:
+                        auto_tune_history.pop(0)
+                return {"ok": True, "updated": updated, "auto_tune": get_auto_tune()}
+            if "enabled" in updates:
+                v = str(updates["enabled"]).lower() in ("true", "1", "yes", "on")
+                if settings.auto_tune_enabled != v:
+                    settings.auto_tune_enabled = v
+                    updated["enabled"] = v
+                    save_runtime_settings(str(settings_path), settings)
+            if "bounds" in updates and isinstance(updates["bounds"], dict):
+                settings.auto_tune_bounds = updates["bounds"]
+                updated["bounds"] = settings.auto_tune_bounds
+                save_runtime_settings(str(settings_path), settings)
+            return {"ok": True, "updated": updated, "auto_tune": get_auto_tune()}
+
         api_cfg = getattr(cfg, "api", None)
         auth_config = None
         if api_cfg and getattr(api_cfg, "auth_required", True):
@@ -454,6 +550,8 @@ async def main(cfg_path: str) -> None:
                     get_status=get_status,
                     get_settings=get_settings,
                     on_settings_update=on_settings_update,
+                    get_auto_tune=get_auto_tune,
+                    on_auto_tune_update=on_auto_tune_update,
                     auth_config=auth_config,
                 ),
                 name="api_server",
@@ -465,6 +563,7 @@ async def main(cfg_path: str) -> None:
             asyncio.create_task(engine.run(on_signal), name="arb_engine"),
             asyncio.create_task(status_loop(), name="status"),
             asyncio.create_task(stale_loop(), name="tg_stale"),
+            asyncio.create_task(auto_tune_loop(), name="auto_tune"),
             asyncio.create_task(stats_heartbeat_loop(), name="stats_heartbeat"),
             asyncio.create_task(
                 run_settings_command_handler(

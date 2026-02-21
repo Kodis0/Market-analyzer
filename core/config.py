@@ -73,6 +73,14 @@ class RuntimeCfg(BaseModel):
     stats_bybit_sample: int = 10  # записывать каждое N-е сообщение Bybit (1=все, 10=1/10 нагрузки)
 
 
+class AutoTuneCfg(BaseModel):
+    """Auto-tuning of arb parameters. Disabled by default."""
+
+    enabled: bool = False
+    interval_sec: float = 15 * 60  # evaluate every 15 min
+    window_sec: float = 30 * 60  # metrics window 30 min
+
+
 class NotifierCfg(BaseModel):
     edit_mode: bool = True
     edit_min_interval_sec: float = 3.0
@@ -116,3 +124,4 @@ class AppConfig(BaseModel):
     runtime: RuntimeCfg
     logging: LoggingCfg
     api: ApiCfg = Field(default_factory=ApiCfg)
+    auto_tune: AutoTuneCfg = Field(default_factory=AutoTuneCfg)

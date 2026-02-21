@@ -2405,3 +2405,9 @@ runtime:
   ws_snapshot_timeout_sec: 60
   status_interval_sec: 15
   stats_bybit_sample: 10
+
+# Авто-подстройка параметров арбитражного бота (по умолчанию выключена)
+auto_tune:
+  enabled: false
+  interval_sec: 900   # каждые 15 мин
+  window_sec: 1800   # окно метрик 30 мин

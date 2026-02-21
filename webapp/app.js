@@ -427,6 +427,7 @@ document.querySelectorAll('.nav-item').forEach(btn => {
     btn.classList.add('active');
     if (tab === 'settings') {
       fetchStatusAndSettings();
+      fetchAutoTune();
     }
     if (tab === 'console') {
       fetchConsoleLogs();
@@ -519,7 +520,129 @@ async function fetchStatusAndSettings() {
   }
 }
 
-document.getElementById('btn-settings-refresh').addEventListener('click', fetchStatusAndSettings);
+document.getElementById('btn-settings-refresh').addEventListener('click', () => {
+  fetchStatusAndSettings();
+  fetchAutoTune();
+});
+
+const autoTuneToggle = document.getElementById('auto-tune-toggle');
+const autoTuneHistoryList = document.getElementById('auto-tune-history-list');
+
+async function fetchAutoTune() {
+  try {
+    const r = await fetch(API_BASE + '/api/auto_tune', { headers: getAuthHeaders() });
+    if (!r.ok) {
+      if (r.status === 404) return;
+      throw new Error('HTTP ' + r.status);
+    }
+    const data = await r.json();
+    autoTuneToggle?.classList.toggle('on', !!data.enabled);
+    autoTuneToggle?.classList.toggle('off', !data.enabled);
+    const m = data.metrics || {};
+    const setMetric = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = val != null ? String(val) : '—';
+    };
+    setMetric('at-signals', m.signals_sent);
+    setMetric('at-skip-profit', m.skip_profit_le0);
+    setMetric('at-skip-pers', m.skip_persistence);
+    setMetric('at-skip-dedup', m.skip_dedup);
+    setMetric('at-skip-spread', m.skip_spread);
+    setMetric('at-skip-depth', m.skip_depth);
+    setMetric('at-skip-cex', m.skip_cex_slip);
+    renderAutoTuneBounds(data.bounds);
+    const history = data.history || [];
+    if (autoTuneHistoryList) {
+      if (history.length === 0) {
+        autoTuneHistoryList.innerHTML = '<li class="history-empty">Нет изменений</li>';
+      } else {
+        autoTuneHistoryList.innerHTML = history.slice().reverse().map(h => {
+          const d = new Date((h.ts || 0) * 1000);
+          const timeStr = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+          const src = h.source === 'auto' ? 'auto' : 'manual';
+          if (h.action === 'reset_to_defaults') {
+            return '<li class="auto-tune-history-item"><span class="at-badge manual">manual</span> ' + escapeHtml(timeStr) + ' — сброс к базовым</li>';
+          }
+          const param = escapeHtml(h.param || '');
+          const oldV = escapeHtml(String(h.old_value ?? ''));
+          const newV = escapeHtml(String(h.new_value ?? ''));
+          const reason = escapeHtml((h.reason || '').slice(0, 60));
+          return '<li class="auto-tune-history-item"><span class="at-badge ' + src + '">' + src + '</span> ' + escapeHtml(timeStr) + ' — ' + param + ': ' + oldV + ' → ' + newV + (reason ? ' (' + reason + ')' : '') + '</li>';
+        }).join('');
+      }
+    }
+  } catch (e) {
+    if (autoTuneToggle) {
+      autoTuneToggle.classList.add('off');
+      autoTuneToggle.classList.remove('on');
+    }
+  }
+}
+
+autoTuneToggle?.addEventListener('click', async () => {
+  const next = !autoTuneToggle.classList.contains('on');
+  try {
+    const r = await fetch(API_BASE + '/api/auto_tune', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify({ enabled: next })
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    const enabled = !!data?.auto_tune?.enabled;
+    autoTuneToggle.classList.toggle('on', enabled);
+    autoTuneToggle.classList.toggle('off', !enabled);
+  } catch (e) {
+    fetchAutoTune();
+  }
+});
+
+const boundMinProfitMin = document.getElementById('bound-min-profit-min');
+const boundMinProfitMax = document.getElementById('bound-min-profit-max');
+
+function renderAutoTuneBounds(bounds) {
+  const b = bounds?.min_profit_usd || {};
+  if (boundMinProfitMin) boundMinProfitMin.value = b.min ?? '';
+  if (boundMinProfitMax) boundMinProfitMax.value = b.max ?? '';
+}
+
+document.getElementById('btn-auto-tune-save-bounds')?.addEventListener('click', async () => {
+  const minVal = boundMinProfitMin?.value ? parseFloat(boundMinProfitMin.value) : null;
+  const maxVal = boundMinProfitMax?.value ? parseFloat(boundMinProfitMax.value) : null;
+  const bounds = {};
+  if (minVal != null || maxVal != null) {
+    bounds.min_profit_usd = {};
+    if (minVal != null) bounds.min_profit_usd.min = minVal;
+    if (maxVal != null) bounds.min_profit_usd.max = maxVal;
+  }
+  try {
+    const r = await fetch(API_BASE + '/api/auto_tune', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify({ bounds })
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    fetchAutoTune();
+  } catch (e) {
+    if (window.Telegram?.WebApp?.showAlert) window.Telegram.WebApp.showAlert('Ошибка: ' + (e.message || e));
+  }
+});
+
+document.getElementById('btn-auto-tune-reset')?.addEventListener('click', async () => {
+  if (!confirm('Сбросить параметры (min_profit_usd, persistence_hits, cooldown_sec, max_spread_bps) к базовым из config?')) return;
+  try {
+    const r = await fetch(API_BASE + '/api/auto_tune', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify({ action: 'reset_to_defaults' })
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    fetchStatusAndSettings();
+    fetchAutoTune();
+  } catch (e) {
+    if (window.Telegram?.WebApp?.showAlert) window.Telegram.WebApp.showAlert('Ошибка: ' + (e.message || e));
+  }
+});
 
 async function fetchConsoleLogs() {
   const el = document.getElementById('console-output');
@@ -577,7 +700,7 @@ const SETTING_TOOLTIPS = {
 };
 
 function renderSettingsList(s, labels) {
-  const skipKeys = ['exchange_enabled'];
+  const skipKeys = ['exchange_enabled', 'auto_tune_enabled', 'auto_tune_bounds'];
   settingsList.innerHTML = Object.entries(s)
     .filter(([k]) => !skipKeys.includes(k))
     .map(([k, v]) => {

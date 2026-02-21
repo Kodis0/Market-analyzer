@@ -49,6 +49,11 @@ class RuntimeSettings:
     # Exchange: вкл/выкл биржевую логику (Jupiter, Bybit, арбитраж)
     exchange_enabled: bool = True
 
+    # Auto-tune: вкл/выкл авто-подстройку параметров
+    auto_tune_enabled: bool = False
+    # Bounds для авто-подстройки: {"min_profit_usd": {"min": 0.1, "max": 50}, ...}
+    auto_tune_bounds: dict | None = None
+
     # Human-readable labels for /settings
     LABELS: dict[str, str] = field(
         default_factory=lambda: {
@@ -73,6 +78,7 @@ class RuntimeSettings:
             "stale_ttl_sec": "Время до устаревания сигнала (сек, 0=выкл)",
             "delete_stale": "Удалять устаревшие (true/false)",
             "exchange_enabled": "Биржевая логика вкл (true/false)",
+            "auto_tune_enabled": "Авто-подстройка параметров вкл (true/false)",
         }
     )
 
@@ -95,6 +101,12 @@ class RuntimeSettings:
             return False
         if key == "exchange_enabled":
             value = str(value).lower() in ("true", "1", "yes", "да", "on")
+        elif key == "auto_tune_enabled":
+            value = str(value).lower() in ("true", "1", "yes", "да", "on")
+        elif key == "auto_tune_bounds":
+            if value is not None and not isinstance(value, dict):
+                return False
+            value = value
         elif key == "delete_stale":
             value = str(value).lower() in ("true", "1", "yes", "да", "on")
         elif key in ("persistence_hits", "cooldown_sec", "engine_tick_hz", "max_ob_age_ms", "stale_ttl_sec"):
