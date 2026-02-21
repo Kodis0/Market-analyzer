@@ -84,6 +84,12 @@ class QuotePoller:
     def _poll_backoff(self, token_key: str, sec: float) -> None:
         self._poll_backoff_until[token_key] = time.time() + float(sec)
 
+    def _prune_poll_backoff(self) -> None:
+        valid = set(self.token_cfgs)
+        stale = [k for k in self._poll_backoff_until if k not in valid]
+        for k in stale:
+            del self._poll_backoff_until[k]
+
     @staticmethod
     def _is_pump_mint(mint: str) -> bool:
         try:
@@ -157,6 +163,7 @@ class QuotePoller:
             if self._exchange_enabled is not None and not self._exchange_enabled.is_set():
                 await asyncio.sleep(1)
                 continue
+            self._prune_poll_backoff()
             started = time.time()
             items = list(self.token_cfgs.items())
             batch_size = max(1, int(self.poll_concurrency) * int(self._poll_batch_mult))
