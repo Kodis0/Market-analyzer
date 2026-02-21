@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <title>Market Analyzer</title>
+  <title>Dashboard — Market Analyzer</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -37,17 +37,36 @@
 
     .header {
       margin-bottom: 28px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
     }
-    .header h1 {
+    .header-icon {
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, rgba(57, 229, 138, 0.2), rgba(57, 229, 138, 0.05));
+      border: 1px solid rgba(57, 229, 138, 0.3);
+      border-radius: 12px;
+      flex-shrink: 0;
+      color: var(--accent);
+    }
+    .header-icon svg {
+      width: 24px;
+      height: 24px;
+    }
+    .header-text h1 {
       font-size: 1.5rem;
       font-weight: 700;
       color: var(--text);
       letter-spacing: -0.02em;
     }
-    .header p {
+    .header-text p {
       font-size: 0.85rem;
       color: var(--text-dim);
-      margin-top: 6px;
+      margin-top: 4px;
     }
 
     .toolbar {
@@ -688,8 +707,18 @@
   <div id="app" data-api-url="https://api.arbmarketsystem.ru">
     <div id="tab-main" class="tab-panel active">
     <div class="header">
-      <h1>Запросы Jupiter / Bybit</h1>
-      <p>График активности API</p>
+      <div class="header-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7" rx="1"/>
+          <rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="14" y="14" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/>
+        </svg>
+      </div>
+      <div class="header-text">
+        <h1>Dashboard</h1>
+        <p>График активности API Jupiter / Bybit</p>
+      </div>
     </div>
 
     <div class="toolbar">
