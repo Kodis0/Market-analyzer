@@ -71,6 +71,8 @@ class FiltersCfg(BaseModel):
 class RuntimeCfg(BaseModel):
     engine_tick_hz: int = 10
     ws_snapshot_timeout_sec: float = 30.0
+    status_interval_sec: float = 15.0  # интервал STATUS лога (меньше = больше нагрузка)
+    stats_bybit_sample: int = 10  # записывать каждое N-е сообщение Bybit (1=все, 10=1/10 нагрузки)
 
 
 class NotifierCfg(BaseModel):

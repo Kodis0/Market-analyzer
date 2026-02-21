@@ -2389,3 +2389,5 @@ filters:
 runtime:
   engine_tick_hz: 2
   ws_snapshot_timeout_sec: 60
+  status_interval_sec: 15
+  stats_bybit_sample: 10

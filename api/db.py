@@ -16,7 +16,7 @@ DB_PATH: Optional[Path] = None
 _conn: Optional[sqlite3.Connection] = None
 _buffer: dict[tuple[int, str], int] = {}
 _buffer_lock = threading.Lock()
-_flush_interval_sec = 5.0
+_flush_interval_sec = 10.0  # сброс буфера в БД (сек)
 _last_flush = 0.0
 
 SCHEMA = """

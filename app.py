@@ -399,11 +399,17 @@ async def main(cfg_path: str) -> None:
             reply_markup = sig.to_reply_markup() if hasattr(sig, "to_reply_markup") else None
             await tg.upsert(sig.key, sig.text, reply_markup=reply_markup)
 
+        stats_bybit_sample = max(1, int(getattr(cfg.runtime, "stats_bybit_sample", 1)))
+        _bybit_record_counter = [0]  # mutable for closure
+
         def _record_bybit() -> None:
             try:
                 from api.db import record
 
-                record("bybit", 1)
+                _bybit_record_counter[0] += 1
+                if _bybit_record_counter[0] >= stats_bybit_sample:
+                    record("bybit", _bybit_record_counter[0])
+                    _bybit_record_counter[0] = 0
             except Exception:
                 pass
 
@@ -512,7 +518,10 @@ async def main(cfg_path: str) -> None:
 
                 await asyncio.sleep(poll_sec)
 
-        # ---- status loop ----
+        # ---- status loop (sampling для снижения нагрузки при 300+ символах) ----
+        _n = len(cfg.bybit.symbols)
+        status_sample_step = max(1, min(10, _n // 50)) if _n > 100 else 1
+
         async def status_loop():
             while True:
                 symbols = list(cfg.bybit.symbols)
@@ -520,17 +529,25 @@ async def main(cfg_path: str) -> None:
 
                 fresh_cnt = 0
                 non_empty_cnt = 0
+                sampled_n = 0
                 FRESH_MS = 2000
 
                 sample_syms = symbols[:5]
                 sample_parts: list[str] = []
 
-                for sym in symbols:
+                for i in range(0, total, status_sample_step):
+                    sym = symbols[i]
                     ob = await state.get_orderbook(sym)
+                    sampled_n += 1
                     if ob is not None and ob.bids and ob.asks:
                         non_empty_cnt += 1
                         if ob.age_ms() <= FRESH_MS:
                             fresh_cnt += 1
+
+                if sampled_n > 0 and status_sample_step > 1:
+                    scale = total / sampled_n
+                    non_empty_cnt = min(total, int(non_empty_cnt * scale))
+                    fresh_cnt = min(total, int(fresh_cnt * scale))
 
                 for sym in sample_syms:
                     ob = await state.get_orderbook(sym)
@@ -551,6 +568,7 @@ async def main(cfg_path: str) -> None:
                 else:
                     skip_text = "n/a"
 
+                status_interval = float(getattr(cfg.runtime, "status_interval_sec", 15))
                 log.info(
                     "[STATUS] active=%d | quarantined=%d | OB non-empty %d/%d | OB fresh %d/%d (<=%dms) | skips(30s): %s | sample: %s",
                     total,
@@ -563,7 +581,7 @@ async def main(cfg_path: str) -> None:
                     skip_text,
                     " | ".join(sample_parts),
                 )
-                await asyncio.sleep(5)
+                await asyncio.sleep(status_interval)
 
         async def stale_loop():
             while True:

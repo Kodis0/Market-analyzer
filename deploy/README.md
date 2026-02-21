@@ -121,6 +121,17 @@ Get-Content $env:USERPROFILE\.ssh\deploy_key
 
 ---
 
+## Оптимизация нагрузки (слабый сервер)
+
+В `config.yaml` → `runtime`:
+- `status_interval_sec: 30` — реже STATUS логи (по умолчанию 15)
+- `stats_bybit_sample: 20` — реже запись статистики Bybit (по умолчанию 10)
+- `engine_tick_hz: 1` — реже проверка арбитража (по умолчанию 2)
+
+Меньше символов в `bybit.symbols` — меньше нагрузка.
+
+---
+
 ## Полезные команды
 
 ```bash
