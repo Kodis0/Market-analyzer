@@ -771,14 +771,22 @@ async def main(cfg_path: str) -> None:
 
         try:
             await asyncio.gather(*tasks)
-        except KeyboardInterrupt:
-            log.info("Stopping...")
+        except (KeyboardInterrupt, SystemExit):
+            log.info("Shutting down gracefully...")
         finally:
             commands_stop.set()
+            await asyncio.sleep(1)  # let loops notice stop signal
+            try:
+                api_db.flush()
+                log.info("DB buffer flushed")
+            except Exception as e:
+                log.warning("DB flush on shutdown failed: %s", e)
             for t in tasks:
                 t.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
             await ws_cluster.stop()
             await engine.stop()
+            log.info("Shutdown complete")
 
 
 if __name__ == "__main__":

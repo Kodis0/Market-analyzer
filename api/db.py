@@ -91,6 +91,11 @@ def _flush() -> None:
                 _buffer[k] = _buffer.get(k, 0) + v
 
 
+def flush() -> None:
+    """Flush buffer to DB. Call on shutdown to persist pending stats."""
+    _flush()
+
+
 def record(source: str, count: int = 1) -> None:
     """Записать запросы. source: 'jupiter' | 'bybit'. Батчинг — сброс каждые 5 сек."""
     if _conn is None:
