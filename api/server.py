@@ -42,7 +42,10 @@ def create_app(
         period = req.query.get("period", "1d")
         if period not in ("1h", "1d", "1w", "all"):
             period = "1d"
-        limit = min(500, max(1, int(req.query.get("limit", 200))))
+        try:
+            limit = min(500, max(1, int(req.query.get("limit", 200))))
+        except (TypeError, ValueError):
+            limit = 200
         data = get_signal_history(period, limit=limit)
         return web.json_response(data, headers=CORS_HEADERS)
 
