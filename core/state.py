@@ -1,13 +1,11 @@
-
 from __future__ import annotations
 
 import asyncio
 import time
 from dataclasses import dataclass, field
-from typing import Dict, Optional
 
-from core.orderbook import OrderBook
 from connectors.jupiter import JupQuote
+from core.orderbook import OrderBook
 
 
 @dataclass
@@ -17,20 +15,21 @@ class QuotePair:
       - update buy/sell independently
       - take an atomic-ish snapshot inside the engine tick
     """
+
     lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
 
-    buy_quote: Optional[JupQuote] = None
+    buy_quote: JupQuote | None = None
     buy_updated_ms: int = 0
 
-    sell_quote: Optional[JupQuote] = None
+    sell_quote: JupQuote | None = None
     sell_updated_ms: int = 0
     sell_amount_raw: int = 0
 
 
 @dataclass
 class MarketState:
-    orderbooks: Dict[str, OrderBook] = field(default_factory=dict)
-    quotes: Dict[str, QuotePair] = field(default_factory=dict)
+    orderbooks: dict[str, OrderBook] = field(default_factory=dict)
+    quotes: dict[str, QuotePair] = field(default_factory=dict)
 
     # Backward compatible: lock for orderbooks
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
@@ -45,7 +44,7 @@ class MarketState:
                 self.orderbooks[symbol] = ob
             return ob
 
-    async def get_orderbook(self, symbol: str) -> Optional[OrderBook]:
+    async def get_orderbook(self, symbol: str) -> OrderBook | None:
         async with self.lock:
             return self.orderbooks.get(symbol)
 

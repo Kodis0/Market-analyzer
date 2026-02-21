@@ -1,6 +1,7 @@
 """
 Bootstrap: config loading, env validation, path resolution.
 """
+
 from __future__ import annotations
 
 import os
@@ -23,7 +24,7 @@ def load_config(cfg_path: str) -> tuple[AppConfig, dict[str, Any], Path]:
     cfg_path = os.path.abspath(cfg_path)
     cfg_dir = Path(os.path.dirname(cfg_path))
 
-    with open(cfg_path, "r", encoding="utf-8") as f:
+    with open(cfg_path, encoding="utf-8") as f:
         raw = yaml.safe_load(f)
 
     cfg = AppConfig.model_validate(raw)

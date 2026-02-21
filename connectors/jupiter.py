@@ -6,9 +6,10 @@ import logging
 import random
 import re
 import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Any, Dict, Optional, Tuple, Callable, Awaitable
+from typing import Any
 
 import aiohttp
 
@@ -18,6 +19,7 @@ log = logging.getLogger("jupiter")
 # -----------------------------
 # Models
 # -----------------------------
+
 
 @dataclass(frozen=True)
 class JupQuote:
@@ -33,6 +35,7 @@ class JupQuote:
 # -----------------------------
 # Helpers
 # -----------------------------
+
 
 class RateLimiter:
     """
@@ -50,7 +53,7 @@ class RateLimiter:
         self._tokens = self._rps if self._rps > 0 else 0.0
         self._last = time.monotonic()
 
-    async def __aenter__(self) -> "RateLimiter":
+    async def __aenter__(self) -> RateLimiter:
         await self._sem.acquire()
         if self._rps > 0:
             await self._wait_token()
@@ -77,7 +80,7 @@ class LogThrottle:
     """Throttle repeated logs by key."""
 
     def __init__(self) -> None:
-        self._last: Dict[str, float] = {}
+        self._last: dict[str, float] = {}
 
     def allow(self, key: str, interval_sec: float) -> bool:
         now = time.monotonic()
@@ -104,8 +107,8 @@ class NegativeCache:
     """
 
     def __init__(self) -> None:
-        self._token_until: Dict[str, float] = {}
-        self._pair_until: Dict[Tuple[str, str], float] = {}
+        self._token_until: dict[str, float] = {}
+        self._pair_until: dict[tuple[str, str], float] = {}
 
     def _now(self) -> float:
         return time.monotonic()
@@ -167,6 +170,7 @@ class NegativeCache:
 # Jupiter Client
 # -----------------------------
 
+
 class JupiterClient:
     """
     Quote client for Jupiter quote API.
@@ -196,16 +200,16 @@ class JupiterClient:
         concurrency: int = 4,
         max_retries: int = 4,
         # negative-cache TTLs
-        ttl_no_route_sec: float = 300.0,           # 5 min
+        ttl_no_route_sec: float = 300.0,  # 5 min
         ttl_not_tradable_sec: float = 6 * 3600.0,  # 6h
-        ttl_amount_too_big_sec: float = 90.0,      # 90 sec
+        ttl_amount_too_big_sec: float = 90.0,  # 90 sec
         # logging
         expected_400_log_interval_sec: float = 60.0,
         retry_log_interval_sec: float = 10.0,
         # autosanitization hook
-        on_skip: Optional[Callable[[str, str, str, str, str], Awaitable[None]]] = None,
+        on_skip: Callable[[str, str, str, str, str], Awaitable[None]] | None = None,
         # stats: called after each request with (source, count)
-        on_request: Optional[Callable[[str, int], None]] = None,
+        on_request: Callable[[str, int], None] | None = None,
     ) -> None:
         self._s = session
         self._base = base_url.rstrip("/")
@@ -234,24 +238,24 @@ class JupiterClient:
 
     # -------- internal utils --------
 
-    def _retry_delay(self, attempt: int, retry_after: Optional[str] = None) -> float:
+    def _retry_delay(self, attempt: int, retry_after: str | None = None) -> float:
         if retry_after:
             try:
                 return max(0.0, float(retry_after))
             except Exception:
                 pass
         # exp backoff + jitter
-        base = 0.25 * (2 ** attempt)
+        base = 0.25 * (2**attempt)
         jitter = random.uniform(0.0, 0.20)
         return min(6.0, base + jitter)
 
-    async def _read_text_and_json(self, r: aiohttp.ClientResponse) -> Tuple[str, Optional[Dict[str, Any]]]:
+    async def _read_text_and_json(self, r: aiohttp.ClientResponse) -> tuple[str, dict[str, Any] | None]:
         try:
             text = await r.text()
         except Exception:
             return "", None
 
-        j: Optional[Dict[str, Any]] = None
+        j: dict[str, Any] | None = None
         if text:
             try:
                 parsed = json.loads(text)
@@ -282,7 +286,7 @@ class JupiterClient:
 
     # -------- public API --------
 
-    async def quote_exact_in(self, input_mint: str, output_mint: str, amount_raw: int) -> Optional[JupQuote]:
+    async def quote_exact_in(self, input_mint: str, output_mint: str, amount_raw: int) -> JupQuote | None:
         if not input_mint or not output_mint:
             return None
         if int(amount_raw) <= 0:
@@ -338,7 +342,11 @@ class JupiterClient:
                     if self._throttle.allow(f"retry:{status}", self._retry_log_interval):
                         log.warning(
                             "quote retry status=%s attempt=%d/%d wait=%.2fs body=%s",
-                            status, attempt + 1, self._max_retries, wait_s, (body_text or "")[:200]
+                            status,
+                            attempt + 1,
+                            self._max_retries,
+                            wait_s,
+                            (body_text or "")[:200],
                         )
                     await asyncio.sleep(wait_s)
                     continue
@@ -367,7 +375,9 @@ class JupiterClient:
 
                     if code == "COULD_NOT_FIND_ANY_ROUTE":
                         self._neg.block_pair(input_mint, output_mint, self._ttl_no_route)
-                        if self._throttle.allow(f"400:{code}:{input_mint}->{output_mint}", self._expected_400_log_interval):
+                        if self._throttle.allow(
+                            f"400:{code}:{input_mint}->{output_mint}", self._expected_400_log_interval
+                        ):
                             log.debug("jup skip %s %s->%s msg=%s", code, input_mint, output_mint, msg[:140])
 
                         self._emit_skip(code, input_mint, output_mint, "", msg)
@@ -375,7 +385,9 @@ class JupiterClient:
 
                     if code == "ROUTE_PLAN_DOES_NOT_CONSUME_ALL_THE_AMOUNT":
                         self._neg.block_pair(input_mint, output_mint, self._ttl_amount_too_big)
-                        if self._throttle.allow(f"400:{code}:{input_mint}->{output_mint}", self._expected_400_log_interval):
+                        if self._throttle.allow(
+                            f"400:{code}:{input_mint}->{output_mint}", self._expected_400_log_interval
+                        ):
                             log.debug("jup skip %s %s->%s msg=%s", code, input_mint, output_mint, msg[:140])
                         return None
 

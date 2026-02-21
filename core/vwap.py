@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import List, Tuple, Optional
 
 
 @dataclass
@@ -13,7 +12,7 @@ class SimResult:
     slippage_bps: Decimal
 
 
-def simulate_buy_with_notional(asks: List[Tuple[Decimal, Decimal]], notional: Decimal) -> Optional[SimResult]:
+def simulate_buy_with_notional(asks: list[tuple[Decimal, Decimal]], notional: Decimal) -> SimResult | None:
     if not asks or notional <= 0:
         return None
 
@@ -45,7 +44,7 @@ def simulate_buy_with_notional(asks: List[Tuple[Decimal, Decimal]], notional: De
     return SimResult(base_out=base_got, quote_out=quote_spent, avg_price=avg_price, slippage_bps=slippage_bps)
 
 
-def simulate_sell_base(bids: List[Tuple[Decimal, Decimal]], base_amount: Decimal) -> Optional[SimResult]:
+def simulate_sell_base(bids: list[tuple[Decimal, Decimal]], base_amount: Decimal) -> SimResult | None:
     if not bids or base_amount <= 0:
         return None
 

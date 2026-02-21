@@ -1,10 +1,11 @@
 """
 Jupiter auto-sanitization: quarantine tokens that Jupiter rejects.
 """
+
 from __future__ import annotations
 
 import time
-from typing import Awaitable, Callable
+from collections.abc import Awaitable, Callable
 
 JUP_BAD_WINDOW_SEC = 20 * 60
 JUP_NOT_TRADABLE_TTL_SEC = 24 * 3600

@@ -6,7 +6,6 @@ import json
 import os
 import time
 from dataclasses import dataclass
-from typing import Dict, Optional, Tuple
 
 import aiohttp
 import yaml
@@ -29,7 +28,7 @@ def _ts() -> int:
 
 
 def load_cfg(path: str) -> dict:
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f) or {}
 
 
@@ -138,7 +137,7 @@ async def main() -> None:
 
     async with aiohttp.ClientSession() as session:
 
-        async def probe_one(token_key: str, t: dict) -> Tuple[str, Optional[QuarantineEntry], str]:
+        async def probe_one(token_key: str, t: dict) -> tuple[str, QuarantineEntry | None, str]:
             bybit_symbol = str(t.get("bybit_symbol") or "").strip()
             mint = str(t.get("mint") or "").strip()
             dec = int(t.get("decimals") or 0)
@@ -150,12 +149,26 @@ async def main() -> None:
                 # small probe
                 amt_small = int(round(float(args.probe_usdc) * (10**stable_decimals)))
                 r1 = await jup_quote(
-                    session, api_key, stable_mint, mint, amt_small,
-                    slippage_bps, restrict_intermediate, max_accounts, timeout_sec
+                    session,
+                    api_key,
+                    stable_mint,
+                    mint,
+                    amt_small,
+                    slippage_bps,
+                    restrict_intermediate,
+                    max_accounts,
+                    timeout_sec,
                 )
                 r2 = await jup_quote(
-                    session, api_key, mint, stable_mint, int(round(0.1 * (10**dec))),  # tiny token->stable
-                    slippage_bps, restrict_intermediate, max_accounts, timeout_sec
+                    session,
+                    api_key,
+                    mint,
+                    stable_mint,
+                    int(round(0.1 * (10**dec))),  # tiny token->stable
+                    slippage_bps,
+                    restrict_intermediate,
+                    max_accounts,
+                    timeout_sec,
                 )
 
                 worst = None
@@ -169,8 +182,15 @@ async def main() -> None:
                 if args.probe_notional and (worst is None):
                     amt_big = int(round(notional_usd * (10**stable_decimals)))
                     r3 = await jup_quote(
-                        session, api_key, stable_mint, mint, amt_big,
-                        slippage_bps, restrict_intermediate, max_accounts, timeout_sec
+                        session,
+                        api_key,
+                        stable_mint,
+                        mint,
+                        amt_big,
+                        slippage_bps,
+                        restrict_intermediate,
+                        max_accounts,
+                        timeout_sec,
                     )
                     if not r3.ok and r3.error_code and r3.error_code != "NETWORK":
                         worst = r3

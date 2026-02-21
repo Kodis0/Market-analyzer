@@ -9,10 +9,11 @@ import os
 import re
 import time
 import urllib.parse
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any
 
 import aiohttp
 import yaml
@@ -32,8 +33,14 @@ SOL_MINT = "So11111111111111111111111111111111111111112"
 # Для “без мусора” — дефолтно отсекаем явные проблемы.
 DEFAULT_BLACKLIST_BASE = {"USDT", "USDC", "USD1", "USDE", "USDD", "PYUSD", "TUSD", "FDUSD"}
 DEFAULT_DENYLIST_BASE = {
-    "XAUT", "PAXG",
-    "AAPLX", "GOOGLX", "TSLAX", "NVDAX", "CRCLX", "HOODX",
+    "XAUT",
+    "PAXG",
+    "AAPLX",
+    "GOOGLX",
+    "TSLAX",
+    "NVDAX",
+    "CRCLX",
+    "HOODX",
 }
 MULTIPLIER_RE = re.compile(r"^(1000|10000|100000)[A-Z0-9]+$")
 
@@ -95,14 +102,14 @@ def dec(x: Any, default: str = "0") -> Decimal:
         return Decimal(default)
 
 
-def safe_mid(bid: Decimal, ask: Decimal) -> Optional[Decimal]:
+def safe_mid(bid: Decimal, ask: Decimal) -> Decimal | None:
     if bid <= 0 or ask <= 0:
         return None
     m = (bid + ask) / Decimal("2")
     return m if m > 0 else None
 
 
-def spread_bps(bid: Decimal, ask: Decimal) -> Optional[Decimal]:
+def spread_bps(bid: Decimal, ask: Decimal) -> Decimal | None:
     m = safe_mid(bid, ask)
     if not m:
         return None
@@ -185,9 +192,9 @@ async def bybit_private_get(
 # ----------------------------- fetchers -----------------------------
 
 
-async def fetch_bybit_spot_instruments(session: aiohttp.ClientSession) -> List[dict]:
-    out: List[dict] = []
-    cursor: Optional[str] = None
+async def fetch_bybit_spot_instruments(session: aiohttp.ClientSession) -> list[dict]:
+    out: list[dict] = []
+    cursor: str | None = None
 
     while True:
         params = {"category": "spot", "limit": "1000"}
@@ -221,11 +228,11 @@ class Ticker:
     ask1_size: Decimal
 
     @property
-    def mid(self) -> Optional[Decimal]:
+    def mid(self) -> Decimal | None:
         return safe_mid(self.bid1, self.ask1)
 
     @property
-    def spread_bps(self) -> Optional[Decimal]:
+    def spread_bps(self) -> Decimal | None:
         return spread_bps(self.bid1, self.ask1)
 
     @property
@@ -241,7 +248,7 @@ class Ticker:
         return min(self.top_bid_usd, self.top_ask_usd)
 
 
-async def fetch_bybit_spot_tickers(session: aiohttp.ClientSession) -> Dict[str, Ticker]:
+async def fetch_bybit_spot_tickers(session: aiohttp.ClientSession) -> dict[str, Ticker]:
     async with session.get(BYBIT_TICKERS, params={"category": "spot"}, timeout=aiohttp.ClientTimeout(total=12)) as r:
         j = await r.json(content_type=None)
 
@@ -249,7 +256,7 @@ async def fetch_bybit_spot_tickers(session: aiohttp.ClientSession) -> Dict[str, 
         raise RuntimeError(f"Bybit tickers error: {j}")
 
     items = (j.get("result", {}) or {}).get("list", []) or []
-    out: Dict[str, Ticker] = {}
+    out: dict[str, Ticker] = {}
 
     for it in items:
         sym = it.get("symbol")
@@ -272,14 +279,14 @@ async def fetch_bybit_spot_tickers(session: aiohttp.ClientSession) -> Dict[str, 
 
 async def fetch_bybit_coininfo_sol_mints(
     session: aiohttp.ClientSession, api_key: str, api_secret: str
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     coin -> solana mint (contractAddress на chainType Solana)
     """
     j = await bybit_private_get(session, BYBIT_COIN_INFO, {}, api_key, api_secret)
     rows = (j.get("result", {}) or {}).get("rows", []) or []
 
-    coin_to_mint: Dict[str, str] = {}
+    coin_to_mint: dict[str, str] = {}
     for row in rows:
         coin = (row.get("coin") or "").strip()
         if not coin:
@@ -303,11 +310,12 @@ async def fetch_bybit_coininfo_sol_mints(
     coin_to_mint.setdefault("SOL", SOL_MINT)
     return coin_to_mint
 
+
 async def fetch_jup_tokens_by_symbol(
     session: aiohttp.ClientSession,
     jup_api_key: str,
     symbol: str,
-) -> List[dict]:
+) -> list[dict]:
     headers = {"x-api-key": jup_api_key}
     params = {"query": symbol}
     async with session.get(
@@ -320,10 +328,11 @@ async def fetch_jup_tokens_by_symbol(
         return []
     return [t for t in data if isinstance(t, dict)]
 
-def pick_best_jup_token_for_symbol(base: str, items: List[dict]) -> Optional[dict]:
+
+def pick_best_jup_token_for_symbol(base: str, items: list[dict]) -> dict | None:
     base_u = base.upper()
 
-    def score(t: dict) -> Tuple[int, int, int]:
+    def score(t: dict) -> tuple[int, int, int]:
         # больше = лучше
         sym = str(t.get("symbol") or "").upper()
         verified = 1 if t.get("isVerified") is True else 0
@@ -352,11 +361,12 @@ def pick_best_jup_token_for_symbol(base: str, items: List[dict]) -> Optional[dic
         return best
     return None
 
+
 async def fetch_jup_tokens_by_mints(
-    session: aiohttp.ClientSession, jup_api_key: str, mints: List[str]
-) -> Dict[str, dict]:
+    session: aiohttp.ClientSession, jup_api_key: str, mints: list[str]
+) -> dict[str, dict]:
     headers = {"x-api-key": jup_api_key}
-    out: Dict[str, dict] = {}
+    out: dict[str, dict] = {}
 
     for part in chunks(mints, 100):
         params = {"query": ",".join(part)}
@@ -404,9 +414,9 @@ class Candidate:
         Это не идеальная формула, но работает сильно лучше чем просто turnover.
         """
         # нормализация: добавим 1 чтобы не делить на 0
-        s = (self.turnover24h / Decimal("1000000"))  # млн$
-        tob = (self.top_min_usd / Decimal("1000"))   # тыс$
-        sp = (self.spread_bps + Decimal("1"))
+        s = self.turnover24h / Decimal("1000000")  # млн$
+        tob = self.top_min_usd / Decimal("1000")  # тыс$
+        sp = self.spread_bps + Decimal("1")
         return (s * Decimal("2") + tob * Decimal("1")) / sp
 
 
@@ -429,7 +439,7 @@ def unique_token_key(symbol: str, mint: str, bybit_symbol: str, used: set) -> st
     return k
 
 
-def build_config_snippet(picked: List[Tuple[str, Candidate]]) -> dict:
+def build_config_snippet(picked: list[tuple[str, Candidate]]) -> dict:
     bybit_symbols = [c.bybit_symbol for _, c in picked]
     tokens_map = {
         token_key: {
@@ -451,7 +461,9 @@ async def main() -> None:
 
     # масштаб
     p.add_argument("--count", type=int, default=300, help="сколько монет хотим в итоге")
-    p.add_argument("--bybit-top", type=int, default=6000, help="сколько top-symbols по turnover рассмотреть до фильтров")
+    p.add_argument(
+        "--bybit-top", type=int, default=6000, help="сколько top-symbols по turnover рассмотреть до фильтров"
+    )
 
     # какие quote монеты на Bybit брать
     p.add_argument("--quotes", default="USDT", help="какие quote брать на Bybit spot, через запятую: USDT,USDC")
@@ -462,7 +474,9 @@ async def main() -> None:
     p.add_argument("--max-spread-bps", type=str, default="999999", help="макс spread bps по bid1/ask1")
 
     # Jupiter
-    p.add_argument("--only-verified", action="store_true", help="только Jupiter isVerified==true (обычно уменьшит список)")
+    p.add_argument(
+        "--only-verified", action="store_true", help="только Jupiter isVerified==true (обычно уменьшит список)"
+    )
     p.add_argument("--allow-unverified", action="store_true", help="явно разрешить unverified (по умолчанию да)")
 
     # blacklist/denylist расширяемые
@@ -522,7 +536,7 @@ async def main() -> None:
         coin_to_mint = await fetch_bybit_coininfo_sol_mints(session, bybit_key, bybit_secret)
 
         # 1) список всех Bybit Trading spot symbols нужных quote
-        bybit_trading: List[Tuple[Decimal, str, str, str]] = []  # (turnover, symbol, base, quote)
+        bybit_trading: list[tuple[Decimal, str, str, str]] = []  # (turnover, symbol, base, quote)
         pre_skip = {
             "not_trading": 0,
             "quote_mismatch": 0,
@@ -569,11 +583,11 @@ async def main() -> None:
 
         # 2) находим mint для каждого Bybit symbol (Solana mint из Bybit coin-info,
         #    либо fallback через Jupiter search по символу)
-        mint_inputs: List[str] = []
-        sym_to_mint: Dict[str, str] = {}
-        sym_to_base_quote: Dict[str, Tuple[str, str]] = {}
+        mint_inputs: list[str] = []
+        sym_to_mint: dict[str, str] = {}
+        sym_to_base_quote: dict[str, tuple[str, str]] = {}
 
-        symbol_cache: Dict[str, Optional[dict]] = {}  # ВАЖНО: cache должен жить вне цикла
+        symbol_cache: dict[str, dict | None] = {}  # ВАЖНО: cache должен жить вне цикла
 
         for _, sym, base, quote in bybit_trading:
             mint = coin_to_mint.get(base)
@@ -602,13 +616,11 @@ async def main() -> None:
             list(dict.fromkeys(mint_inputs)),  # уникализируем, сохраняя порядок
         )
 
-
-
         # Jupiter tokens search по mint
         jup_by_mint = await fetch_jup_tokens_by_mints(session, jup_key, list(dict.fromkeys(mint_inputs)))
 
     # 3) собираем кандидатов + фильтры качества
-    candidates: List[Candidate] = []
+    candidates: list[Candidate] = []
     skip = {
         "no_mint": 0,
         "no_jup": 0,
@@ -685,7 +697,7 @@ async def main() -> None:
     candidates.sort(key=lambda c: c.score, reverse=True)
 
     # 4) pick top N + уникальные token_key
-    picked: List[Tuple[str, Candidate]] = []
+    picked: list[tuple[str, Candidate]] = []
     used_keys = set()
     for c in candidates:
         token_key = unique_token_key(c.jup_symbol, c.mint, c.bybit_symbol, used_keys)
@@ -720,6 +732,7 @@ async def main() -> None:
 
         dump_yaml(config_path, cfg)
         log.info("applied to: %s", config_path.resolve())
+
 
 if __name__ == "__main__":
     asyncio.run(main())

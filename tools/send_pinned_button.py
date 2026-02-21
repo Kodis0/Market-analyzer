@@ -6,6 +6,7 @@
 1. Задеплой папку webapp/ на https://app.netlify.com/drop (перетащи папку)
 2. Добавь полученный URL в config.yaml: telegram.web_app_url
 """
+
 from __future__ import annotations
 
 import argparse
@@ -22,7 +23,7 @@ TG_SEND = "https://api.telegram.org/bot{token}/sendMessage"
 
 
 def load_config(path: str) -> dict:
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f) or {}
 
 
@@ -59,15 +60,19 @@ async def main() -> None:
 
     if web_app_url and str(web_app_url).strip().startswith("https://"):
         payload["reply_markup"] = {
-            "inline_keyboard": [[
-                {"text": "НАВИГАЦИЯ", "url": str(web_app_url).strip()},
-            ]],
+            "inline_keyboard": [
+                [
+                    {"text": "НАВИГАЦИЯ", "url": str(web_app_url).strip()},
+                ]
+            ],
         }
     else:
         payload["reply_markup"] = {
-            "inline_keyboard": [[
-                {"text": "НАВИГАЦИЯ", "url": "https://t.me/BotFather"},
-            ]],
+            "inline_keyboard": [
+                [
+                    {"text": "НАВИГАЦИЯ", "url": "https://t.me/BotFather"},
+                ]
+            ],
         }
         payload["text"] = "Добавь web_app_url в config.yaml и задеплой webapp/ на netlify.com/drop"
 

@@ -1,15 +1,19 @@
-import asyncio, aiohttp, yaml
+import asyncio
+
+import aiohttp
+import yaml
 
 URL = "https://api.bybit.com/v5/market/orderbook"
 
+
 async def main():
-    cfg = yaml.safe_load(open("config.yaml","r",encoding="utf-8"))
+    cfg = yaml.safe_load(open("config.yaml", encoding="utf-8"))
     syms = cfg["bybit"]["symbols"]
     ok, bad = [], []
 
     async with aiohttp.ClientSession() as s:
         for sym in syms:
-            params = {"category":"spot","symbol":sym,"limit":"1"}
+            params = {"category": "spot", "symbol": sym, "limit": "1"}
             async with s.get(URL, params=params) as r:
                 j = await r.json()
             if j.get("retCode") != 0:
@@ -25,5 +29,6 @@ async def main():
     print("OK:", len(ok))
     print("BAD:", len(bad))
     print("BAD sample:", bad[:15])
+
 
 asyncio.run(main())

@@ -2,6 +2,7 @@
 Telegram Mini App initData validation.
 Validates X-Telegram-Init-Data header using HMAC-SHA256.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -9,7 +10,6 @@ import hmac
 import json
 import logging
 import time
-from typing import Optional, Set
 from urllib.parse import unquote
 
 log = logging.getLogger(__name__)
@@ -21,8 +21,8 @@ def validate_telegram_init_data(
     init_data: str,
     bot_token: str,
     auth_ttl_sec: int = 3600,
-    allowed_user_ids: Optional[Set[int]] = None,
-) -> Optional[dict]:
+    allowed_user_ids: set[int] | None = None,
+) -> dict | None:
     """
     Validate Telegram Web App initData.
     Returns parsed data dict if valid, None otherwise.

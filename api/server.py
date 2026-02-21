@@ -10,6 +10,7 @@ POST /api/settings — обновить настройки { key: value, ... }
 
 Защита: Telegram initData, auth_date TTL, allowlist user_id, rate limiting.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -17,7 +18,7 @@ import asyncio
 import logging
 import time
 from collections import defaultdict
-from typing import Awaitable, Callable, Optional, Set
+from collections.abc import Awaitable, Callable
 
 from aiohttp import web
 
@@ -26,9 +27,13 @@ from api.db import (
     delete_signal_async,
     get_signal_history_async,
     get_stats_async,
-    health_check_async as db_health_check_async,
-    init as db_init,
     update_signal_status_async,
+)
+from api.db import (
+    health_check_async as db_health_check_async,
+)
+from api.db import (
+    init as db_init,
 )
 
 log = logging.getLogger("api")
@@ -53,6 +58,7 @@ def _cors_headers(request: web.Request) -> dict:
         h["Access-Control-Allow-Origin"] = origin if origin in origins else (origins[0] if origins else "*")
     return h
 
+
 # Rate limit: IP -> list of request timestamps (sliding window)
 _rate_timestamps: dict[str, list[float]] = defaultdict(list)
 _rate_lock = asyncio.Lock()
@@ -75,10 +81,7 @@ def _prune_stale_ips(timestamps: dict[str, list[float]], cutoff: float, exclude_
     """Remove IPs with no timestamps after cutoff. Bounds memory growth."""
     if len(timestamps) <= _RATE_CLEANUP_THRESHOLD:
         return
-    stale = [
-        k for k, v in timestamps.items()
-        if k != exclude_ip and (not v or max(v) <= cutoff)
-    ]
+    stale = [k for k, v in timestamps.items() if k != exclude_ip and (not v or max(v) <= cutoff)]
     for k in stale:
         del timestamps[k]
 
@@ -180,7 +183,7 @@ async def auth_middleware(request: web.Request, handler):
             headers=_cors_headers(request),
         )
 
-    allowed_ids: Optional[Set[int]] = None
+    allowed_ids: set[int] | None = None
     if api_cfg.get("allowed_user_ids"):
         allowed_ids = set(api_cfg["allowed_user_ids"])
 
@@ -201,11 +204,11 @@ async def auth_middleware(request: web.Request, handler):
 
 
 def create_app(
-    on_exchange_toggle: Optional[Callable[[bool], Awaitable[None]]] = None,
-    get_status: Optional[Callable[[], dict]] = None,
-    get_settings: Optional[Callable[[], dict]] = None,
-    on_settings_update: Optional[Callable[[dict], Awaitable[dict]]] = None,
-    auth_config: Optional[dict] = None,
+    on_exchange_toggle: Callable[[bool], Awaitable[None]] | None = None,
+    get_status: Callable[[], dict] | None = None,
+    get_settings: Callable[[], dict] | None = None,
+    on_settings_update: Callable[[dict], Awaitable[dict]] | None = None,
+    auth_config: dict | None = None,
 ) -> web.Application:
     app = web.Application(middlewares=[auth_middleware])
     if auth_config:
@@ -311,7 +314,9 @@ def create_app(
             except Exception:
                 return web.json_response({"error": "Invalid JSON"}, status=400, headers=_cors_headers(req))
             if not isinstance(data, dict) or not data:
-                return web.json_response({"error": "Expected non-empty object { key: value }"}, status=400, headers=_cors_headers(req))
+                return web.json_response(
+                    {"error": "Expected non-empty object { key: value }"}, status=400, headers=_cors_headers(req)
+                )
             result = await on_settings_update(data)
             return web.json_response(result, headers=_cors_headers(req))
 
@@ -347,12 +352,12 @@ def create_app(
 async def run_server(
     host: str = "0.0.0.0",
     port: int = 8080,
-    db_path: Optional[str] = None,
-    on_exchange_toggle: Optional[Callable[[bool], Awaitable[None]]] = None,
-    get_status: Optional[Callable[[], dict]] = None,
-    get_settings: Optional[Callable[[], dict]] = None,
-    on_settings_update: Optional[Callable[[dict], Awaitable[dict]]] = None,
-    auth_config: Optional[dict] = None,
+    db_path: str | None = None,
+    on_exchange_toggle: Callable[[bool], Awaitable[None]] | None = None,
+    get_status: Callable[[], dict] | None = None,
+    get_settings: Callable[[], dict] | None = None,
+    on_settings_update: Callable[[dict], Awaitable[dict]] | None = None,
+    auth_config: dict | None = None,
 ) -> None:
     if db_path:
         from pathlib import Path

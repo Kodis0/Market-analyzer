@@ -1,19 +1,17 @@
-
 from __future__ import annotations
 
 import asyncio
 import logging
 import time
 from decimal import Decimal
-from typing import Dict
 
+from connectors.jupiter import JupiterClient
 from core.calc import calc_mid_spread
 from core.state import MarketState
-from connectors.jupiter import JupiterClient
 
 from .denylist import Denylist
 from .stats import SkipStats
-from .utils import to_raw, snapshot_book
+from .utils import snapshot_book, to_raw
 
 log = logging.getLogger("engine")
 
@@ -23,12 +21,13 @@ class QuotePoller:
     Periodically fetch ONLY BUY quotes (stable -> token) from Jupiter.
     Sell quotes are fetched on-demand in the engine (B-branch).
     """
+
     def __init__(
         self,
         *,
         state: MarketState,
         jup: JupiterClient,
-        token_cfgs: Dict[str, dict],
+        token_cfgs: dict[str, dict],
         stable_mint: str,
         stable_decimals: int,
         notional: Decimal,
@@ -64,7 +63,7 @@ class QuotePoller:
         self._poll_batch_mult = int(poll_batch_mult)
         self.poll_jitter_ratio = float(poll_jitter_ratio)
 
-        self._poll_backoff_until: Dict[str, float] = {}
+        self._poll_backoff_until: dict[str, float] = {}
         self.backoff_on_none_sec = float(backoff_on_none_sec)
         self.backoff_on_err_sec = float(backoff_on_err_sec)
 
@@ -171,5 +170,5 @@ class QuotePoller:
             elapsed = time.time() - started
             jitter = self.poll_interval * float(self.poll_jitter_ratio)
             sleep_for = max(0.0, self.poll_interval - elapsed)
-            sleep_for += (jitter * (time.time() % 1.0))
+            sleep_for += jitter * (time.time() % 1.0)
             await asyncio.sleep(sleep_for)

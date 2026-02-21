@@ -1,4 +1,5 @@
 """Tests for api.auth."""
+
 from __future__ import annotations
 
 import hashlib
@@ -6,8 +7,6 @@ import hmac
 import json
 import time
 from urllib.parse import quote
-
-import pytest
 
 from api.auth import WEBAPP_DATA_CONST, validate_telegram_init_data
 
@@ -67,9 +66,7 @@ def test_validate_allowed_user_ids_accept():
     bot_token = "test_bot_token"
     auth_date = int(time.time())
     init_data = _make_valid_init_data(bot_token, auth_date, user_id=42)
-    result = validate_telegram_init_data(
-        init_data, bot_token, auth_ttl_sec=3600, allowed_user_ids={42, 100}
-    )
+    result = validate_telegram_init_data(init_data, bot_token, auth_ttl_sec=3600, allowed_user_ids={42, 100})
     assert result is not None
 
 
@@ -77,7 +74,5 @@ def test_validate_allowed_user_ids_reject():
     bot_token = "test_bot_token"
     auth_date = int(time.time())
     init_data = _make_valid_init_data(bot_token, auth_date, user_id=999)
-    result = validate_telegram_init_data(
-        init_data, bot_token, auth_ttl_sec=3600, allowed_user_ids={42, 100}
-    )
+    result = validate_telegram_init_data(init_data, bot_token, auth_ttl_sec=3600, allowed_user_ids={42, 100})
     assert result is None

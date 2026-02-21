@@ -1,8 +1,6 @@
-
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import List, Tuple
 
 BYBIT_UI_BASE = "https://www.bybit.com/en/trade/spot"  # /BASE/QUOTE
 JUP_UI_BASE = "https://jup.ag/swap"

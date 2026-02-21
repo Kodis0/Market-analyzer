@@ -3,14 +3,13 @@ Runtime settings that can be changed via /settings command.
 Stored in settings.json, merged with config.yaml defaults.
 Defaults aligned with core.config (ThresholdsCfg, FiltersCfg, RuntimeCfg, JupiterCfg, NotifierCfg).
 """
+
 from __future__ import annotations
 
 import json
-import os
 from dataclasses import asdict, dataclass, field
-from decimal import Decimal
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 @dataclass
@@ -51,37 +50,39 @@ class RuntimeSettings:
     exchange_enabled: bool = True
 
     # Human-readable labels for /settings
-    LABELS: Dict[str, str] = field(default_factory=lambda: {
-        "bybit_taker_fee_bps": "Комиссия Bybit (bps)",
-        "solana_tx_fee_usd": "Комиссия Solana ($)",
-        "latency_buffer_bps": "Буфер задержки (bps)",
-        "usdt_usdc_buffer_bps": "Буфер USDT/USDC (bps)",
-        "min_profit_usd": "Мин. прибыль ($)",
-        "notional_usd": "Объём сделки ($)",
-        "max_cex_slippage_bps": "Макс. слип CEX (bps)",
-        "max_dex_price_impact_pct": "Макс. импакт DEX (%)",
-        "persistence_hits": "Порог persistence",
-        "cooldown_sec": "Cooldown (сек)",
-        "min_delta_profit_usd_to_resend": "Мин. дельта для ресэнда ($)",
-        "price_ratio_max": "Макс. ratio цен",
-        "gross_profit_cap_pct": "Макс. gross profit (%)",
-        "max_spread_bps": "Макс. спред (bps)",
-        "min_depth_coverage_pct": "Мин. depth coverage (%)",
-        "engine_tick_hz": "Частота тика (Hz)",
-        "jupiter_poll_interval_sec": "Интервал опроса Jupiter (сек)",
-        "max_ob_age_ms": "Макс. возраст стакана (мс)",
-        "stale_ttl_sec": "Время до устаревания сигнала (сек, 0=выкл)",
-        "delete_stale": "Удалять устаревшие (true/false)",
-        "exchange_enabled": "Биржевая логика вкл (true/false)",
-    })
+    LABELS: dict[str, str] = field(
+        default_factory=lambda: {
+            "bybit_taker_fee_bps": "Комиссия Bybit (bps)",
+            "solana_tx_fee_usd": "Комиссия Solana ($)",
+            "latency_buffer_bps": "Буфер задержки (bps)",
+            "usdt_usdc_buffer_bps": "Буфер USDT/USDC (bps)",
+            "min_profit_usd": "Мин. прибыль ($)",
+            "notional_usd": "Объём сделки ($)",
+            "max_cex_slippage_bps": "Макс. слип CEX (bps)",
+            "max_dex_price_impact_pct": "Макс. импакт DEX (%)",
+            "persistence_hits": "Порог persistence",
+            "cooldown_sec": "Cooldown (сек)",
+            "min_delta_profit_usd_to_resend": "Мин. дельта для ресэнда ($)",
+            "price_ratio_max": "Макс. ratio цен",
+            "gross_profit_cap_pct": "Макс. gross profit (%)",
+            "max_spread_bps": "Макс. спред (bps)",
+            "min_depth_coverage_pct": "Мин. depth coverage (%)",
+            "engine_tick_hz": "Частота тика (Hz)",
+            "jupiter_poll_interval_sec": "Интервал опроса Jupiter (сек)",
+            "max_ob_age_ms": "Макс. возраст стакана (мс)",
+            "stale_ttl_sec": "Время до устаревания сигнала (сек, 0=выкл)",
+            "delete_stale": "Удалять устаревшие (true/false)",
+            "exchange_enabled": "Биржевая логика вкл (true/false)",
+        }
+    )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
         d.pop("LABELS", None)
         return d
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "RuntimeSettings":
+    def from_dict(cls, d: dict[str, Any]) -> RuntimeSettings:
         s = cls()
         valid = {f for f in cls.__dataclass_fields__ if f != "LABELS"}
         for k, v in (d or {}).items():
@@ -190,10 +191,10 @@ class RuntimeSettings:
 <b>Пример:</b> <code>/settings delete_stale true</code> — удалять устаревшие"""
 
 
-def load_runtime_settings(path: str, defaults: Optional[RuntimeSettings] = None) -> RuntimeSettings:
+def load_runtime_settings(path: str, defaults: RuntimeSettings | None = None) -> RuntimeSettings:
     s = defaults or RuntimeSettings()
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             d = json.load(f)
         for k, v in (d or {}).items():
             s.update(k, v)

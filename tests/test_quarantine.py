@@ -1,10 +1,9 @@
 """Tests for core.quarantine."""
+
 from __future__ import annotations
 
 import tempfile
 from pathlib import Path
-
-import pytest
 
 from core.quarantine import QuarantineEntry, load_quarantine, prune_expired, save_quarantine
 

@@ -3,6 +3,7 @@ SQLite хранилище статистики запросов к Jupiter и By
 Оптимизировано: батчинг записей, WAL mode — снижает нагрузку на диск.
 Async wrappers run sync ops in thread pool to avoid blocking event loop.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -11,12 +12,11 @@ import sqlite3
 import threading
 import time
 from pathlib import Path
-from typing import Optional
 
 log = logging.getLogger(__name__)
 
-DB_PATH: Optional[Path] = None
-_conn: Optional[sqlite3.Connection] = None
+DB_PATH: Path | None = None
+_conn: sqlite3.Connection | None = None
 _buffer: dict[tuple[int, str], int] = {}
 _buffer_lock = threading.Lock()
 _flush_interval_sec = 10.0  # сброс буфера в БД (сек)
@@ -227,9 +227,7 @@ def record_signal(token: str, direction: str, profit_usd: float, notional_usd: f
         log.warning("signal_history record failed: %s", e)
 
 
-async def record_signal_async(
-    token: str, direction: str, profit_usd: float, notional_usd: float
-) -> None:
+async def record_signal_async(token: str, direction: str, profit_usd: float, notional_usd: float) -> None:
     """Non-blocking record_signal. Use in async context."""
     await asyncio.to_thread(record_signal, token, direction, profit_usd, notional_usd)
 
@@ -278,16 +276,18 @@ def get_signal_history(period: str, limit: int = 200) -> list[dict]:
         sid, ts, token, direction, profit_usd, notional_usd, status = r
         age_sec = now - ts
         is_stale = status == "stale" or age_sec > STALE_AGE_SEC
-        result.append({
-            "id": sid,
-            "ts": ts,
-            "token": token,
-            "direction": direction,
-            "profit_usd": profit_usd,
-            "notional_usd": notional_usd,
-            "status": status,
-            "is_stale": is_stale,
-        })
+        result.append(
+            {
+                "id": sid,
+                "ts": ts,
+                "token": token,
+                "direction": direction,
+                "profit_usd": profit_usd,
+                "notional_usd": notional_usd,
+                "status": status,
+                "is_stale": is_stale,
+            }
+        )
     return result
 
 

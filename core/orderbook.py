@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from decimal import Decimal, InvalidOperation
-from typing import Dict, List, Tuple, Optional
 import logging
 import time
+from dataclasses import dataclass, field
+from decimal import Decimal, InvalidOperation
 
 log = logging.getLogger(__name__)
 
 
-def _safe_decimal(s: str) -> Optional[Decimal]:
+def _safe_decimal(s: str) -> Decimal | None:
     """Parse string to Decimal; return None on invalid input."""
     try:
         return Decimal(s)
@@ -20,15 +19,15 @@ def _safe_decimal(s: str) -> Optional[Decimal]:
 @dataclass
 class OrderBook:
     symbol: str
-    bids: Dict[Decimal, Decimal] = field(default_factory=dict)  # price -> qty
-    asks: Dict[Decimal, Decimal] = field(default_factory=dict)  # price -> qty
+    bids: dict[Decimal, Decimal] = field(default_factory=dict)  # price -> qty
+    asks: dict[Decimal, Decimal] = field(default_factory=dict)  # price -> qty
     last_update_ms: int = 0
     last_cts_ms: int = 0
     last_snapshot_ms: int = 0
 
-    def apply_snapshot(self, bids: List[List[str]], asks: List[List[str]], ts_ms: int, cts_ms: int) -> None:
-        def _parse_side(rows: List[List[str]]) -> Dict[Decimal, Decimal]:
-            result: Dict[Decimal, Decimal] = {}
+    def apply_snapshot(self, bids: list[list[str]], asks: list[list[str]], ts_ms: int, cts_ms: int) -> None:
+        def _parse_side(rows: list[list[str]]) -> dict[Decimal, Decimal]:
+            result: dict[Decimal, Decimal] = {}
             for row in rows:
                 if len(row) < 2:
                     log.warning("orderbook %s: skip malformed snapshot row (len<2) row=%r", self.symbol, row)
@@ -47,7 +46,7 @@ class OrderBook:
         self.last_cts_ms = cts_ms
         self.last_snapshot_ms = cts_ms or ts_ms
 
-    def apply_delta(self, bids: List[List[str]], asks: List[List[str]], ts_ms: int, cts_ms: int) -> None:
+    def apply_delta(self, bids: list[list[str]], asks: list[list[str]], ts_ms: int, cts_ms: int) -> None:
         for row in bids or []:
             if len(row) < 2:
                 log.warning("orderbook %s: skip malformed delta bid row (len<2) row=%r", self.symbol, row)
@@ -79,10 +78,10 @@ class OrderBook:
         self.last_update_ms = ts_ms
         self.last_cts_ms = cts_ms
 
-    def bids_sorted(self) -> List[Tuple[Decimal, Decimal]]:
+    def bids_sorted(self) -> list[tuple[Decimal, Decimal]]:
         return sorted(self.bids.items(), key=lambda x: x[0], reverse=True)
 
-    def asks_sorted(self) -> List[Tuple[Decimal, Decimal]]:
+    def asks_sorted(self) -> list[tuple[Decimal, Decimal]]:
         return sorted(self.asks.items(), key=lambda x: x[0])
 
     def age_ms(self) -> int:

@@ -2,12 +2,14 @@
 Telegram command handler for /settings.
 Polls getUpdates and processes commands from the configured chat.
 """
+
 from __future__ import annotations
 
 import asyncio
 import logging
 import re
-from typing import Any, Awaitable, Callable, Optional
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 import aiohttp
 
@@ -20,7 +22,7 @@ TG_SEND_MESSAGE = "https://api.telegram.org/bot{token}/sendMessage"
 TG_SET_MY_COMMANDS = "https://api.telegram.org/bot{token}/setMyCommands"
 
 
-def _parse_settings_args(text: str) -> Optional[tuple[str, Any]]:
+def _parse_settings_args(text: str) -> tuple[str, Any] | None:
     """
     Parse /settings key value or /settings key=value.
     Returns (key, value) or None if invalid.
@@ -54,20 +56,26 @@ def _parse_value(key: str, s: str) -> Any:
     if key in ("persistence_hits", "cooldown_sec", "engine_tick_hz", "max_ob_age_ms", "stale_ttl_sec"):
         return int(float(s))
     if key in (
-        "bybit_taker_fee_bps", "solana_tx_fee_usd", "latency_buffer_bps",
-        "usdt_usdc_buffer_bps", "min_profit_usd", "notional_usd",
-        "max_cex_slippage_bps", "max_dex_price_impact_pct",
-        "min_delta_profit_usd_to_resend", "price_ratio_max", "gross_profit_cap_pct",
-        "max_spread_bps", "min_depth_coverage_pct",
+        "bybit_taker_fee_bps",
+        "solana_tx_fee_usd",
+        "latency_buffer_bps",
+        "usdt_usdc_buffer_bps",
+        "min_profit_usd",
+        "notional_usd",
+        "max_cex_slippage_bps",
+        "max_dex_price_impact_pct",
+        "min_delta_profit_usd_to_resend",
+        "price_ratio_max",
+        "gross_profit_cap_pct",
+        "max_spread_bps",
+        "min_depth_coverage_pct",
         "jupiter_poll_interval_sec",
     ):
         return float(s)
     return s
 
 
-async def _register_bot_commands(
-    session: aiohttp.ClientSession, bot_token: str, chat_id: Optional[int] = None
-) -> None:
+async def _register_bot_commands(session: aiohttp.ClientSession, bot_token: str, chat_id: int | None = None) -> None:
     """Register /settings and /help in Telegram menu (shown when user types /)."""
     url = TG_SET_MY_COMMANDS.format(token=bot_token)
     commands = [
@@ -96,9 +104,9 @@ DEFAULT_PINNED_TEXT = (
 
 def _make_navigation_button_payload(
     chat_id: int,
-    thread_id: Optional[int],
-    web_app_url: Optional[str],
-    pinned_text: Optional[str] = None,
+    thread_id: int | None,
+    web_app_url: str | None,
+    pinned_text: str | None = None,
 ) -> dict:
     text = (pinned_text or DEFAULT_PINNED_TEXT).strip() or DEFAULT_PINNED_TEXT
     payload: dict = {
@@ -113,15 +121,19 @@ def _make_navigation_button_payload(
     url = (web_app_url or "").strip()
     if url.startswith("https://"):
         payload["reply_markup"] = {
-            "inline_keyboard": [[
-                {"text": "НАВИГАЦИЯ", "url": url},
-            ]],
+            "inline_keyboard": [
+                [
+                    {"text": "НАВИГАЦИЯ", "url": url},
+                ]
+            ],
         }
     else:
         payload["reply_markup"] = {
-            "inline_keyboard": [[
-                {"text": "НАВИГАЦИЯ", "url": "https://t.me/AutoArbitrage0Bot/market"},
-            ]],
+            "inline_keyboard": [
+                [
+                    {"text": "НАВИГАЦИЯ", "url": "https://t.me/AutoArbitrage0Bot/market"},
+                ]
+            ],
         }
 
     return payload
@@ -131,15 +143,15 @@ async def run_settings_command_handler(
     session: aiohttp.ClientSession,
     bot_token: str,
     chat_id: int,
-    thread_id: Optional[int],
+    thread_id: int | None,
     settings: RuntimeSettings,
     settings_path: str,
     on_reload: Callable[[RuntimeSettings], None],
     stop_event: asyncio.Event,
-    web_app_url: Optional[str] = None,
-    pinned_message_text: Optional[str] = None,
+    web_app_url: str | None = None,
+    pinned_message_text: str | None = None,
     poll_interval_sec: float = 2.0,
-    on_exchange_toggle: Optional[Callable[[bool], Awaitable[None]]] = None,
+    on_exchange_toggle: Callable[[bool], Awaitable[None]] | None = None,
 ) -> None:
     """
     Poll for Telegram updates and handle /settings, /help commands.
@@ -199,7 +211,7 @@ async def run_settings_command_handler(
 
                 # /exchange on|off
                 if cmd == "/exchange" and on_exchange_toggle is not None:
-                    rest = text[len(cmd):].strip().lower()
+                    rest = text[len(cmd) :].strip().lower()
                     if rest in ("on", "1", "yes", "вкл", "включить"):
                         settings.exchange_enabled = True
                         save_runtime_settings(settings_path, settings)
@@ -219,9 +231,7 @@ async def run_settings_command_handler(
                 # /pin_setup
                 if cmd == "/pin_setup":
                     url_send_full = TG_SEND_MESSAGE.format(token=bot_token)
-                    pl = _make_navigation_button_payload(
-                        chat_id, thread_id, web_app_url, pinned_message_text
-                    )
+                    pl = _make_navigation_button_payload(chat_id, thread_id, web_app_url, pinned_message_text)
                     try:
                         async with session.post(url_send_full, json=pl, timeout=aiohttp.ClientTimeout(total=10)) as r:
                             j = await r.json()
@@ -235,7 +245,7 @@ async def run_settings_command_handler(
                 if not cmd.startswith("/settings"):
                     continue
 
-                rest = text[len(cmd):].strip()
+                rest = text[len(cmd) :].strip()
                 rest = re.sub(r"@\S+\s*", "", rest).strip()  # Remove @botname if present
 
                 if not rest:

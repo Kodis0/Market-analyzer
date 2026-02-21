@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from typing import Dict, Optional, Tuple
 
 import yaml
 
@@ -17,14 +16,14 @@ def now_ts() -> int:
     return int(time.time())
 
 
-def load_quarantine(path: str) -> Dict[str, QuarantineEntry]:
+def load_quarantine(path: str) -> dict[str, QuarantineEntry]:
     """
     Reads quarantine YAML:
       symbols:
         BTCUSDT: { reason: "...", until: 1730000000 }
     """
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             raw = yaml.safe_load(f) or {}
     except FileNotFoundError:
         return {}
@@ -32,7 +31,7 @@ def load_quarantine(path: str) -> Dict[str, QuarantineEntry]:
         return {}
 
     sym_map = (raw.get("symbols") or {}) if isinstance(raw, dict) else {}
-    out: Dict[str, QuarantineEntry] = {}
+    out: dict[str, QuarantineEntry] = {}
     if not isinstance(sym_map, dict):
         return {}
 
@@ -50,7 +49,7 @@ def load_quarantine(path: str) -> Dict[str, QuarantineEntry]:
     return out
 
 
-def save_quarantine(path: str, q: Dict[str, QuarantineEntry]) -> None:
+def save_quarantine(path: str, q: dict[str, QuarantineEntry]) -> None:
     payload = {
         "version": 1,
         "updated_at_ts": now_ts(),
@@ -60,12 +59,12 @@ def save_quarantine(path: str, q: Dict[str, QuarantineEntry]) -> None:
         yaml.safe_dump(payload, f, sort_keys=False, allow_unicode=True)
 
 
-def prune_expired(q: Dict[str, QuarantineEntry], ts: Optional[int] = None) -> Dict[str, QuarantineEntry]:
+def prune_expired(q: dict[str, QuarantineEntry], ts: int | None = None) -> dict[str, QuarantineEntry]:
     ts = now_ts() if ts is None else int(ts)
     return {sym: ent for sym, ent in q.items() if int(ent.until_ts) > ts}
 
 
-def is_quarantined(q: Dict[str, QuarantineEntry], symbol: str, ts: Optional[int] = None) -> Tuple[bool, str]:
+def is_quarantined(q: dict[str, QuarantineEntry], symbol: str, ts: int | None = None) -> tuple[bool, str]:
     ts = now_ts() if ts is None else int(ts)
     ent = q.get(symbol)
     if not ent:

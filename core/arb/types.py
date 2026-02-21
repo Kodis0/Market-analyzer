@@ -1,12 +1,10 @@
-
 from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import List, Tuple, Optional
 
-ButtonRow = List[Tuple[str, str]]
-Buttons = List[ButtonRow]
+ButtonRow = list[tuple[str, str]]
+Buttons = list[ButtonRow]
 
 
 @dataclass
@@ -17,14 +15,9 @@ class Signal:
     profit_usd: Decimal
     notional_usd: Decimal
     text: str
-    buttons: Optional[Buttons] = None
+    buttons: Buttons | None = None
 
     def to_reply_markup(self) -> dict | None:
         if not self.buttons:
             return None
-        return {
-            "inline_keyboard": [
-                [{"text": title, "url": url} for (title, url) in row]
-                for row in self.buttons
-            ]
-        }
+        return {"inline_keyboard": [[{"text": title, "url": url} for (title, url) in row] for row in self.buttons]}

@@ -3,27 +3,26 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from collections.abc import Callable
 from decimal import Decimal, getcontext
-from typing import Any, Callable, Dict, Optional
+from typing import TYPE_CHECKING, Any
 
-from core.calc import calc_mid_spread, coverage_pct, net_profit, price_ratio_ok, gross_cap_ok
+from connectors.jupiter import JupiterClient
+from core.calc import calc_mid_spread, coverage_pct, gross_cap_ok, net_profit, price_ratio_ok
+from core.fees import Thresholds
 from core.state import MarketState
 from core.vwap import simulate_buy_with_notional, simulate_sell_base
-from core.fees import Thresholds
-from connectors.jupiter import JupiterClient
 
-from .types import Signal, Buttons
 from .dedup import Dedup
-from .persistence import Persistence
-from .stats import SkipStats
 from .denylist import Denylist
+from .persistence import Persistence
 from .poller import QuotePoller
-from .utils import bybit_spot_url, jup_swap_url_by_symbol, to_raw, from_raw, snapshot_book
+from .stats import SkipStats
+from .types import Buttons, Signal
+from .utils import bybit_spot_url, from_raw, jup_swap_url_by_symbol, snapshot_book, to_raw
 
 log = logging.getLogger("engine")
 
-# Type-only import for reload_settings
-from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from core.runtime_settings import RuntimeSettings
 getcontext().prec = 28
@@ -40,6 +39,7 @@ class ArbEngine:
       - run(on_signal) -> async loop
       - stop(), drain_debug_stats()
     """
+
     def __init__(
         self,
         state: MarketState,
@@ -48,7 +48,7 @@ class ArbEngine:
         notional_usd: Decimal,
         stable_mint: str,
         stable_decimals: int,
-        token_cfgs: Dict[str, dict],
+        token_cfgs: dict[str, dict],
         max_cex_slippage_bps: Decimal,
         max_dex_price_impact_pct: Decimal,
         persistence_hits: int,
@@ -86,7 +86,9 @@ class ArbEngine:
         self.max_price_ratio = Decimal(str(price_ratio_max if price_ratio_max is not None else "3"))
         self.max_gross_profit_pct = Decimal(str(gross_profit_cap_pct if gross_profit_cap_pct is not None else "10"))
         self.max_spread_bps = Decimal(str(max_spread_bps if max_spread_bps is not None else "50"))
-        self.min_depth_coverage_pct = Decimal(str(min_depth_coverage_pct if min_depth_coverage_pct is not None else "98"))
+        self.min_depth_coverage_pct = Decimal(
+            str(min_depth_coverage_pct if min_depth_coverage_pct is not None else "98")
+        )
         self.max_ob_age_ms = int(max_ob_age_ms)
 
         # Quotes freshness (default: max(3x poll interval, 5000ms))
@@ -104,7 +106,7 @@ class ArbEngine:
         self.denylist = Denylist.build(symbols=denylist_symbols, regex=denylist_regex)
 
         # B-branch sell re-quote throttling
-        self._last_b_requote: Dict[str, float] = {}
+        self._last_b_requote: dict[str, float] = {}
         self.b_requote_cooldown_sec = 2.0
 
         # Engine bounded concurrency (safe default)
@@ -133,7 +135,7 @@ class ArbEngine:
     async def stop(self) -> None:
         self._stop.set()
 
-    def reload_settings(self, settings: "RuntimeSettings") -> None:
+    def reload_settings(self, settings: RuntimeSettings) -> None:
         """Apply runtime settings. Called when user updates via /settings."""
         self.thresholds.bybit_taker_fee_bps = Decimal(str(settings.bybit_taker_fee_bps))
         self.thresholds.solana_tx_fee_usd = Decimal(str(settings.solana_tx_fee_usd))
@@ -163,7 +165,7 @@ class ArbEngine:
 
         log.info("Settings reloaded: min_profit=%.2f notional=%.0f", settings.min_profit_usd, settings.notional_usd)
 
-    def drain_debug_stats(self) -> Optional[Dict[str, int]]:
+    def drain_debug_stats(self) -> dict[str, int] | None:
         return self._skip_stats.flush_if_due()
 
     def _dbg_inc(self, k: str, n: int = 1) -> None:
@@ -311,11 +313,15 @@ class ArbEngine:
                                                     f"Цена на Jupiter: <code>{price_jup:.6f}$</code>\n"
                                                     f"Цена на Bybit: <code>{price_bybit:.6f}$</code>"
                                                 )
-                                                buttons: Buttons = [[
-                                                    ("🟢 Купить на Jupiter", jup_buy_url),
-                                                    ("🟠 Продать на Bybit", bybit_url),
-                                                ]]
-                                                sig = Signal(key, token_key, "JUP->BYBIT", profit, self.notional, text, buttons)
+                                                buttons: Buttons = [
+                                                    [
+                                                        ("🟢 Купить на Jupiter", jup_buy_url),
+                                                        ("🟠 Продать на Bybit", bybit_url),
+                                                    ]
+                                                ]
+                                                sig = Signal(
+                                                    key, token_key, "JUP->BYBIT", profit, self.notional, text, buttons
+                                                )
                                                 self.dedup.mark_sent(key, profit)
                                                 res = on_signal(sig)
                                                 if asyncio.iscoroutine(res):
@@ -427,11 +433,21 @@ class ArbEngine:
                                                     f"Цена на Bybit: <code>{price_bybit2:.6f}$</code>\n"
                                                     f"Цена на Jupiter: <code>{price_jup2:.6f}$</code>"
                                                 )
-                                                buttons2: Buttons = [[
-                                                    ("🟠 Купить на Bybit", bybit_url),
-                                                    ("🟢 Продать на Jupiter", jup_sell_url),
-                                                ]]
-                                                sig2 = Signal(key2, token_key, "BYBIT->JUP", profit2, self.notional, text2, buttons2)
+                                                buttons2: Buttons = [
+                                                    [
+                                                        ("🟠 Купить на Bybit", bybit_url),
+                                                        ("🟢 Продать на Jupiter", jup_sell_url),
+                                                    ]
+                                                ]
+                                                sig2 = Signal(
+                                                    key2,
+                                                    token_key,
+                                                    "BYBIT->JUP",
+                                                    profit2,
+                                                    self.notional,
+                                                    text2,
+                                                    buttons2,
+                                                )
                                                 self.dedup.mark_sent(key2, profit2)
                                                 res2 = on_signal(sig2)
                                                 if asyncio.iscoroutine(res2):
@@ -460,8 +476,7 @@ class ArbEngine:
             for i in range(0, len(items), batch_size):
                 chunk = items[i : i + batch_size]
                 tasks = [
-                    asyncio.create_task(self._run_one_bounded(token_key, cfg, on_signal))
-                    for token_key, cfg in chunk
+                    asyncio.create_task(self._run_one_bounded(token_key, cfg, on_signal)) for token_key, cfg in chunk
                 ]
                 await asyncio.gather(*tasks, return_exceptions=True)
                 await asyncio.sleep(0)

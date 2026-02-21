@@ -1,21 +1,20 @@
 from __future__ import annotations
 
 from pydantic import BaseModel, Field
-from typing import Dict, Optional, List
 
 
 class TelegramCfg(BaseModel):
     chat_id: int
-    thread_id: Optional[int] = None
-    web_app_url: Optional[str] = None  # URL для кнопки "Навигация" (Web App)
-    pinned_message_text: Optional[str] = None  # Текст закреплённого сообщения (редактируй в config.yaml)
+    thread_id: int | None = None
+    web_app_url: str | None = None  # URL для кнопки "Навигация" (Web App)
+    pinned_message_text: str | None = None  # Текст закреплённого сообщения (редактируй в config.yaml)
 
 
 class BybitCfg(BaseModel):
     ws_url: str
     ping_interval_sec: int = 20
     depth: int = 50
-    symbols: List[str]
+    symbols: list[str]
 
 
 class JupiterCfg(BaseModel):
@@ -42,7 +41,7 @@ class StableCfg(BaseModel):
 class TradingCfg(BaseModel):
     notional_usd: float = 1000
     stable: StableCfg
-    tokens: Dict[str, TokenCfg]
+    tokens: dict[str, TokenCfg]
 
 
 class ThresholdsCfg(BaseModel):
@@ -63,8 +62,8 @@ class FiltersCfg(BaseModel):
     gross_profit_cap_pct: float = 10.0
     max_spread_bps: float = 50.0
     min_depth_coverage_pct: float = 98.0
-    denylist_symbols: List[str] = []
-    denylist_regex: List[str] = []
+    denylist_symbols: list[str] = []
+    denylist_regex: list[str] = []
 
 
 class RuntimeCfg(BaseModel):
@@ -93,11 +92,12 @@ class LoggingCfg(BaseModel):
 
 class ApiCfg(BaseModel):
     """API security for Mini App. Protects /api/* endpoints."""
+
     auth_required: bool = True
     auth_ttl_sec: int = 3600  # initData older than this is rejected (replay protection)
-    allowed_user_ids: List[int] = []  # empty = any valid Telegram user; non-empty = only these IDs
+    allowed_user_ids: list[int] = []  # empty = any valid Telegram user; non-empty = only these IDs
     rate_limit_per_min: int = 60  # max requests per IP per minute
-    cors_origins: List[str] = []  # empty = *; non-empty = only these origins (e.g. https://market.example.com)
+    cors_origins: list[str] = []  # empty = *; non-empty = only these origins (e.g. https://market.example.com)
     logs_enabled: bool = True  # enable GET /api/logs (last N lines from buffer)
     logs_buffer_size: int = 1000  # max lines in ring buffer
     logs_max_line_len: int = 500  # truncate longer lines

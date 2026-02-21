@@ -1,13 +1,15 @@
 """
 Quarantine manager: load, apply, sync, add symbols to quarantine.
 """
+
 from __future__ import annotations
 
 import asyncio
 import logging
 import os
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from core.config import AppConfig
 from core.quarantine import QuarantineEntry, load_quarantine, now_ts, prune_expired, save_quarantine
@@ -66,7 +68,11 @@ class QuarantineManager:
 
         bad_added = False
         for token_key, t in list(self.full_tokens.items()):
-            ok = bool(getattr(t, "mint", None)) and getattr(t, "decimals", None) is not None and getattr(t, "bybit_symbol", None)
+            ok = (
+                bool(getattr(t, "mint", None))
+                and getattr(t, "decimals", None) is not None
+                and getattr(t, "bybit_symbol", None)
+            )
             if not ok:
                 sym = getattr(t, "bybit_symbol", "") or ""
                 if sym and sym not in q0:
@@ -88,7 +94,9 @@ class QuarantineManager:
         self._rebuild_token_cfgs_inplace()
 
         if self.quarantined_set:
-            log.warning("Quarantine enabled: %d symbols disabled. File=%s", len(self.quarantined_set), self.quarantine_path)
+            log.warning(
+                "Quarantine enabled: %d symbols disabled. File=%s", len(self.quarantined_set), self.quarantine_path
+            )
         else:
             log.info("Quarantine empty/disabled. File=%s", self.quarantine_path)
 

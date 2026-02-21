@@ -1,11 +1,12 @@
 """
 Bybit WebSocket cluster: sharded clients with dynamic symbol updates.
 """
+
 from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Awaitable, Callable
+from collections.abc import Awaitable, Callable
 
 from connectors.bybit_ws import BybitWS
 from utils.collections import chunked

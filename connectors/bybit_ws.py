@@ -5,7 +5,8 @@ import json
 import logging
 import time
 import uuid
-from typing import Any, Awaitable, Callable, List, Optional, Set
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 import websockets
 
@@ -46,12 +47,12 @@ class BybitWS:
         self._stop = asyncio.Event()
         self._reconnect = asyncio.Event()
 
-        self._ws: Optional[Any] = None
+        self._ws: Any | None = None
         self._send_lock = asyncio.Lock()
 
         self._state_lock = asyncio.Lock()
-        self._desired_topics: Set[str] = set()
-        self._subscribed_topics: Set[str] = set()
+        self._desired_topics: set[str] = set()
+        self._subscribed_topics: set[str] = set()
 
         self._desired_changed = asyncio.Event()
 
@@ -62,7 +63,7 @@ class BybitWS:
 
         self.set_symbols(symbols, notify=False)
 
-    def _topics_for_symbols(self, symbols: list[str]) -> Set[str]:
+    def _topics_for_symbols(self, symbols: list[str]) -> set[str]:
         return {f"orderbook.{self.depth}.{s}" for s in symbols if s}
 
     def set_symbols(self, symbols: list[str], notify: bool = True) -> None:
@@ -71,6 +72,7 @@ class BybitWS:
         Non-async by design: safe to call from anywhere.
         """
         topics = self._topics_for_symbols(symbols)
+
         # store desired topics
         async def _set():
             async with self._state_lock:
@@ -196,10 +198,15 @@ class BybitWS:
             async with self._state_lock:
                 self._subscribed_topics |= set(to_sub)
 
-        log.info("topics updated: subscribed=%d desired=%d (+%d -%d)",
-                 len(self._subscribed_topics), len(desired), len(to_sub), len(to_unsub))
+        log.info(
+            "topics updated: subscribed=%d desired=%d (+%d -%d)",
+            len(self._subscribed_topics),
+            len(desired),
+            len(to_sub),
+            len(to_unsub),
+        )
 
-    async def _send_with_ack(self, ws: Any, op: str, topics: List[str]) -> None:
+    async def _send_with_ack(self, ws: Any, op: str, topics: list[str]) -> None:
         if not topics:
             return
 
@@ -220,7 +227,11 @@ class BybitWS:
                 # cleanup
                 self._pending_acks.pop(req_id, None)
 
-                if isinstance(msg, dict) and msg.get("op") in {"subscribe", "unsubscribe"} and msg.get("success") is True:
+                if (
+                    isinstance(msg, dict)
+                    and msg.get("op") in {"subscribe", "unsubscribe"}
+                    and msg.get("success") is True
+                ):
                     return
 
                 # if negative ack
@@ -239,7 +250,9 @@ class BybitWS:
             except Exception:
                 self._pending_acks.pop(req_id, None)
                 if attempt < attempts:
-                    log.warning("ack error op=%s topics=%d attempt=%d/%d", op, len(topics), attempt, attempts, exc_info=True)
+                    log.warning(
+                        "ack error op=%s topics=%d attempt=%d/%d", op, len(topics), attempt, attempts, exc_info=True
+                    )
                     await asyncio.sleep(0.3 * attempt)
                     continue
                 self.request_reconnect()

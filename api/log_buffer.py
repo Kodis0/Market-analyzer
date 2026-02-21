@@ -2,12 +2,12 @@
 In-memory ring buffer for log lines. Used by /api/logs endpoint.
 Thread-safe, fixed size, sanitizes sensitive data.
 """
+
 from __future__ import annotations
 
 import logging
 import re
 from collections import deque
-from typing import Optional
 
 # Sensitive patterns — lines matching these get redacted
 _SENSITIVE_PATTERNS = [
@@ -66,8 +66,8 @@ class LogBufferHandler(logging.Handler):
 
 
 # Global buffer — created when logs_enabled, used by API
-_buffer: Optional[LogBuffer] = None
-_handler: Optional[LogBufferHandler] = None
+_buffer: LogBuffer | None = None
+_handler: LogBufferHandler | None = None
 
 
 def init_log_buffer(enabled: bool, buffer_size: int = 1000, max_line_len: int = 500) -> None:
@@ -85,7 +85,7 @@ def init_log_buffer(enabled: bool, buffer_size: int = 1000, max_line_len: int = 
         root.addHandler(_handler)
 
 
-def get_logs(limit: int = 100) -> Optional[list[str]]:
+def get_logs(limit: int = 100) -> list[str] | None:
     """Return last `limit` lines, or None if logs disabled."""
     if _buffer is None:
         return None

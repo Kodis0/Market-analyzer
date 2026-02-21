@@ -9,17 +9,15 @@ from decimal import Decimal
 from typing import Any
 
 import aiohttp
-from dotenv import load_dotenv
 
 from connectors.jupiter import JupiterClient
 from core.arb_engine import ArbEngine
 from core.bootstrap import get_paths, load_config, require_env
-from core.config import AppConfig
 from core.fees import Thresholds
 from core.jupiter_sanitizer import make_on_jup_skip
 from core.quarantine_manager import QuarantineManager
-from core.state import MarketState
 from core.runtime_settings import RuntimeSettings, load_runtime_settings, save_runtime_settings
+from core.state import MarketState
 from core.ws_cluster import BybitWSCluster
 from notifier.commands import run_settings_command_handler
 from notifier.telegram import TelegramNotifier
@@ -197,9 +195,7 @@ async def main(cfg_path: str) -> None:
 
                 _bybit_record_counter[0] += 1
                 if _bybit_record_counter[0] >= stats_bybit_sample:
-                    t = asyncio.create_task(
-                        record_async("bybit", _bybit_record_counter[0])
-                    )
+                    t = asyncio.create_task(record_async("bybit", _bybit_record_counter[0]))
                     t.add_done_callback(log_task_exception)
                     _bybit_record_counter[0] = 0
             except Exception as e:
@@ -318,7 +314,13 @@ async def main(cfg_path: str) -> None:
 
                 stats = engine.drain_debug_stats()
                 if stats is not None:
-                    skip_text = ", ".join([f"{k}={v}" for k, v in sorted(stats.items(), key=lambda kv: kv[1], reverse=True)[:5]]) if stats else "none"
+                    skip_text = (
+                        ", ".join(
+                            [f"{k}={v}" for k, v in sorted(stats.items(), key=lambda kv: kv[1], reverse=True)[:5]]
+                        )
+                        if stats
+                        else "none"
+                    )
                 else:
                     skip_text = "n/a"
 
@@ -455,7 +457,9 @@ async def main(cfg_path: str) -> None:
                 ),
                 name="api_server",
             ),
-            asyncio.create_task(q_manager.sync_loop(poll_sec=10.0, on_symbols_changed=on_symbols_changed), name="quarantine_sync"),
+            asyncio.create_task(
+                q_manager.sync_loop(poll_sec=10.0, on_symbols_changed=on_symbols_changed), name="quarantine_sync"
+            ),
             asyncio.create_task(engine.quote_poller(), name="jup_poller"),
             asyncio.create_task(engine.run(on_signal), name="arb_engine"),
             asyncio.create_task(status_loop(), name="status"),

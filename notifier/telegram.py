@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-import time
 import logging
-from typing import Optional, Dict, Any
+import time
 
 import aiohttp
 
@@ -32,19 +31,19 @@ class TelegramNotifier:
         self.delete_stale = bool(delete_stale)
 
         # key -> message_id
-        self._msg_ids: Dict[str, int] = {}
+        self._msg_ids: dict[str, int] = {}
         # key -> last_edit_ts
-        self._last_edit: Dict[str, float] = {}
+        self._last_edit: dict[str, float] = {}
         # key -> last_seen_ts (signal update)
-        self._last_seen: Dict[str, float] = {}
+        self._last_seen: dict[str, float] = {}
         # key -> last requested text/markup
-        self._last_text: Dict[str, str] = {}
-        self._last_markup: Dict[str, dict | None] = {}
+        self._last_text: dict[str, str] = {}
+        self._last_markup: dict[str, dict | None] = {}
         # key -> last sent text/markup
-        self._last_sent_text: Dict[str, str] = {}
-        self._last_sent_markup: Dict[str, dict | None] = {}
+        self._last_sent_text: dict[str, str] = {}
+        self._last_sent_markup: dict[str, dict | None] = {}
         # key -> stale flag
-        self._stale: Dict[str, bool] = {}
+        self._stale: dict[str, bool] = {}
 
     def update_stale_settings(self, stale_ttl_sec: float, delete_stale: bool) -> None:
         """Обновить настройки устаревания (вызывается при /settings)."""
@@ -55,9 +54,7 @@ class TelegramNotifier:
         return f"{self.base}/{method}"
 
     async def _post(self, method: str, payload: dict) -> dict:
-        async with self.session.post(
-            self._url(method), json=payload, timeout=aiohttp.ClientTimeout(total=10)
-        ) as r:
+        async with self.session.post(self._url(method), json=payload, timeout=aiohttp.ClientTimeout(total=10)) as r:
             data = await r.json(content_type=None)
             if not data.get("ok"):
                 raise RuntimeError(f"Telegram API error {method}: {data}")
