@@ -51,6 +51,7 @@ _rate_timestamps: dict[str, list[float]] = defaultdict(list)
 _rate_lock = asyncio.Lock()
 _logs_rate_timestamps: dict[str, list[float]] = defaultdict(list)
 _logs_rate_lock = asyncio.Lock()
+_RATE_CLEANUP_THRESHOLD = 1000  # cleanup when dict exceeds this many IPs
 
 
 def _get_client_ip(req: web.Request) -> str:
@@ -63,6 +64,18 @@ def _get_client_ip(req: web.Request) -> str:
     return req.remote or "unknown"
 
 
+def _prune_stale_ips(timestamps: dict[str, list[float]], cutoff: float, exclude_ip: str | None = None) -> None:
+    """Remove IPs with no timestamps after cutoff. Bounds memory growth."""
+    if len(timestamps) <= _RATE_CLEANUP_THRESHOLD:
+        return
+    stale = [
+        k for k, v in timestamps.items()
+        if k != exclude_ip and (not v or max(v) <= cutoff)
+    ]
+    for k in stale:
+        del timestamps[k]
+
+
 async def _check_rate_limit(ip: str, limit_per_min: int) -> bool:
     """Return True if allowed, False if rate limited."""
     if limit_per_min <= 0:
@@ -72,6 +85,7 @@ async def _check_rate_limit(ip: str, limit_per_min: int) -> bool:
     async with _rate_lock:
         times = _rate_timestamps[ip]
         times[:] = [t for t in times if t > cutoff]
+        _prune_stale_ips(_rate_timestamps, cutoff, exclude_ip=ip)
         if len(times) >= limit_per_min:
             return False
         times.append(now)
@@ -87,6 +101,7 @@ async def _check_logs_rate_limit(ip: str, limit_per_min: int) -> bool:
     async with _logs_rate_lock:
         times = _logs_rate_timestamps[ip]
         times[:] = [t for t in times if t > cutoff]
+        _prune_stale_ips(_logs_rate_timestamps, cutoff, exclude_ip=ip)
         if len(times) >= limit_per_min:
             return False
         times.append(now)
