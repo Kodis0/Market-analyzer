@@ -317,10 +317,10 @@ class ArbEngine:
                                                     ("🟠 Продать на Bybit", bybit_url),
                                                 ]]
                                                 sig = Signal(key, token_key, "JUP->BYBIT", profit, self.notional, text, buttons)
+                                                self.dedup.mark_sent(key, profit)
                                                 res = on_signal(sig)
                                                 if asyncio.iscoroutine(res):
                                                     await res
-                                                self.dedup.mark_sent(key, profit)
 
             if not a_valid:
                 self.persistence.hit(a_key, False)
@@ -433,10 +433,10 @@ class ArbEngine:
                                                     ("🟢 Продать на Jupiter", jup_sell_url),
                                                 ]]
                                                 sig2 = Signal(key2, token_key, "BYBIT->JUP", profit2, self.notional, text2, buttons2)
+                                                self.dedup.mark_sent(key2, profit2)
                                                 res2 = on_signal(sig2)
                                                 if asyncio.iscoroutine(res2):
                                                     await res2
-                                                self.dedup.mark_sent(key2, profit2)
 
             if not b_valid:
                 self.persistence.hit(b_key, False)
