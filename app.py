@@ -551,6 +551,7 @@ async def main(cfg_path: str) -> None:
                 "bot_token": None,
                 "api_cfg": {
                     "auth_required": False,
+                    "rate_limit_per_min": api_cfg.rate_limit_per_min,
                     "cors_origins": list(getattr(api_cfg, "cors_origins", None) or []),
                     "logs_enabled": getattr(api_cfg, "logs_enabled", True),
                     "logs_rate_limit_per_min": getattr(api_cfg, "logs_rate_limit_per_min", 10),
