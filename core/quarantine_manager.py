@@ -108,7 +108,7 @@ class QuarantineManager:
         async with self._lock:
             now = now_ts()
             last = self._last_write.get(symbol, 0)
-            if (now - last) < 60:
+            if (now - last) < 15:
                 return
             self._last_write[symbol] = now
 
