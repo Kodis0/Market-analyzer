@@ -93,6 +93,18 @@ class RuntimeSettings:
             return False
         if key == "exchange_enabled":
             value = str(value).lower() in ("true", "1", "yes", "да", "on")
+        elif key == "delete_stale":
+            value = str(value).lower() in ("true", "1", "yes", "да", "on")
+        elif key in ("persistence_hits", "cooldown_sec", "engine_tick_hz", "max_ob_age_ms", "stale_ttl_sec"):
+            try:
+                value = int(float(value))
+            except (TypeError, ValueError):
+                return False
+        else:
+            try:
+                value = float(value) if isinstance(value, (int, float, str)) else value
+            except (TypeError, ValueError):
+                return False
         setattr(self, key, value)
         return True
 

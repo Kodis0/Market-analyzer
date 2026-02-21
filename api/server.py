@@ -5,6 +5,7 @@ GET /api/signal-history?period=1h|1d|1w|all
 GET /api/status — статус бота (exchange_enabled)
 GET /api/settings — всё настройки (read-only)
 POST /api/exchange — вкл/выкл биржевую логику
+POST /api/settings — обновить настройки { key: value, ... }
 """
 from __future__ import annotations
 
@@ -26,6 +27,7 @@ def create_app(
     on_exchange_toggle: Optional[Callable[[bool], Awaitable[None]]] = None,
     get_status: Optional[Callable[[], dict]] = None,
     get_settings: Optional[Callable[[], dict]] = None,
+    on_settings_update: Optional[Callable[[dict], Awaitable[dict]]] = None,
 ) -> web.Application:
     app = web.Application()
 
@@ -63,6 +65,22 @@ def create_app(
 
         app.router.add_get("/api/settings", handle_settings)
 
+    if on_settings_update is not None:
+
+        async def handle_settings_post(req: web.Request) -> web.Response:
+            if req.method != "POST":
+                return web.json_response({"error": "Method not allowed"}, status=405, headers=CORS_HEADERS)
+            try:
+                data = await req.json() if req.content_length else {}
+            except Exception:
+                return web.json_response({"error": "Invalid JSON"}, status=400, headers=CORS_HEADERS)
+            if not isinstance(data, dict) or not data:
+                return web.json_response({"error": "Expected non-empty object { key: value }"}, status=400, headers=CORS_HEADERS)
+            result = await on_settings_update(data)
+            return web.json_response(result, headers=CORS_HEADERS)
+
+        app.router.add_route("POST", "/api/settings", handle_settings_post)
+
     if on_exchange_toggle is not None:
 
         async def handle_exchange(req: web.Request) -> web.Response:
@@ -97,6 +115,7 @@ async def run_server(
     on_exchange_toggle: Optional[Callable[[bool], Awaitable[None]]] = None,
     get_status: Optional[Callable[[], dict]] = None,
     get_settings: Optional[Callable[[], dict]] = None,
+    on_settings_update: Optional[Callable[[dict], Awaitable[dict]]] = None,
 ) -> None:
     if db_path:
         from pathlib import Path
@@ -106,6 +125,7 @@ async def run_server(
         on_exchange_toggle=on_exchange_toggle,
         get_status=get_status,
         get_settings=get_settings,
+        on_settings_update=on_settings_update,
     )
     runner = web.AppRunner(app)
     await runner.setup()

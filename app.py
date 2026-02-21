@@ -673,6 +673,16 @@ async def main(cfg_path: str) -> None:
         def get_settings() -> dict:
             return {"settings": settings.to_dict(), "labels": settings.LABELS}
 
+        async def on_settings_update(updates: dict) -> dict:
+            updated: dict = {}
+            for k, v in updates.items():
+                if settings.update(k, v):
+                    updated[k] = getattr(settings, k)
+            if updated:
+                save_runtime_settings(settings_path, settings)
+                apply_settings_reload(settings)
+            return {"ok": True, "updated": updated, "settings": settings.to_dict()}
+
         api_server_mod = __import__("api.server", fromlist=["run_server"])
         tasks: list[asyncio.Task] = [
             asyncio.create_task(
@@ -682,6 +692,7 @@ async def main(cfg_path: str) -> None:
                     on_exchange_toggle=on_exchange_toggle,
                     get_status=get_status,
                     get_settings=get_settings,
+                    on_settings_update=on_settings_update,
                 ),
                 name="api_server",
             ),
