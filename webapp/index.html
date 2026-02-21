@@ -773,7 +773,8 @@
         }
       }
       let API_BASE = rawApi.replace(/\/$/, '');
-      const API_FALLBACK = (typeof location !== 'undefined' && location.origin) ? location.origin.replace(/\/$/, '') : '';
+      const isFrontendOnly = typeof location !== 'undefined' && /market\.arbmarketsystem\.ru$/i.test(location.hostname || '');
+      const API_FALLBACK = (typeof location !== 'undefined' && location.origin && !isFrontendOnly) ? location.origin.replace(/\/$/, '') : '';
       document.getElementById('api-display').textContent = API_BASE;
 
       function getAuthHeaders() {
@@ -877,7 +878,7 @@
           data = await r.json();
         } catch (e) {
           const msg = (r.headers.get('content-type') || '').includes('text/html')
-            ? 'API вернул HTML вместо JSON. Проверь URL API (должен быть api.arbmarketsystem.ru, не market).'
+            ? 'API вернул HTML вместо JSON. Проверь: api.arbmarketsystem.ru (не market), бот запущен, туннель cloudflared. Тест: curl https://api.arbmarketsystem.ru/api/stats?period=1h'
             : (e.message || String(e));
           throw new Error(msg);
         }
