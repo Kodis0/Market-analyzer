@@ -107,6 +107,7 @@ class ArbEngine:
 
         # B-branch sell re-quote throttling
         self._last_b_requote: dict[str, float] = {}
+        self._last_b_requote_prune_ts: float = 0.0
         self.b_requote_cooldown_sec = 2.0
 
         # Engine bounded concurrency (safe default)
@@ -184,6 +185,16 @@ class ArbEngine:
     def _reset_persistence(self, token_key: str) -> None:
         self.persistence.hit(f"{token_key}:A", False)
         self.persistence.hit(f"{token_key}:B", False)
+
+    def _prune_b_requote(self) -> None:
+        now = time.time()
+        if (now - self._last_b_requote_prune_ts) < 60.0:
+            return
+        self._last_b_requote_prune_ts = now
+        cutoff = now - 600  # 10 min
+        stale = [k for k, ts in self._last_b_requote.items() if ts < cutoff]
+        for k in stale:
+            del self._last_b_requote[k]
 
     async def _run_one_token(self, token_key: str, cfg: dict, on_signal: Callable[[Signal], Any]) -> None:
         try:
@@ -470,6 +481,7 @@ class ArbEngine:
             if self._exchange_enabled is not None and not self._exchange_enabled.is_set():
                 await asyncio.sleep(1)
                 continue
+            self._prune_b_requote()
             started = time.time()
             items = list(self.token_cfgs.items())
             batch_size = max(1, int(self.engine_concurrency) * int(self._engine_batch_mult))
