@@ -487,6 +487,48 @@
       color: var(--text-dim);
       flex: 1;
       min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .settings-help {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--text-dim);
+      color: var(--bg);
+      font-size: 10px;
+      font-weight: 700;
+      cursor: help;
+      flex-shrink: 0;
+      position: relative;
+    }
+    .settings-help:hover {
+      background: var(--accent-jup);
+      color: #fff;
+    }
+    .settings-help[data-tooltip]:hover::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      left: 50%;
+      bottom: calc(100% + 8px);
+      transform: translateX(-50%);
+      max-width: 260px;
+      padding: 8px 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.75rem;
+      font-weight: 400;
+      color: var(--text);
+      white-space: normal;
+      line-height: 1.4;
+      z-index: 100;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      pointer-events: none;
     }
     .settings-item-val {
       font-weight: 500;
@@ -1113,19 +1155,44 @@
 
       document.getElementById('btn-settings-refresh').addEventListener('click', fetchStatusAndSettings);
 
+      const SETTING_TOOLTIPS = {
+        bybit_taker_fee_bps: 'Комиссия Bybit в базисных пунктах (1 bps = 0.01%)',
+        solana_tx_fee_usd: 'Примерная комиссия сети Solana в $',
+        latency_buffer_bps: 'Запас на задержку исполнения (bps)',
+        usdt_usdc_buffer_bps: 'Буфер на разницу USDT/USDC (bps)',
+        min_profit_usd: 'Минимальная чистая прибыль в $ для отправки сигнала',
+        notional_usd: 'Объём сделки в USDC (сколько тратим на арбитраж)',
+        max_cex_slippage_bps: 'Макс. допустимый слип на CEX (Bybit)',
+        max_dex_price_impact_pct: 'Макс. импакт на DEX (Jupiter) в %',
+        persistence_hits: 'Сколько раз подряд должен быть профит перед отправкой',
+        cooldown_sec: 'Пауза между повторными сигналами по одной паре (сек)',
+        min_delta_profit_usd_to_resend: 'На сколько $ должен вырасти профит для ресэнда',
+        price_ratio_max: 'Макс. отношение цен Jupiter/Bybit (защита от аномалий)',
+        gross_profit_cap_pct: 'Макс. gross profit в % от объёма',
+        max_spread_bps: 'Макс. спред стакана (выше = пропускаем пару)',
+        min_depth_coverage_pct: 'Мин. % покрытия объёма глубиной стакана',
+        engine_tick_hz: 'Как часто проверять арбитраж (раз в секунду)',
+        jupiter_poll_interval_sec: 'Интервал опроса котировок Jupiter',
+        max_ob_age_ms: 'Макс. возраст стакана в мс (старше = пропускаем)',
+        stale_ttl_sec: 'Через сколько сек сигнал считается устаревшим (0 = выключено)',
+        delete_stale: 'true = удалять сообщения, false = редактировать на «устарел»'
+      };
+
       function renderSettingsList(s, labels) {
         const skipKeys = ['exchange_enabled'];
         settingsList.innerHTML = Object.entries(s)
           .filter(([k]) => !skipKeys.includes(k))
           .map(([k, v]) => {
             const label = escapeHtml(labels[k] || k);
+            const tooltip = SETTING_TOOLTIPS[k];
+            const helpIcon = tooltip ? '<span class="settings-help" data-tooltip="' + escapeHtml(tooltip) + '" title="' + escapeHtml(tooltip) + '">?</span>' : '';
             const isBool = typeof v === 'boolean';
             if (isBool) {
               const on = v ? 'on' : 'off';
-              return '<div class="settings-item" data-key="' + escapeHtml(k) + '"><span class="settings-item-key">' + label + '</span><div class="settings-toggle ' + on + '" data-key="' + escapeHtml(k) + '" role="button" tabindex="0"></div></div>';
+              return '<div class="settings-item" data-key="' + escapeHtml(k) + '"><span class="settings-item-key">' + label + helpIcon + '</span><div class="settings-toggle ' + on + '" data-key="' + escapeHtml(k) + '" role="button" tabindex="0"></div></div>';
             }
             const step = Number.isInteger(v) ? '1' : '0.01';
-            return '<div class="settings-item" data-key="' + escapeHtml(k) + '"><span class="settings-item-key">' + label + '</span><input type="number" class="settings-input" data-key="' + escapeHtml(k) + '" value="' + escapeHtml(String(v)) + '" step="' + step + '"></div>';
+            return '<div class="settings-item" data-key="' + escapeHtml(k) + '"><span class="settings-item-key">' + label + helpIcon + '</span><input type="number" class="settings-input" data-key="' + escapeHtml(k) + '" value="' + escapeHtml(String(v)) + '" step="' + step + '"></div>';
           }).join('');
         settingsList.querySelectorAll('.settings-toggle').forEach(el => {
           el.addEventListener('click', () => updateSetting(el.dataset.key, !el.classList.contains('on')));
