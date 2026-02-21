@@ -126,28 +126,28 @@
     .checkBox {
       display: inline-block;
       cursor: pointer;
-      width: 30px;
-      height: 30px;
-      border: 3px solid rgba(255, 255, 255, 0);
-      border-radius: 10px;
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(255, 255, 255, 0);
+      border-radius: 6px;
       position: relative;
       overflow: hidden;
       box-shadow: 0px 0px 0px 2px var(--text);
       flex-shrink: 0;
     }
     .checkBox div {
-      width: 60px;
-      height: 60px;
-      background-color: var(--accent);
-      top: -52px;
-      left: -52px;
+      width: 40px;
+      height: 40px;
+      background-color: #fff;
+      top: -36px;
+      left: -36px;
       position: absolute;
       transform: rotateZ(45deg);
       z-index: 10;
     }
     .checkBox input[type=checkbox]:checked + div {
-      left: -10px;
-      top: -10px;
+      left: -8px;
+      top: -8px;
     }
     .checkBox input[type=checkbox] {
       position: absolute;
@@ -379,7 +379,6 @@
     .history-item:hover {
       background: rgba(255,255,255,0.08);
       border-color: rgba(255,255,255,0.12);
-      transform: translateX(4px);
     }
     .history-item-token {
       font-weight: 600;
