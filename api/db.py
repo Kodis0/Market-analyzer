@@ -45,8 +45,27 @@ CREATE INDEX IF NOT EXISTS idx_signal_history_ts ON signal_history(ts);
 """
 
 
+def close() -> None:
+    """Close DB connection. Call before re-init or shutdown."""
+    global _conn
+    if _conn is not None:
+        try:
+            _conn.close()
+        except Exception:
+            pass
+        _conn = None
+
+
 def init(db_path: Path) -> None:
-    global DB_PATH, _conn
+    global DB_PATH, _conn, _buffer
+    if _conn is not None:
+        try:
+            _conn.close()
+        except Exception:
+            pass
+        _conn = None
+    with _buffer_lock:
+        _buffer.clear()
     DB_PATH = Path(db_path)
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     _conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
