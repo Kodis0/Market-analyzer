@@ -6,21 +6,122 @@ GET /api/status — статус бота (exchange_enabled)
 GET /api/settings — всё настройки (read-only)
 POST /api/exchange — вкл/выкл биржевую логику
 POST /api/settings — обновить настройки { key: value, ... }
+
+Защита: Telegram initData, auth_date TTL, allowlist user_id, rate limiting.
 """
 from __future__ import annotations
 
 import argparse
 import asyncio
 import logging
-from typing import Awaitable, Callable, Optional
+import time
+from collections import defaultdict
+from typing import Awaitable, Callable, Optional, Set
 
 from aiohttp import web
 
+from api.auth import validate_telegram_init_data
 from api.db import get_signal_history, get_stats, init as db_init
 
 log = logging.getLogger("api")
 
 CORS_HEADERS = {"Access-Control-Allow-Origin": "*", "Cache-Control": "no-store"}
+
+# Rate limit: IP -> list of request timestamps (sliding window)
+_rate_timestamps: dict[str, list[float]] = defaultdict(list)
+_rate_lock = asyncio.Lock()
+
+
+def _get_client_ip(req: web.Request) -> str:
+    peername = req.transport.get_extra_info("peername") if req.transport else None
+    if peername:
+        return str(peername[0])
+    forwarded = req.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return req.remote or "unknown"
+
+
+async def _check_rate_limit(ip: str, limit_per_min: int) -> bool:
+    """Return True if allowed, False if rate limited."""
+    if limit_per_min <= 0:
+        return True
+    now = time.time()
+    cutoff = now - 60
+    async with _rate_lock:
+        times = _rate_timestamps[ip]
+        times[:] = [t for t in times if t > cutoff]
+        if len(times) >= limit_per_min:
+            return False
+        times.append(now)
+    return True
+
+
+@web.middleware
+async def auth_middleware(request: web.Request, handler):
+    """Protect /api/* with Telegram initData validation and rate limiting."""
+    if not request.path.startswith("/api/"):
+        return await handler(request)
+
+    auth_config = request.app.get("auth_config")
+    if not auth_config:
+        return await handler(request)
+
+    bot_token = auth_config.get("bot_token")
+    api_cfg = auth_config.get("api_cfg")
+    if not api_cfg:
+        return await handler(request)
+
+    ip = _get_client_ip(request)
+
+    if api_cfg.get("rate_limit_per_min", 0) > 0:
+        allowed = await _check_rate_limit(ip, api_cfg["rate_limit_per_min"])
+        if not allowed:
+            log.warning("api: rate limit exceeded ip=%s", ip)
+            return web.json_response(
+                {"error": "Too many requests"},
+                status=429,
+                headers={**CORS_HEADERS, "Retry-After": "60"},
+            )
+
+    if not api_cfg.get("auth_required", True):
+        return await handler(request)
+
+    if not bot_token:
+        log.warning("api: auth required but no bot_token")
+        return web.json_response(
+            {"error": "Unauthorized", "detail": "Server misconfiguration"},
+            status=401,
+            headers=CORS_HEADERS,
+        )
+
+    init_data = request.headers.get("X-Telegram-Init-Data")
+    if not init_data:
+        log.warning("api: missing X-Telegram-Init-Data")
+        return web.json_response(
+            {"error": "Unauthorized", "detail": "Open dashboard via Telegram (Navigation button)"},
+            status=401,
+            headers=CORS_HEADERS,
+        )
+
+    allowed_ids: Optional[Set[int]] = None
+    if api_cfg.get("allowed_user_ids"):
+        allowed_ids = set(api_cfg["allowed_user_ids"])
+
+    validated = validate_telegram_init_data(
+        init_data,
+        bot_token,
+        auth_ttl_sec=api_cfg.get("auth_ttl_sec", 3600),
+        allowed_user_ids=allowed_ids,
+    )
+    if not validated:
+        return web.json_response(
+            {"error": "Unauthorized", "detail": "Invalid or expired auth. Open via Telegram."},
+            status=401,
+            headers=CORS_HEADERS,
+        )
+
+    return await handler(request)
 
 
 def create_app(
@@ -28,8 +129,11 @@ def create_app(
     get_status: Optional[Callable[[], dict]] = None,
     get_settings: Optional[Callable[[], dict]] = None,
     on_settings_update: Optional[Callable[[dict], Awaitable[dict]]] = None,
+    auth_config: Optional[dict] = None,
 ) -> web.Application:
-    app = web.Application()
+    app = web.Application(middlewares=[auth_middleware])
+    if auth_config:
+        app["auth_config"] = auth_config
 
     async def handle_stats(req: web.Request) -> web.Response:
         period = req.query.get("period", "1h")
@@ -119,6 +223,7 @@ async def run_server(
     get_status: Optional[Callable[[], dict]] = None,
     get_settings: Optional[Callable[[], dict]] = None,
     on_settings_update: Optional[Callable[[dict], Awaitable[dict]]] = None,
+    auth_config: Optional[dict] = None,
 ) -> None:
     if db_path:
         from pathlib import Path
@@ -129,6 +234,7 @@ async def run_server(
         get_status=get_status,
         get_settings=get_settings,
         on_settings_update=on_settings_update,
+        auth_config=auth_config,
     )
     runner = web.AppRunner(app)
     await runner.setup()

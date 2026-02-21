@@ -91,6 +91,14 @@ class LoggingCfg(BaseModel):
     level: str = "INFO"
 
 
+class ApiCfg(BaseModel):
+    """API security for Mini App. Protects /api/* endpoints."""
+    auth_required: bool = True
+    auth_ttl_sec: int = 3600  # initData older than this is rejected (replay protection)
+    allowed_user_ids: List[int] = []  # empty = any valid Telegram user; non-empty = only these IDs
+    rate_limit_per_min: int = 60  # max requests per IP per minute
+
+
 class AppConfig(BaseModel):
     telegram: TelegramCfg
     bybit: BybitCfg
@@ -102,3 +110,4 @@ class AppConfig(BaseModel):
     filters: FiltersCfg
     runtime: RuntimeCfg
     logging: LoggingCfg
+    api: ApiCfg = Field(default_factory=ApiCfg)

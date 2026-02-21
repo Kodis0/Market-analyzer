@@ -686,6 +686,11 @@
       const API_FALLBACK = (typeof location !== 'undefined' && location.origin) ? location.origin.replace(/\/$/, '') : '';
       document.getElementById('api-display').textContent = API_BASE;
 
+      function getAuthHeaders() {
+        const initData = window.Telegram?.WebApp?.initData;
+        return initData ? { 'X-Telegram-Init-Data': initData } : {};
+      }
+
       let currentPeriod = '1h';
       const ctx = document.getElementById('chart').getContext('2d');
 
@@ -768,8 +773,8 @@
 
       async function fetchFromUrl(base) {
         const url = base + '/api/stats?period=' + currentPeriod;
-        const r = await fetch(url, { cache: 'no-store' });
-        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const r = await fetch(url, { cache: 'no-store', headers: getAuthHeaders() });
+        if (!r.ok) throw new Error(r.status === 401 ? 'Откройте дашборд через Telegram (кнопка «Навигация»)' : 'HTTP ' + r.status);
         let data = await r.json();
         if (!Array.isArray(data)) data = [];
         return data;
@@ -856,8 +861,8 @@
       async function fetchSignalHistory() {
         historyList.innerHTML = '<li class="history-empty">Загрузка...</li>';
         try {
-          const r = await fetch(API_BASE.replace(/\/$/, '') + '/api/signal-history?period=' + historyPeriod);
-          if (!r.ok) throw new Error('HTTP ' + r.status);
+          const r = await fetch(API_BASE.replace(/\/$/, '') + '/api/signal-history?period=' + historyPeriod, { headers: getAuthHeaders() });
+          if (!r.ok) throw new Error(r.status === 401 ? 'Откройте дашборд через Telegram (кнопка «Навигация»)' : 'HTTP ' + r.status);
           const data = await r.json();
           if (!data || data.length === 0) {
             historyList.innerHTML = '<li class="history-empty">Нет сигналов за выбранный период</li>';
@@ -876,7 +881,7 @@
             </li>
           `).join('');
         } catch (e) {
-          historyList.innerHTML = '<li class="history-empty">Ошибка загрузки: ' + escapeHtml(e.message) + '</li>';
+          historyList.innerHTML = '<li class="history-empty">Ошибка загрузки: ' + escapeHtml(e.message || String(e)) + '</li>';
         }
       }
 
@@ -936,11 +941,11 @@
 
         try {
           const [statusRes, settingsRes] = await Promise.all([
-            fetch(API_BASE + '/api/status'),
-            fetch(API_BASE + '/api/settings')
+            fetch(API_BASE + '/api/status', { headers: getAuthHeaders() }),
+            fetch(API_BASE + '/api/settings', { headers: getAuthHeaders() })
           ]);
 
-          if (!statusRes.ok) throw new Error('Status ' + statusRes.status);
+          if (!statusRes.ok) throw new Error(statusRes.status === 401 ? 'Откройте дашборд через Telegram (кнопка «Навигация»)' : 'Status ' + statusRes.status);
           const status = await statusRes.json();
           setStatusDot(apiDot, true);
           apiVal.textContent = 'Онлайн';
@@ -1010,10 +1015,10 @@
         try {
           const r = await fetch(API_BASE + '/api/settings', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify({ [key]: value })
           });
-          if (!r.ok) throw new Error('HTTP ' + r.status);
+          if (!r.ok) throw new Error(r.status === 401 ? 'Откройте дашборд через Telegram (кнопка «Навигация»)' : 'HTTP ' + r.status);
           const data = await r.json();
           if (data.updated && data.updated[key] !== undefined) {
             const item = settingsList.querySelector('[data-key="' + key + '"]');
@@ -1040,10 +1045,10 @@
         try {
           const r = await fetch(API_BASE + '/api/exchange', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify({ enabled: next })
           });
-          if (!r.ok) throw new Error('HTTP ' + r.status);
+          if (!r.ok) throw new Error(r.status === 401 ? 'Откройте дашборд через Telegram (кнопка «Навигация»)' : 'HTTP ' + r.status);
           const data = await r.json();
           exchangeToggle.classList.toggle('on', data.exchange_enabled);
           exchangeToggle.classList.toggle('off', !data.exchange_enabled);

@@ -697,6 +697,21 @@ async def main(cfg_path: str) -> None:
                 apply_settings_reload(settings)
             return {"ok": True, "updated": updated, "settings": settings.to_dict()}
 
+        api_cfg = getattr(cfg, "api", None)
+        auth_config = None
+        if api_cfg and getattr(api_cfg, "auth_required", True):
+            auth_config = {
+                "bot_token": tg_token,
+                "api_cfg": {
+                    "auth_required": api_cfg.auth_required,
+                    "auth_ttl_sec": api_cfg.auth_ttl_sec,
+                    "allowed_user_ids": list(api_cfg.allowed_user_ids or []),
+                    "rate_limit_per_min": api_cfg.rate_limit_per_min,
+                },
+            }
+        elif api_cfg and not getattr(api_cfg, "auth_required", True):
+            auth_config = {"bot_token": None, "api_cfg": {"auth_required": False}}
+
         api_server_mod = __import__("api.server", fromlist=["run_server"])
         tasks: list[asyncio.Task] = [
             asyncio.create_task(
@@ -707,6 +722,7 @@ async def main(cfg_path: str) -> None:
                     get_status=get_status,
                     get_settings=get_settings,
                     on_settings_update=on_settings_update,
+                    auth_config=auth_config,
                 ),
                 name="api_server",
             ),

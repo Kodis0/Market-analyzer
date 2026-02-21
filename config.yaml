@@ -2339,6 +2339,14 @@ trading:
 logging:
   level: INFO
 
+# Защита API для Mini App: Telegram initData, rate limit
+# allowed_user_ids: [123456789] — только эти Telegram ID (пусто = любой валидный пользователь)
+api:
+  auth_required: true
+  auth_ttl_sec: 3600
+  allowed_user_ids: []
+  rate_limit_per_min: 60
+
 telegram:
   chat_id: -1003881338901
   thread_id: null
