@@ -22,7 +22,14 @@ from typing import Awaitable, Callable, Optional, Set
 from aiohttp import web
 
 from api.auth import validate_telegram_init_data
-from api.db import delete_signal, get_signal_history, get_stats, health_check as db_health_check, init as db_init, update_signal_status
+from api.db import (
+    delete_signal_async,
+    get_signal_history_async,
+    get_stats_async,
+    health_check_async as db_health_check_async,
+    init as db_init,
+    update_signal_status_async,
+)
 
 log = logging.getLogger("api")
 
@@ -208,7 +215,7 @@ def create_app(
         period = req.query.get("period", "1h")
         if period not in ("1h", "1d", "1w", "all"):
             period = "1h"
-        data = get_stats(period)
+        data = await get_stats_async(period)
         return web.json_response(data, headers=_cors_headers(req))
 
     async def handle_signal_history(req: web.Request) -> web.Response:
@@ -219,11 +226,11 @@ def create_app(
             limit = min(500, max(1, int(req.query.get("limit", 200))))
         except (TypeError, ValueError):
             limit = 200
-        data = get_signal_history(period, limit=limit)
+        data = await get_signal_history_async(period, limit=limit)
         return web.json_response(data, headers=_cors_headers(req))
 
     async def handle_root(req: web.Request) -> web.Response:
-        data: dict = {"ok": True, "api": "market-analyzer", "db_ok": db_health_check()}
+        data: dict = {"ok": True, "api": "market-analyzer", "db_ok": await db_health_check_async()}
         if get_status is not None:
             data.update(get_status())
         return web.json_response(data, headers=_cors_headers(req))
@@ -241,7 +248,7 @@ def create_app(
                 status=400,
                 headers=_cors_headers(req),
             )
-        ok = update_signal_status(int(sid), status)
+        ok = await update_signal_status_async(int(sid), status)
         return web.json_response({"ok": ok}, headers=_cors_headers(req))
 
     async def handle_signal_history_delete(req: web.Request) -> web.Response:
@@ -256,7 +263,7 @@ def create_app(
             sid = int(sid)
         except (TypeError, ValueError):
             return web.json_response({"error": "id must be number"}, status=400, headers=_cors_headers(req))
-        ok = delete_signal(sid)
+        ok = await delete_signal_async(sid)
         return web.json_response({"ok": ok}, headers=_cors_headers(req))
 
     async def handle_logs(req: web.Request) -> web.Response:

@@ -1,9 +1,11 @@
 """
 SQLite хранилище статистики запросов к Jupiter и Bybit.
 Оптимизировано: батчинг записей, WAL mode — снижает нагрузку на диск.
+Async wrappers run sync ops in thread pool to avoid blocking event loop.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import sqlite3
 import threading
@@ -96,6 +98,11 @@ def flush() -> None:
     _flush()
 
 
+async def flush_async() -> None:
+    """Non-blocking flush. Use in async context."""
+    await asyncio.to_thread(flush)
+
+
 def health_check() -> bool:
     """Return True if DB is initialized and responsive."""
     if _conn is None:
@@ -105,6 +112,11 @@ def health_check() -> bool:
         return True
     except Exception:
         return False
+
+
+async def health_check_async() -> bool:
+    """Non-blocking health check. Use in async context."""
+    return await asyncio.to_thread(health_check)
 
 
 def record(source: str, count: int = 1) -> None:
@@ -119,6 +131,11 @@ def record(source: str, count: int = 1) -> None:
     now = time.monotonic()
     if now - _last_flush >= _flush_interval_sec:
         _flush()
+
+
+async def record_async(source: str, count: int = 1) -> None:
+    """Non-blocking record. Use in async context."""
+    await asyncio.to_thread(record, source, count)
 
 
 def get_stats(period: str) -> list[dict]:
@@ -174,6 +191,11 @@ def get_stats(period: str) -> list[dict]:
     return result
 
 
+async def get_stats_async(period: str) -> list[dict]:
+    """Non-blocking get_stats. Use in async context."""
+    return await asyncio.to_thread(get_stats, period)
+
+
 def record_signal(token: str, direction: str, profit_usd: float, notional_usd: float) -> None:
     """Записать сигнал в историю. Пропускает дубликаты (тот же token+direction+profit в последние 60 сек)."""
     if _conn is None:
@@ -203,6 +225,13 @@ def record_signal(token: str, direction: str, profit_usd: float, notional_usd: f
             )
     except Exception as e:
         log.warning("signal_history record failed: %s", e)
+
+
+async def record_signal_async(
+    token: str, direction: str, profit_usd: float, notional_usd: float
+) -> None:
+    """Non-blocking record_signal. Use in async context."""
+    await asyncio.to_thread(record_signal, token, direction, profit_usd, notional_usd)
 
 
 STALE_AGE_SEC = 900  # 15 мин — сигнал считается устаревшим по возрасту
@@ -262,6 +291,11 @@ def get_signal_history(period: str, limit: int = 200) -> list[dict]:
     return result
 
 
+async def get_signal_history_async(period: str, limit: int = 200) -> list[dict]:
+    """Non-blocking get_signal_history. Use in async context."""
+    return await asyncio.to_thread(get_signal_history, period, limit)
+
+
 def update_signal_status(signal_id: int, status: str) -> bool:
     """Обновить статус сигнала. status: 'active' | 'stale'. Возвращает True если обновлено."""
     if _conn is None:
@@ -280,6 +314,11 @@ def update_signal_status(signal_id: int, status: str) -> bool:
         return False
 
 
+async def update_signal_status_async(signal_id: int, status: str) -> bool:
+    """Non-blocking update_signal_status. Use in async context."""
+    return await asyncio.to_thread(update_signal_status, signal_id, status)
+
+
 def delete_signal(signal_id: int) -> bool:
     """Удалить сигнал по id. Возвращает True если удалено."""
     if _conn is None:
@@ -291,3 +330,8 @@ def delete_signal(signal_id: int) -> bool:
     except Exception as e:
         log.warning("signal_history delete failed: %s", e)
         return False
+
+
+async def delete_signal_async(signal_id: int) -> bool:
+    """Non-blocking delete_signal. Use in async context."""
+    return await asyncio.to_thread(delete_signal, signal_id)

@@ -354,9 +354,9 @@ async def main(cfg_path: str) -> None:
 
         def _record_jupiter(source: str, count: int = 1) -> None:
             try:
-                from api.db import record
+                from api.db import record_async
 
-                record(source, count)
+                asyncio.get_running_loop().create_task(record_async(source, count))
             except Exception as e:
                 log.warning("Failed to record Jupiter stats: %s", e)
 
@@ -410,9 +410,9 @@ async def main(cfg_path: str) -> None:
             reply_markup = sig.to_reply_markup() if hasattr(sig, "to_reply_markup") else None
             await tg.upsert(sig.key, sig.text, reply_markup=reply_markup)
             try:
-                from api.db import record_signal
+                from api.db import record_signal_async
 
-                record_signal(
+                await record_signal_async(
                     sig.token,
                     sig.direction,
                     float(sig.profit_usd),
@@ -426,11 +426,13 @@ async def main(cfg_path: str) -> None:
 
         def _record_bybit() -> None:
             try:
-                from api.db import record
+                from api.db import record_async
 
                 _bybit_record_counter[0] += 1
                 if _bybit_record_counter[0] >= stats_bybit_sample:
-                    record("bybit", _bybit_record_counter[0])
+                    asyncio.get_running_loop().create_task(
+                        record_async("bybit", _bybit_record_counter[0])
+                    )
                     _bybit_record_counter[0] = 0
             except Exception as e:
                 log.warning("Failed to record Bybit stats: %s", e)
@@ -632,10 +634,12 @@ async def main(cfg_path: str) -> None:
                 if not settings.exchange_enabled:
                     continue
                 try:
-                    from api.db import record
+                    from api.db import record_async
 
-                    record("jupiter", 1)
-                    record("bybit", 1)
+                    await asyncio.gather(
+                        record_async("jupiter", 1),
+                        record_async("bybit", 1),
+                    )
                 except Exception as e:
                     log.warning("Stats heartbeat failed: %s", e)
 
@@ -777,7 +781,7 @@ async def main(cfg_path: str) -> None:
             commands_stop.set()
             await asyncio.sleep(1)  # let loops notice stop signal
             try:
-                api_db.flush()
+                await api_db.flush_async()
                 log.info("DB buffer flushed")
             except Exception as e:
                 log.warning("DB flush on shutdown failed: %s", e)
