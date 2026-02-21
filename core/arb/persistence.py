@@ -15,4 +15,7 @@ class Persistence:
             self._cnt[key] = 0
             return False
         self._cnt[key] = self._cnt.get(key, 0) + 1
-        return self._cnt[key] >= self.hits
+        if self._cnt[key] >= self.hits:
+            self._cnt[key] = 0  # reset after success to bound memory
+            return True
+        return False
