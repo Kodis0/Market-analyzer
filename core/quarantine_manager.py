@@ -97,15 +97,15 @@ class QuarantineManager:
         if not symbol:
             return
 
-        now = now_ts()
-        last = self._last_write.get(symbol, 0)
-        if (now - last) < 60:
-            return
-        self._last_write[symbol] = now
-
-        until = now + int(ttl_sec)
-
         async with self._lock:
+            now = now_ts()
+            last = self._last_write.get(symbol, 0)
+            if (now - last) < 60:
+                return
+            self._last_write[symbol] = now
+
+            until = now + int(ttl_sec)
+
             q = prune_expired(load_quarantine(str(self.quarantine_path)))
             prev = q.get(symbol)
 
