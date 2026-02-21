@@ -163,6 +163,10 @@ def create_app(
         data = get_signal_history(period, limit=limit)
         return web.json_response(data, headers=CORS_HEADERS)
 
+    async def handle_root(req: web.Request) -> web.Response:
+        return web.json_response({"ok": True, "api": "market-analyzer"}, headers=CORS_HEADERS)
+
+    app.router.add_get("/", handle_root)
     app.router.add_get("/api/stats", handle_stats)
     app.router.add_get("/api/signal-history", handle_signal_history)
 

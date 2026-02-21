@@ -775,7 +775,10 @@
         const url = base + '/api/stats?period=' + currentPeriod;
         const r = await fetch(url, { cache: 'no-store', headers: getAuthHeaders() });
         if (!r.ok) {
-          const err = new Error(r.status === 401 ? 'Откройте дашборд через Telegram (кнопка «Навигация»)' : 'HTTP ' + r.status);
+          let msg = 'HTTP ' + r.status;
+          if (r.status === 401) msg = 'Откройте дашборд через Telegram (кнопка «Навигация»)';
+          else if (r.status === 404) msg = 'API не найден. Проверь URL (должен быть api.arbmarketsystem.ru), бот и туннель.';
+          const err = new Error(msg);
           err.status = r.status;
           throw err;
         }
@@ -810,7 +813,7 @@
             break;
           } catch (e) {
             lastError = e;
-            if (e.status === 401) break;
+            if (e.status === 401 || e.status === 404) break;
           }
         }
         if (data.length > 0) {
