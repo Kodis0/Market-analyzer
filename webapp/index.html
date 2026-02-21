@@ -457,6 +457,7 @@
       background: var(--bg-card);
       border-radius: 16px;
       padding: 20px;
+      padding-bottom: calc(20px + 72px + env(safe-area-inset-bottom, 0px));
       margin-bottom: 20px;
       border: 1px solid var(--border);
     }
@@ -469,10 +470,10 @@
       letter-spacing: 0.05em;
     }
     .settings-list {
-      max-height: 400px;
+      max-height: min(400px, calc(100vh - 320px));
       overflow-y: auto;
-      padding-bottom: 100px;
-      margin-bottom: -100px;
+      padding-bottom: calc(100px + 72px + env(safe-area-inset-bottom, 0px));
+      margin-bottom: 0;
     }
     .settings-item {
       display: flex;
