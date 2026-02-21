@@ -538,18 +538,6 @@ async function fetchAutoTune() {
     const data = await r.json();
     autoTuneToggle?.classList.toggle('on', !!data.enabled);
     autoTuneToggle?.classList.toggle('off', !data.enabled);
-    const m = data.metrics || {};
-    const setMetric = (id, val) => {
-      const el = document.getElementById(id);
-      if (el) el.textContent = val != null ? String(val) : '—';
-    };
-    setMetric('at-signals', m.signals_sent);
-    setMetric('at-skip-profit', m.skip_profit_le0);
-    setMetric('at-skip-pers', m.skip_persistence);
-    setMetric('at-skip-dedup', m.skip_dedup);
-    setMetric('at-skip-spread', m.skip_spread);
-    setMetric('at-skip-depth', m.skip_depth);
-    setMetric('at-skip-cex', m.skip_cex_slip);
     renderAutoTuneBounds(data.bounds);
     const history = data.history || [];
     if (autoTuneHistoryList) {
