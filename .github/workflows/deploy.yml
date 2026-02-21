@@ -4,6 +4,7 @@ name: Deploy to server
 on:
   push:
     branches: [main, master]
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -16,12 +17,13 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
-          timeout: 60
-          command_timeout: 120
+          timeout: 120s
+          command_timeout: 5m
+          request_pty: true
           debug: true
           script: |
-            cd ${{ secrets.DEPLOY_PATH || '~/Market-analyzer' }}
-            git fetch && git reset --hard origin/$(git rev-parse --abbrev-ref HEAD)
+            cd ${{ secrets.DEPLOY_PATH || '/root/Market-analyzer' }}
+            git fetch origin && git reset --hard origin/main
             source .venv/bin/activate 2>/dev/null || true
             pip install -r requirements.txt -q
-            sudo systemctl restart market-analyzer 2>/dev/null || echo "Service not installed yet"
+            systemctl restart market-analyzer 2>/dev/null || echo "Service not installed yet"

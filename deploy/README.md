@@ -121,7 +121,7 @@ Get-Content $env:USERPROFILE\.ssh\deploy_key
 
 ---
 
-## Оптимизация нагрузки (слабый сервер)
+## Оптимизация нагрузки 
 
 В `config.yaml` → `runtime`:
 - `status_interval_sec: 30` — реже STATUS логи (по умолчанию 15)
@@ -129,6 +129,16 @@ Get-Content $env:USERPROFILE\.ssh\deploy_key
 - `engine_tick_hz: 1` — реже проверка арбитража (по умолчанию 2)
 
 Меньше символов в `bybit.symbols` — меньше нагрузка.
+
+---
+
+## Если Actions показывает красный крестик (SSH timeout)
+
+1. **Проверь Secrets** — `SERVER_HOST` должен быть IP сервера (109.73.199.154), `DEPLOY_PATH` — `/root/Market-analyzer`.
+2. **Панель Timeweb** → Firewall — порт 22 должен быть открыт для входящих.
+3. **Проверь SSH с ПК:** `ssh -i deploy_key root@IP` — если не подключается, сервер перегружен или порт закрыт.
+4. **Ручной запуск:** GitHub → Actions → Deploy to server → Run workflow — можно запустить деплой вручную.
+5. **Пока SSH не работает** — деплой через веб-консоль (см. команды выше).
 
 ---
 
