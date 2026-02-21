@@ -228,7 +228,8 @@ class ArbEngine:
             qp = await self.state.get_quote_pair(token_key)
             now_ms = self.state.now_ms()
 
-            # atomic-ish snapshot of quotes
+            # Snapshot quotes under lock, then use copies outside. Poller may update qp
+            # concurrently; using j_buy/j_sell avoids race and keeps evaluation consistent.
             async with qp.lock:
                 if qp.buy_quote is not None and (now_ms - int(qp.buy_updated_ms or 0)) > self.max_quote_age_ms:
                     self._dbg_inc("skip_stale_buy_quote")
