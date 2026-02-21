@@ -49,6 +49,8 @@ def _cors_headers(request: web.Request) -> dict:
 # Rate limit: IP -> list of request timestamps (sliding window)
 _rate_timestamps: dict[str, list[float]] = defaultdict(list)
 _rate_lock = asyncio.Lock()
+_logs_rate_timestamps: dict[str, list[float]] = defaultdict(list)
+_logs_rate_lock = asyncio.Lock()
 
 
 def _get_client_ip(req: web.Request) -> str:
@@ -69,6 +71,21 @@ async def _check_rate_limit(ip: str, limit_per_min: int) -> bool:
     cutoff = now - 60
     async with _rate_lock:
         times = _rate_timestamps[ip]
+        times[:] = [t for t in times if t > cutoff]
+        if len(times) >= limit_per_min:
+            return False
+        times.append(now)
+    return True
+
+
+async def _check_logs_rate_limit(ip: str, limit_per_min: int) -> bool:
+    """Separate rate limit for /api/logs."""
+    if limit_per_min <= 0:
+        return True
+    now = time.time()
+    cutoff = now - 60
+    async with _logs_rate_lock:
+        times = _logs_rate_timestamps[ip]
         times[:] = [t for t in times if t > cutoff]
         if len(times) >= limit_per_min:
             return False
@@ -97,7 +114,21 @@ async def auth_middleware(request: web.Request, handler):
 
     ip = _get_client_ip(request)
 
-    if api_cfg.get("rate_limit_per_min", 0) > 0:
+    # /api/logs has its own rate limit (only when api_cfg exists)
+    if request.path == "/api/logs" and api_cfg:
+        if not api_cfg.get("logs_enabled", True):
+            return web.json_response({"error": "Logs disabled"}, status=404, headers=_cors_headers(request))
+        logs_limit = api_cfg.get("logs_rate_limit_per_min", 10)
+        if logs_limit > 0:
+            allowed = await _check_logs_rate_limit(ip, logs_limit)
+            if not allowed:
+                log.warning("api: logs rate limit exceeded ip=%s", ip)
+                return web.json_response(
+                    {"error": "Too many requests"},
+                    status=429,
+                    headers={**_cors_headers(request), "Retry-After": "60"},
+                )
+    elif api_cfg.get("rate_limit_per_min", 0) > 0:
         allowed = await _check_rate_limit(ip, api_cfg["rate_limit_per_min"])
         if not allowed:
             log.warning("api: rate limit exceeded ip=%s", ip)
@@ -210,8 +241,21 @@ def create_app(
         ok = delete_signal(sid)
         return web.json_response({"ok": ok}, headers=_cors_headers(req))
 
+    async def handle_logs(req: web.Request) -> web.Response:
+        from api.log_buffer import get_logs
+
+        try:
+            limit = min(200, max(1, int(req.query.get("limit", 100))))
+        except (TypeError, ValueError):
+            limit = 100
+        lines = get_logs(limit=limit)
+        if lines is None:
+            return web.json_response({"error": "Logs disabled"}, status=404, headers=_cors_headers(req))
+        return web.json_response({"lines": lines, "total": len(lines)}, headers=_cors_headers(req))
+
     app.router.add_get("/", handle_root)
     app.router.add_get("/api/stats", handle_stats)
+    app.router.add_get("/api/logs", handle_logs)
     app.router.add_get("/api/signal-history", handle_signal_history)
     app.router.add_route("PATCH", "/api/signal-history", handle_signal_history_patch)
     app.router.add_route("DELETE", "/api/signal-history", handle_signal_history_delete)

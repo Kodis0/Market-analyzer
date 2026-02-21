@@ -108,6 +108,14 @@ async def main(cfg_path: str) -> None:
     cfg = AppConfig.model_validate(raw)
     setup_logging(cfg.logging.level)
 
+    from api.log_buffer import init_log_buffer
+
+    init_log_buffer(
+        enabled=cfg.api.logs_enabled,
+        buffer_size=cfg.api.logs_buffer_size,
+        max_line_len=cfg.api.logs_max_line_len,
+    )
+
     # ---- paths ----
     cfg_dir = os.path.dirname(os.path.abspath(cfg_path))
     settings_path = os.path.join(cfg_dir, "settings.json")
@@ -709,10 +717,20 @@ async def main(cfg_path: str) -> None:
                     "allowed_user_ids": list(api_cfg.allowed_user_ids or []),
                     "rate_limit_per_min": api_cfg.rate_limit_per_min,
                     "cors_origins": list(api_cfg.cors_origins or []),
+                    "logs_enabled": getattr(api_cfg, "logs_enabled", True),
+                    "logs_rate_limit_per_min": getattr(api_cfg, "logs_rate_limit_per_min", 10),
                 },
             }
         elif api_cfg and not getattr(api_cfg, "auth_required", True):
-            auth_config = {"bot_token": None, "api_cfg": {"auth_required": False, "cors_origins": list(getattr(api_cfg, "cors_origins", None) or [])}}
+            auth_config = {
+                "bot_token": None,
+                "api_cfg": {
+                    "auth_required": False,
+                    "cors_origins": list(getattr(api_cfg, "cors_origins", None) or []),
+                    "logs_enabled": getattr(api_cfg, "logs_enabled", True),
+                    "logs_rate_limit_per_min": getattr(api_cfg, "logs_rate_limit_per_min", 10),
+                },
+            }
 
         api_server_mod = __import__("api.server", fromlist=["run_server"])
         tasks: list[asyncio.Task] = [

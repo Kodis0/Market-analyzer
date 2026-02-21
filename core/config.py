@@ -98,6 +98,10 @@ class ApiCfg(BaseModel):
     allowed_user_ids: List[int] = []  # empty = any valid Telegram user; non-empty = only these IDs
     rate_limit_per_min: int = 60  # max requests per IP per minute
     cors_origins: List[str] = []  # empty = *; non-empty = only these origins (e.g. https://market.example.com)
+    logs_enabled: bool = True  # enable GET /api/logs (last N lines from buffer)
+    logs_buffer_size: int = 1000  # max lines in ring buffer
+    logs_max_line_len: int = 500  # truncate longer lines
+    logs_rate_limit_per_min: int = 10  # separate limit for /api/logs
 
 
 class AppConfig(BaseModel):

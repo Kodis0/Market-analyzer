@@ -2348,6 +2348,10 @@ api:
   allowed_user_ids: []
   rate_limit_per_min: 60
   cors_origins: []
+  logs_enabled: true
+  logs_buffer_size: 1000
+  logs_max_line_len: 500
+  logs_rate_limit_per_min: 10
 
 telegram:
   chat_id: -1003881338901

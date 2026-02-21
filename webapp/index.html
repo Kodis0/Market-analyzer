@@ -746,6 +746,47 @@
       transform: translateX(24px);
     }
 
+    .console-card {
+      background: rgba(40, 40, 40, 0.5);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 20px;
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.2);
+    }
+    .console-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .console-toolbar h2 {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .console-output {
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 0.75rem;
+      line-height: 1.5;
+      background: rgba(0,0,0,0.4);
+      border-radius: 10px;
+      padding: 16px;
+      max-height: 400px;
+      overflow-y: auto;
+      color: #a0aec0;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .console-line { margin-bottom: 2px; }
+    .console-line.error { color: #fc8181; }
+    .console-line.warning { color: #f6ad55; }
+    .console-empty { color: var(--text-dim); text-align: center; padding: 24px; }
+
     @media (prefers-color-scheme: light) {
       :root {
         --bg: #f5f5f5;
@@ -868,10 +909,36 @@
       </div>
     </div>
 
+    <div id="tab-console" class="tab-panel">
+      <div class="header">
+        <div class="header-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+        </div>
+        <div class="header-text">
+          <h1>Консоль</h1>
+          <p>Логи сервера (последние 100 строк)</p>
+        </div>
+      </div>
+      <div class="console-card">
+        <div class="console-toolbar">
+          <h2>Логи</h2>
+          <button type="button" class="btn-refresh" id="btn-console-refresh" title="Обновить">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            Обновить
+          </button>
+        </div>
+        <div id="console-output" class="console-output"></div>
+      </div>
+    </div>
+
     <nav class="nav-bar">
       <button type="button" class="nav-item active" data-tab="main">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
         Главная
+      </button>
+      <button type="button" class="nav-item" data-tab="console">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+        Консоль
       </button>
       <button type="button" class="nav-item" data-tab="settings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -1311,6 +1378,9 @@
           if (tab === 'settings') {
             fetchStatusAndSettings();
           }
+          if (tab === 'console') {
+            fetchConsoleLogs();
+          }
         });
       });
 
@@ -1369,6 +1439,38 @@
       }
 
       document.getElementById('btn-settings-refresh').addEventListener('click', fetchStatusAndSettings);
+
+      async function fetchConsoleLogs() {
+        const el = document.getElementById('console-output');
+        el.textContent = 'Загрузка...';
+        try {
+          const r = await fetch(API_BASE.replace(/\/$/, '') + '/api/logs?limit=100', { headers: getAuthHeaders() });
+          if (!r.ok) {
+            if (r.status === 404) {
+              el.innerHTML = '<div class="console-empty">Консоль отключена в настройках сервера</div>';
+              return;
+            }
+            if (r.status === 401) throw new Error('Откройте дашборд через Telegram (кнопка «Навигация»)');
+            if (r.status === 429) throw new Error('Слишком много запросов. Подождите минуту.');
+            throw new Error('HTTP ' + r.status);
+          }
+          const data = await r.json();
+          const lines = data.lines || [];
+          if (lines.length === 0) {
+            el.innerHTML = '<div class="console-empty">Нет логов</div>';
+            return;
+          }
+          el.innerHTML = lines.map(line => {
+            const cls = line.includes('ERROR') ? 'error' : line.includes('WARNING') ? 'warning' : '';
+            return '<div class="console-line ' + cls + '">' + escapeHtml(line) + '</div>';
+          }).join('');
+          el.scrollTop = el.scrollHeight;
+        } catch (e) {
+          el.innerHTML = '<div class="console-empty">Ошибка: ' + escapeHtml(e.message || String(e)) + '</div>';
+        }
+      }
+
+      document.getElementById('btn-console-refresh').addEventListener('click', fetchConsoleLogs);
 
       const SETTING_TOOLTIPS = {
         bybit_taker_fee_bps: 'Комиссия Bybit в базисных пунктах (1 bps = 0.01%)',
