@@ -472,7 +472,7 @@ jupiter:
   slippage_bps: 50
   restrict_intermediate_tokens: false
   max_accounts: 64
-  poll_interval_sec: 10
+  poll_interval_sec: 6  # было 10 — чаще обновление котировок для ловли арбитража
 rate_limits:
   jupiter_rps: 5
   jupiter_concurrency: 6
@@ -2372,20 +2372,20 @@ notifier:
 thresholds:
   bybit_taker_fee_bps: 10
   solana_tx_fee_usd: 0.05
-  latency_buffer_bps: 12
+  latency_buffer_bps: 8   # было 12 — чуть меньше буфер для большего числа сигналов
   usdt_usdc_buffer_bps: 8
   min_profit_usd: 0.5
 
 filters:
   max_cex_slippage_bps: 120
   max_dex_price_impact_pct: 4.0
-  persistence_hits: 1
+  persistence_hits: 2      # было 1 — 2 подряд для снижения шума
   cooldown_sec: 2
-  min_delta_profit_usd_to_resend: 1
-  price_ratio_max: 3
+  min_delta_profit_usd_to_resend: 0.5  # было 1 — чаще обновление при улучшении
+  price_ratio_max: 1.8    # было 3 — отсечение аномалий
   gross_profit_cap_pct: 12
   max_spread_bps: 220
-  min_depth_coverage_pct: 50
+  min_depth_coverage_pct: 70   # было 50 — более реалистичные сигналы
 
   denylist_symbols:
     - XAUT
@@ -2401,7 +2401,7 @@ filters:
     - ^(1000|10000|100000)[A-Z0-9]+$
 
 runtime:
-  engine_tick_hz: 2
+  engine_tick_hz: 4       # было 2 — чаще проверка арбитража
   ws_snapshot_timeout_sec: 60
   status_interval_sec: 15
   stats_bybit_sample: 10

@@ -8,6 +8,7 @@ from decimal import Decimal
 from connectors.jupiter import JupiterClient
 from core.calc import calc_mid_spread
 from core.state import MarketState
+from core.vwap import simulate_buy_with_notional
 
 from .denylist import Denylist
 from .stats import SkipStats
@@ -18,8 +19,9 @@ log = logging.getLogger("engine")
 
 class QuotePoller:
     """
-    Periodically fetch ONLY BUY quotes (stable -> token) from Jupiter.
-    Sell quotes are fetched on-demand in the engine (B-branch).
+    Periodically fetch BUY (stable -> token) and SELL (token -> stable) quotes from Jupiter.
+    Sell pre-poll: симулируем покупку на Bybit, получаем token_amount, запрашиваем sell-котировку.
+    Это ускоряет B-branch — engine реже делает on-demand requote.
     """
 
     def __init__(
@@ -140,6 +142,18 @@ class QuotePoller:
                     qp.buy_quote = buy_q
                     qp.buy_updated_ms = self.state.now_ms()
                 self._poll_backoff_until.pop(token_key, None)
+
+                # Pre-poll SELL (token -> stable) для B-branch: симулируем покупку на Bybit
+                sim_buy = simulate_buy_with_notional(asks, self.notional)
+                if sim_buy is not None and sim_buy.base_out > 0:
+                    sell_amount_raw = to_raw(sim_buy.base_out, decimals)
+                    if sell_amount_raw > 0:
+                        sell_q = await self.jup.quote_exact_in(mint, self.stable_mint, sell_amount_raw)
+                        if sell_q is not None:
+                            async with qp.lock:
+                                qp.sell_quote = sell_q
+                                qp.sell_updated_ms = self.state.now_ms()
+                                qp.sell_amount_raw = sell_amount_raw
             else:
                 self._dbg("poll_buy_quote_none")
                 self._poll_backoff(token_key, self.backoff_on_none_sec)

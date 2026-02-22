@@ -1,2 +1,11 @@
 .env
 settings.json
+
+# Базы данных — не коммитить, чтобы не перезаписывать данные на сервере при push
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+request_stats.db
