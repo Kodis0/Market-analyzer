@@ -25,6 +25,7 @@ class AppContext:
         self.raw: dict[str, Any] = {}
         self.cfg_dir: Path = Path()
         self.settings_path: Path = Path()
+        self.api_db_path: Path = Path()
         self.settings: RuntimeSettings | None = None
         self.state: MarketState | None = None
         self.q_manager: QuarantineManager | None = None

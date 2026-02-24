@@ -261,6 +261,7 @@ def get_signal_history(period: str, limit: int = 200) -> list[dict]:
     is_stale = True если status='stale' или возраст > STALE_AGE_SEC.
     """
     if _conn is None:
+        log.warning("get_signal_history: DB not initialized (_conn is None)")
         return []
     _flush()
     now = int(time.time())
@@ -287,7 +288,7 @@ def get_signal_history(period: str, limit: int = 200) -> list[dict]:
         )
         rows = cur.fetchall()
     except Exception as e:
-        log.warning("signal_history get failed: %s", e)
+        log.exception("signal_history get failed: %s", e)
         return []
 
     result = []
@@ -298,15 +299,16 @@ def get_signal_history(period: str, limit: int = 200) -> list[dict]:
         result.append(
             {
                 "id": sid,
-                "ts": ts,
-                "token": token,
-                "direction": direction,
-                "profit_usd": profit_usd,
-                "notional_usd": notional_usd,
-                "status": status,
+                "ts": int(ts) if ts is not None else 0,
+                "token": str(token) if token is not None else "",
+                "direction": str(direction) if direction is not None else "",
+                "profit_usd": float(profit_usd) if profit_usd is not None else 0.0,
+                "notional_usd": float(notional_usd) if notional_usd is not None else 0.0,
+                "status": str(status) if status is not None else "active",
                 "is_stale": is_stale,
             }
         )
+    log.debug("get_signal_history period=%s limit=%s returned %d rows", period, limit, len(result))
     return result
 
 

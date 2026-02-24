@@ -113,19 +113,38 @@
   async function fetchSignalHistory() {
     if (!historyList) return;
     historyList.innerHTML = '<li class="history-empty">Загрузка...</li>';
+    const base = getApiBase();
+    if (!base || typeof base !== 'string') {
+      historyList.innerHTML = '<li class="history-empty">Ошибка: не задан адрес API</li>';
+      return;
+    }
+    const url = base.replace(/\/+$/, '') + '/api/signal-history?period=' + encodeURIComponent(historyPeriod);
     try {
-      const r = await fetch(getApiBase() + '/api/signal-history?period=' + historyPeriod, { headers: getAuthHeaders() });
+      const r = await fetch(url, { headers: getAuthHeaders() });
       if (!r.ok) {
         const msg = r.status === 401 ? 'Откройте дашборд через Telegram (кнопка «Навигация»)' : r.status === 429 ? 'Слишком много запросов. Подождите минуту.' : 'HTTP ' + r.status;
         throw new Error(msg);
       }
-      const raw = await r.json();
+      const contentType = r.headers.get('Content-Type') || '';
+      if (!contentType.includes('application/json')) {
+        historyList.innerHTML = '<li class="history-empty">Ошибка: сервер вернул не JSON</li>';
+        return;
+      }
+      let raw;
+      try {
+        raw = await r.json();
+      } catch (parseErr) {
+        historyList.innerHTML = '<li class="history-empty">Ошибка разбора ответа сервера</li>';
+        return;
+      }
       if (Array.isArray(raw)) {
         lastHistoryData = raw;
       } else if (raw && typeof raw === 'object' && Array.isArray(raw.data)) {
         lastHistoryData = raw.data;
       } else if (raw && typeof raw === 'object' && Array.isArray(raw.signals)) {
         lastHistoryData = raw.signals;
+      } else if (raw && typeof raw === 'object' && Array.isArray(raw.items)) {
+        lastHistoryData = raw.items;
       } else {
         lastHistoryData = [];
       }

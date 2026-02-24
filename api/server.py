@@ -213,7 +213,6 @@ async def auth_middleware(request: web.Request, handler):
 
     return await handler(request)
 
-
 def create_app(
     on_exchange_toggle: Callable[[bool], Awaitable[None]] | None = None,
     get_status: Callable[[], dict] | None = None,
@@ -243,6 +242,7 @@ def create_app(
         except (TypeError, ValueError):
             limit = 200
         data = await get_signal_history_async(period, limit=limit)
+        log.debug("GET /api/signal-history period=%s -> %d items", period, len(data))
         return web.json_response(data, headers=_cors_headers(req))
 
     async def handle_root(req: web.Request) -> web.Response:
@@ -406,6 +406,7 @@ async def run_server(
         from pathlib import Path
 
         db_init(Path(db_path))
+        log.info("API DB initialized: %s", db_path)
     app = create_app(
         on_exchange_toggle=on_exchange_toggle,
         get_status=get_status,

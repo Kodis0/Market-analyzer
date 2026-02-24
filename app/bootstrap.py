@@ -115,6 +115,7 @@ async def build_context(cfg_path: str, session: aiohttp.ClientSession) -> AppCon
     ctx.raw = raw
     ctx.cfg_dir = cfg_dir
     ctx.settings_path = settings_path
+    ctx.api_db_path = api_db_path
     ctx.settings = settings
     ctx.state = state
     ctx.q_manager = q_manager

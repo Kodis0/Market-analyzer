@@ -96,6 +96,7 @@ async def main(cfg_path: str) -> None:
                 api_server_mod.run_server(
                     host="0.0.0.0",
                     port=api_port,
+                    db_path=str(ctx.api_db_path) if ctx.api_db_path else None,
                     on_exchange_toggle=on_exchange_toggle,
                     get_status=get_status,
                     get_settings=get_settings,
