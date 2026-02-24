@@ -622,11 +622,13 @@ body { padding: 20px; padding-bottom: 88px; }
   cursor: help;
   flex-shrink: 0;
   position: relative;
+  z-index: 10;
   transition: background 0.2s, color 0.2s;
 }
 .settings-help:hover {
   background: var(--accent);
   color: var(--bg);
+  z-index: 10002;
 }
 .settings-help[data-tooltip]:hover::after {
   content: attr(data-tooltip);
@@ -645,7 +647,7 @@ body { padding: 20px; padding-bottom: 88px; }
   color: var(--text);
   white-space: normal;
   line-height: 1.45;
-  z-index: 9999;
+  z-index: 10002;
   box-shadow: 0 8px 24px rgba(0,0,0,0.4);
   pointer-events: none;
 }
