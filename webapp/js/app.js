@@ -50,7 +50,11 @@
   });
 
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && document.getElementById('tab-settings')?.classList.contains('active')) {
+    if (document.visibilityState !== 'visible') return;
+    if (document.getElementById('tab-main')?.classList.contains('active')) {
+      window.App.history.fetchSignalHistory();
+    }
+    if (document.getElementById('tab-settings')?.classList.contains('active')) {
       window.App.settings.fetchStatusAndSettings();
     }
   });
@@ -62,6 +66,9 @@
       document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
       document.getElementById('tab-' + tab).classList.add('active');
       btn.classList.add('active');
+      if (tab === 'main') {
+        window.App.history.fetchSignalHistory();
+      }
       if (tab === 'settings') {
         window.App.settings.fetchStatusAndSettings();
         fetch(window.App.getApiBase() + '/api/auto_tune', { headers: window.App.getAuthHeaders() })
