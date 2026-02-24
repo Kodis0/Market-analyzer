@@ -261,32 +261,46 @@ async def get_stats_async(period: str) -> list[dict]:
 
 
 def record_signal(token: str, direction: str, profit_usd: float, notional_usd: float) -> None:
-    """Записать сигнал в историю. Пропускает дубликаты (тот же token+direction+profit в последние 60 сек)."""
+    """
+    Записать сигнал в историю.
+    Если запись с таким token+direction уже есть — обновить её (ts, profit, notional, status=active).
+    Иначе — вставить новую. Так не создаются дубликаты по одной монете.
+    """
     if _conn is None:
         return
     ts = int(time.time())
     profit_rounded = round(float(profit_usd), 2)
+    notional = float(notional_usd)
     try:
         with _conn:
             cur = _conn.execute(
                 """
-                SELECT 1 FROM signal_history
+                SELECT id FROM signal_history
                 WHERE token = ? AND direction = ?
-                AND profit_usd BETWEEN ? AND ?
-                AND ts >= ?
+                ORDER BY ts DESC
                 LIMIT 1
                 """,
-                (token, direction, profit_rounded - 0.005, profit_rounded + 0.005, ts - 60),
+                (token, direction),
             )
-            if cur.fetchone():
-                return
-            _conn.execute(
-                """
-                INSERT INTO signal_history (ts, token, direction, profit_usd, notional_usd)
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                (ts, token, direction, profit_rounded, float(notional_usd)),
-            )
+            row = cur.fetchone()
+            if row:
+                signal_id = row[0]
+                _conn.execute(
+                    """
+                    UPDATE signal_history
+                    SET ts = ?, profit_usd = ?, notional_usd = ?, status = 'active'
+                    WHERE id = ?
+                    """,
+                    (ts, profit_rounded, notional, signal_id),
+                )
+            else:
+                _conn.execute(
+                    """
+                    INSERT INTO signal_history (ts, token, direction, profit_usd, notional_usd)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (ts, token, direction, profit_rounded, notional),
+                )
     except Exception as e:
         log.warning("signal_history record failed: %s", e)
 
