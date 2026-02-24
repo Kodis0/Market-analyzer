@@ -625,7 +625,7 @@ function renderSettingsList(s, labels) {
     .map(([k, v]) => {
       const label = escapeHtml(labels[k] || k);
       const tooltip = SETTING_TOOLTIPS[k];
-      const helpIcon = tooltip ? '<span class="settings-help" data-tooltip="' + escapeHtml(tooltip) + '" title="' + escapeHtml(tooltip) + '">?</span>' : '';
+      const helpIcon = tooltip ? '<span class="settings-help" data-tooltip="' + escapeHtml(tooltip) + '">?</span>' : '';
       const isBool = typeof v === 'boolean';
       if (isBool) {
         const on = v ? 'on' : 'off';
