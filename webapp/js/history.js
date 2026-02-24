@@ -44,11 +44,28 @@
     }
   }
 
+  function normalizeItem(s) {
+    if (!s || typeof s !== 'object') return null;
+    return {
+      id: s.id,
+      ts: s.ts ?? s.timestamp ?? 0,
+      token: s.token ?? '',
+      direction: s.direction ?? '',
+      profit_usd: s.profit_usd ?? s.profitUsd ?? 0,
+      notional_usd: s.notional_usd ?? s.notionalUsd ?? 0,
+      status: s.status ?? 'active',
+      is_stale: s.is_stale ?? s.isStale ?? (s.status === 'stale')
+    };
+  }
+
   function renderHistory(data) {
+    if (!historyList) return;
+    const raw = Array.isArray(data) ? data : [];
     const hideStale = document.getElementById('history-hide-stale')?.checked ?? false;
-    const filtered = hideStale ? data.filter(s => !(s.is_stale || s.status === 'stale')) : data;
+    const normalized = raw.map(normalizeItem).filter(Boolean);
+    const filtered = hideStale ? normalized.filter(s => !(s.is_stale || s.status === 'stale')) : normalized;
     if (filtered.length === 0) {
-      historyList.innerHTML = hideStale && data.length > 0
+      historyList.innerHTML = hideStale && normalized.length > 0
         ? '<li class="history-empty">Все сигналы устарели. Снимите галочку «Скрыть устаревшие»</li>'
         : '<li class="history-empty">Нет сигналов за выбранный период</li>';
       return;
@@ -56,24 +73,25 @@
     historyList.innerHTML = filtered.map(s => {
       const stale = s.is_stale || s.status === 'stale';
       const hasId = s.id != null && !isNaN(Number(s.id));
-      return `
-      <li class="history-item ${stale ? 'stale' : ''}" data-id="${hasId ? s.id : ''}">
-        <div>
-          <div class="history-item-token">${escapeHtml(s.token)}${stale ? ' <span style="font-size:0.7em;color:var(--text-dim)">(устарел)</span>' : ''}</div>
-          <div class="history-item-direction">${escapeHtml(formatDirection(s.direction))}</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <div class="history-item-actions">
-            ${hasId && !stale ? '<button type="button" class="history-btn stale-btn" title="Пометить устаревшим">⏱</button>' : ''}
-            ${hasId ? '<button type="button" class="history-btn del-btn" title="Удалить">✕</button>' : ''}
-          </div>
-          <div style="text-align: right;">
-            <div class="history-item-profit">+${Number(s.profit_usd).toFixed(2)}$</div>
-            <div class="history-item-time">${formatSignalTime(s.ts)}</div>
-          </div>
-        </div>
-      </li>
-    `}).join('');
+      const token = String(s.token || '').trim() || '—';
+      const dir = formatDirection(s.direction || '');
+      const profit = Number(s.profit_usd);
+      const ts = Number(s.ts) || 0;
+      return (
+        '<li class="history-item ' + (stale ? 'stale' : '') + '" data-id="' + (hasId ? s.id : '') + '">' +
+        '<div><div class="history-item-token">' + escapeHtml(token) + (stale ? ' <span style="font-size:0.7em;color:var(--text-dim)">(устарел)</span>' : '') + '</div>' +
+        '<div class="history-item-direction">' + escapeHtml(dir) + '</div></div>' +
+        '<div style="display:flex;align-items:center;gap:8px;">' +
+        '<div class="history-item-actions">' +
+        (hasId && !stale ? '<button type="button" class="history-btn stale-btn" title="Пометить устаревшим">⏱</button>' : '') +
+        (hasId ? '<button type="button" class="history-btn del-btn" title="Удалить">✕</button>' : '') +
+        '</div>' +
+        '<div style="text-align: right;">' +
+        '<div class="history-item-profit">+' + (isNaN(profit) ? '0.00' : profit.toFixed(2)) + '$</div>' +
+        '<div class="history-item-time">' + escapeHtml(ts ? formatSignalTime(ts) : '') + '</div>' +
+        '</div></div></li>'
+      );
+    }).join('');
     historyList.querySelectorAll('.history-btn.stale-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -93,6 +111,7 @@
   }
 
   async function fetchSignalHistory() {
+    if (!historyList) return;
     historyList.innerHTML = '<li class="history-empty">Загрузка...</li>';
     try {
       const r = await fetch(getApiBase() + '/api/signal-history?period=' + historyPeriod, { headers: getAuthHeaders() });
@@ -100,11 +119,18 @@
         const msg = r.status === 401 ? 'Откройте дашборд через Telegram (кнопка «Навигация»)' : r.status === 429 ? 'Слишком много запросов. Подождите минуту.' : 'HTTP ' + r.status;
         throw new Error(msg);
       }
-      const data = await r.json();
-      lastHistoryData = Array.isArray(data) ? data : [];
+      const raw = await r.json();
+      if (Array.isArray(raw)) {
+        lastHistoryData = raw;
+      } else if (raw && typeof raw === 'object' && Array.isArray(raw.data)) {
+        lastHistoryData = raw.data;
+      } else if (raw && typeof raw === 'object' && Array.isArray(raw.signals)) {
+        lastHistoryData = raw.signals;
+      } else {
+        lastHistoryData = [];
+      }
       if (lastHistoryData.length === 0) {
-        const hint = historyPeriod !== 'all' ? ' Попробуйте период «Всё время».' : '';
-        historyList.innerHTML = '<li class="history-empty">Нет сигналов за выбранный период.' + hint + '</li>';
+        historyList.innerHTML = '<li class="history-empty">Нет сигналов за выбранный период</li>';
         return;
       }
       renderHistory(lastHistoryData);
