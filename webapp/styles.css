@@ -622,7 +622,7 @@ body { padding: 20px; padding-bottom: 88px; }
   cursor: help;
   flex-shrink: 0;
   position: relative;
-  z-index: 10;
+  z-index: 10003;
   transition: background 0.2s, color 0.2s;
 }
 .settings-help:hover {
