@@ -22,7 +22,9 @@ def make_on_signal(ctx: AppContext):
     async def on_signal(sig):
         ctx.metrics_collector.record_signal()
         reply_markup = sig.to_reply_markup() if hasattr(sig, "to_reply_markup") else None
-        await ctx.tg.upsert(sig.key, sig.text, reply_markup=reply_markup)
+        # Тот же ключ, что и в record_signal: один слот на (token, direction) — обновление, а не спам.
+        key = f"{sig.token}:{sig.direction}"
+        await ctx.tg.upsert(key, sig.text, reply_markup=reply_markup)
         try:
             from api.db import record_signal_async
 

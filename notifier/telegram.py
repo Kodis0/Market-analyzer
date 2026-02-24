@@ -182,14 +182,14 @@ class TelegramNotifier:
             self._last_sent_markup[key] = reply_markup
             await self._save_msg_to_db(key, msg_id, now)
         except Exception as e:
-            log.warning("edit failed for key=%s msg_id=%s: %s; sending new", key, msg_id, e)
+            log.warning("edit failed for key=%s msg_id=%s: %s; invalidating, next upsert will send one new", key, msg_id, e)
             self._msg_ids.pop(key, None)
-            new_id = await self.send(text, reply_markup=reply_markup)
-            self._msg_ids[key] = new_id
-            self._last_edit[key] = now
-            self._last_sent_text[key] = text
-            self._last_sent_markup[key] = reply_markup
-            await self._save_msg_to_db(key, new_id, now)
+            self._last_edit.pop(key, None)
+            self._last_sent_text.pop(key, None)
+            self._last_sent_markup.pop(key, None)
+            await self._remove_msg_from_db(key)
+            # Не отправляем новое сообщение здесь — иначе при частых upsert получается спам.
+            # Следующий upsert с этим key отправит одно новое сообщение (как в истории: один слот на token+direction).
 
     async def expire_stale(self) -> None:
         if not self.edit_mode:
