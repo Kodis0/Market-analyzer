@@ -235,9 +235,9 @@ def create_app(
         return web.json_response(data, headers=_cors_headers(req))
 
     async def handle_signal_history(req: web.Request) -> web.Response:
-        period = req.query.get("period", "1d")
+        period = req.query.get("period", "all")
         if period not in ("1h", "1d", "1w", "all"):
-            period = "1d"
+            period = "all"
         try:
             limit = min(500, max(1, int(req.query.get("limit", 200))))
         except (TypeError, ValueError):

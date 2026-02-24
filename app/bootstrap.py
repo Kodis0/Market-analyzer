@@ -60,6 +60,7 @@ async def build_context(cfg_path: str, session: aiohttp.ClientSession) -> AppCon
     from api import db as api_db
 
     api_db.init(api_db_path)
+    log.info("API DB (signal history + stats): %s", api_db_path.resolve())
 
     full_symbols: list[str] = list(cfg.bybit.symbols)
     full_tokens = dict(cfg.trading.tokens)
