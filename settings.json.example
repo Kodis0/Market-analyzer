@@ -20,5 +20,5 @@
   "stale_ttl_sec": 300,
   "delete_stale": false,
   "exchange_enabled": true,
-  "auto_tune_enabled": false
+  "auto_tune_enabled": true
 }

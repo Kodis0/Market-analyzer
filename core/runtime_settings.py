@@ -50,7 +50,7 @@ class RuntimeSettings:
     exchange_enabled: bool = True
 
     # Auto-tune: вкл/выкл авто-подстройку параметров
-    auto_tune_enabled: bool = False
+    auto_tune_enabled: bool = True
     # Bounds для авто-подстройки: {"min_profit_usd": {"min": 0.1, "max": 50}, ...}
     auto_tune_bounds: dict | None = None
 

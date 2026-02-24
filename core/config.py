@@ -75,9 +75,9 @@ class RuntimeCfg(BaseModel):
 
 
 class AutoTuneCfg(BaseModel):
-    """Auto-tuning of arb parameters. Disabled by default."""
+    """Auto-tuning of arb parameters. Enabled by default."""
 
-    enabled: bool = False
+    enabled: bool = True
     interval_sec: float = 15 * 60  # evaluate every 15 min
     window_sec: float = 30 * 60  # metrics window 30 min
 

@@ -2412,6 +2412,6 @@ runtime:
 
 # Авто-подстройка параметров арбитражного бота (по умолчанию выключена)
 auto_tune:
-  enabled: false
+  enabled: true
   interval_sec: 900   # каждые 15 мин
   window_sec: 1800   # окно метрик 30 мин
