@@ -635,12 +635,15 @@ body { padding: 20px; padding-bottom: 88px; }
   color: var(--bg);
   z-index: 100004;
 }
+/* Подсказка выводится через JS в #settings-global-tooltip (fixed), чтобы не обрезалась overflow */
 .settings-help[data-tooltip]:hover::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  left: 50%;
-  top: calc(100% + 8px);
-  transform: translateX(-50%);
+  content: none;
+  display: none;
+}
+/* Глобальный тултип для параметров — поверх всего, не обрезается скроллом */
+.settings-global-tooltip {
+  position: fixed;
+  z-index: 999999;
   max-width: 280px;
   min-width: 180px;
   padding: 10px 14px;
@@ -652,9 +655,14 @@ body { padding: 20px; padding-bottom: 88px; }
   color: var(--text);
   white-space: normal;
   line-height: 1.45;
-  z-index: 10002;
   box-shadow: 0 8px 24px rgba(0,0,0,0.4);
   pointer-events: none;
+  display: none;
+  left: 0;
+  top: 0;
+}
+.settings-global-tooltip.visible {
+  display: block;
 }
 .settings-item-val {
   font-weight: 500;

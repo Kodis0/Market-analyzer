@@ -655,6 +655,35 @@ function renderSettingsList(s, labels) {
     });
     inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') inp.blur(); });
   });
+  const tooltipEl = document.getElementById('settings-global-tooltip');
+  if (tooltipEl) {
+    settingsList.querySelectorAll('.settings-help[data-tooltip]').forEach(help => {
+      const text = help.getAttribute('data-tooltip');
+      if (!text) return;
+      help.addEventListener('mouseenter', () => {
+        tooltipEl.textContent = text;
+        tooltipEl.classList.add('visible');
+        tooltipEl.setAttribute('aria-hidden', 'false');
+        const rect = help.getBoundingClientRect();
+        const pad = 8;
+        tooltipEl.style.left = '';
+        tooltipEl.style.top = '';
+        requestAnimationFrame(() => {
+          const tr = tooltipEl.getBoundingClientRect();
+          let left = rect.left + rect.width / 2 - tr.width / 2;
+          let top = rect.bottom + 8;
+          left = Math.max(pad, Math.min(left, window.innerWidth - tr.width - pad));
+          top = Math.max(pad, Math.min(top, window.innerHeight - tr.height - pad));
+          tooltipEl.style.left = left + 'px';
+          tooltipEl.style.top = top + 'px';
+        });
+      });
+      help.addEventListener('mouseleave', () => {
+        tooltipEl.classList.remove('visible');
+        tooltipEl.setAttribute('aria-hidden', 'true');
+      });
+    });
+  }
 }
 
 async function updateSetting(key, value) {
