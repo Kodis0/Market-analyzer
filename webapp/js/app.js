@@ -1,22 +1,20 @@
 /**
  * Точка входа: инициализация, привязка событий, запуск загрузки данных.
  * Зависит от: config, utils, chart, history, settings, console (подключаются до этого скрипта).
+ * Размер canvas задаётся в chart.js (DPR + ResizeObserver); здесь только запрос данных и отложенная перерисовка для Telegram Desktop.
  */
 (function() {
-  const canvas = document.getElementById('chart');
   const historyCard = window.App.history.getHistoryCard();
 
-  function resize() {
-    const rect = canvas.getBoundingClientRect();
-    if (rect.width && rect.height) {
-      canvas.width = rect.width;
-      canvas.height = rect.height;
-    }
+  function loadChart() {
     window.App.chart.fetchAndDraw();
   }
 
-  window.addEventListener('resize', resize);
-  resize();
+  window.addEventListener('resize', loadChart);
+  loadChart();
+  // Telegram Desktop: контейнер может получить размер с задержкой — перерисовка графика без повторного запроса
+  setTimeout(function() { if (window.App.chart?.redraw) window.App.chart.redraw(); }, 100);
+  setTimeout(function() { if (window.App.chart?.redraw) window.App.chart.redraw(); }, 400);
 
   historyCard.classList.add('expanded');
   window.App.history.fetchSignalHistory();

@@ -1,5 +1,7 @@
 /**
- * График запросов Jupiter/Bybit: DPR, сетка, оси, градиенты, hover с линией и точками, тултип.
+ * График запросов Jupiter/Bybit: DPR, сетка, оси, градиенты, hover с линией и точками,
+ * тултип, индикаторы min/max при наведении, плавная анимация при обновлении данных.
+ * Совместимость с Telegram WebView (Desktop и Mobile).
  */
 (function() {
   const getApiBase = () => window.App.getApiBase();
@@ -13,6 +15,94 @@
   const canvas = document.getElementById('chart');
   const ctx = canvas.getContext('2d');
   let chartState = { data: [], padding: null, chartW: 0, chartH: 0, yMax: 1, w: 0, h: 0 };
+
+  // ---------- Анимация при обновлении данных ----------
+  const ANIM_DURATION_MS = 380;
+  const EASE_OUT_CUBIC = t => 1 - Math.pow(1 - t, 3);
+
+  let animStart = null;
+  let prevJPoints = [];
+  let prevBPoints = [];
+  let prevYMax = 1;
+  let nextData = null;
+  let nextJPoints = [];
+  let nextBPoints = [];
+  let nextYMax = 1;
+  let animRaf = 0;
+
+  function lerpPoints(prev, next, t) {
+    if (!next.length) return next;
+    if (!prev.length) return next.slice();
+    const n = next.length;
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      const ratio = n > 1 ? i / (n - 1) : 0;
+      const pi = Math.min(Math.round(ratio * (prev.length - 1)), prev.length - 1);
+      const p = prev[pi];
+      const q = next[i];
+      out.push({
+        x: p.x + (q.x - p.x) * t,
+        y: p.y + (q.y - p.y) * t,
+        v: p.v + (q.v - p.v) * t
+      });
+    }
+    return out;
+  }
+
+  function tickAnimation(now) {
+    if (animStart == null) return;
+    const elapsed = now - animStart;
+    const t = Math.min(1, elapsed / ANIM_DURATION_MS);
+    const eased = EASE_OUT_CUBIC(t);
+
+    const jLerp = lerpPoints(prevJPoints, nextJPoints, eased);
+    const bLerp = lerpPoints(prevBPoints, nextBPoints, eased);
+    const yMaxLerp = prevYMax + (nextYMax - prevYMax) * eased;
+
+    chartState.yMax = yMaxLerp;
+    drawChartWithPoints(nextData, null, jLerp, bLerp, yMaxLerp);
+
+    if (t < 1) {
+      animRaf = requestAnimationFrame(tickAnimation);
+    } else {
+      animStart = null;
+      chartState.data = nextData;
+      chartState.yMax = nextYMax;
+      if (hoverIndex != null) drawChart(nextData, hoverIndex);
+    }
+  }
+
+  function startTransition(data, jPoints, bPoints, yMax) {
+    if (animRaf) cancelAnimationFrame(animRaf);
+    if (!chartState.data?.length || !data?.length) {
+      prevJPoints = [];
+      prevBPoints = [];
+      prevYMax = yMax;
+      nextData = data;
+      nextJPoints = jPoints;
+      nextBPoints = bPoints;
+      nextYMax = yMax;
+      chartState.data = data || [];
+      chartState.yMax = yMax;
+      drawChartWithPoints(data, hoverIndex, jPoints, bPoints, yMax);
+      if (data?.length) {
+        chartState._lastJPoints = jPoints;
+        chartState._lastBPoints = bPoints;
+      }
+      return;
+    }
+    chartState.data = data;
+    prevJPoints = chartState.data.length ? (chartState._lastJPoints || []) : [];
+    prevBPoints = chartState.data.length ? (chartState._lastBPoints || []) : [];
+    prevYMax = chartState.yMax;
+    nextData = data;
+    nextJPoints = jPoints;
+    nextBPoints = bPoints;
+    nextYMax = yMax;
+    chartState.data = data;
+    animStart = performance.now();
+    animRaf = requestAnimationFrame(tickAnimation);
+  }
 
   // ---------- DPR и чёткость (в т.ч. Telegram) ----------
   function setupCanvasDPR(canvasEl, cssW, cssH) {
@@ -54,7 +144,6 @@
     return g;
   }
 
-  // Catmull-Rom → Bezier (плавная кривая как в дашбордах)
   function drawSmoothCatmullRom(ctx, pts, tension) {
     if (pts.length < 2) return;
     tension = tension ?? 0.35;
@@ -84,7 +173,7 @@
   function drawGrid(ctx, padding, chartW, chartH, ticks) {
     ctx.save();
     ctx.translate(0.5, 0.5);
-    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
     ctx.lineWidth = 1;
     const yMax = ticks[ticks.length - 1];
     for (const t of ticks) {
@@ -94,7 +183,7 @@
       ctx.lineTo(padding.left + chartW, y);
       ctx.stroke();
     }
-    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
     ctx.beginPath();
     ctx.rect(padding.left, padding.top, chartW, chartH);
     ctx.stroke();
@@ -103,7 +192,7 @@
 
   function drawYAxisLabels(ctx, padding, chartW, chartH, ticks) {
     ctx.save();
-    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
     ctx.font = '11px Inter, system-ui, -apple-system, sans-serif';
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
@@ -117,7 +206,7 @@
 
   function drawXAxisLabels(ctx, data, padding, chartW, h, period, formatTimeFn) {
     ctx.save();
-    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    ctx.fillStyle = 'rgba(255,255,255,0.42)';
     ctx.font = '11px Inter, system-ui, -apple-system, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
@@ -142,47 +231,168 @@
     ctx.beginPath();
     drawSmoothCatmullRom(ctx, points, 0.4);
     ctx.strokeStyle = color;
-    ctx.lineWidth = 2.25;
+    ctx.lineWidth = 2.5;
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
     ctx.shadowColor = color;
-    ctx.shadowBlur = 10;
-    ctx.globalAlpha = 0.9;
+    ctx.shadowBlur = 12;
+    ctx.globalAlpha = 0.92;
     ctx.stroke();
     ctx.restore();
   }
 
-  function drawHover(ctx, hoverX, p1, p2, padding, chartH) {
-    if (hoverX == null) return;
+  function findMinMaxIndices(arr) {
+    if (!arr.length) return { minIdx: 0, maxIdx: 0 };
+    let minIdx = 0, maxIdx = 0;
+    for (let i = 1; i < arr.length; i++) {
+      if (arr[i] < arr[minIdx]) minIdx = i;
+      if (arr[i] > arr[maxIdx]) maxIdx = i;
+    }
+    return { minIdx, maxIdx };
+  }
+
+  function drawHover(ctx, hoverX, p1, p2, padding, chartH, data, jPoints, bPoints) {
+    if (hoverX == null || !data?.length) return;
+    const jArr = data.map(d => d.jupiter || 0);
+    const bArr = data.map(d => d.bybit || 0);
+    const jMinMax = findMinMaxIndices(jArr);
+    const bMinMax = findMinMaxIndices(bArr);
+
     ctx.save();
-    ctx.strokeStyle = 'rgba(255,255,255,0.14)';
-    ctx.lineWidth = 1;
+
+    // Вертикальная линия под курсором
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 4]);
     ctx.beginPath();
     ctx.moveTo(hoverX + 0.5, padding.top);
     ctx.lineTo(hoverX + 0.5, padding.top + chartH);
     ctx.stroke();
-    const drawPoint = (p, color) => {
+    ctx.setLineDash([]);
+
+    const drawPoint = (p, color, size = 5) => {
       if (!p) return;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, 4.5, 0, Math.PI * 2);
-      ctx.fillStyle = '#0b0b0e';
+      ctx.arc(p.x, p.y, size + 2, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(11,11,14,0.9)';
       ctx.fill();
       ctx.lineWidth = 2;
       ctx.strokeStyle = color;
       ctx.stroke();
       ctx.beginPath();
-      ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, size * 0.5, 0, Math.PI * 2);
       ctx.fillStyle = color;
       ctx.fill();
     };
+
+    const drawMinMaxMarker = (point, color, label) => {
+      if (!point) return;
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, 6, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(11,11,14,0.95)';
+      ctx.fill();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = color;
+      ctx.font = '9px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText(label, point.x, point.y + 8);
+    };
+
+    // Точки под курсором (Jupiter, Bybit)
     drawPoint(p1, '#2F80FF');
     drawPoint(p2, '#00D18F');
+
+    // Маркеры min/max для Jupiter (если не под курсором)
+    if (jPoints[jMinMax.minIdx] && jMinMax.minIdx !== hoverIndex) {
+      drawMinMaxMarker(jPoints[jMinMax.minIdx], '#2F80FF', 'min');
+    }
+    if (jPoints[jMinMax.maxIdx] && jMinMax.maxIdx !== hoverIndex) {
+      drawMinMaxMarker(jPoints[jMinMax.maxIdx], '#2F80FF', 'max');
+    }
+    if (bPoints[bMinMax.minIdx] && bMinMax.minIdx !== hoverIndex) {
+      drawMinMaxMarker(bPoints[bMinMax.minIdx], '#00D18F', 'min');
+    }
+    if (bPoints[bMinMax.maxIdx] && bMinMax.maxIdx !== hoverIndex) {
+      drawMinMaxMarker(bPoints[bMinMax.maxIdx], '#00D18F', 'max');
+    }
+
     ctx.restore();
   }
 
-  function drawChart(data, hoverIndex) {
-    const cssW = canvas.getBoundingClientRect().width || 300;
-    const cssH = canvas.getBoundingClientRect().height || 220;
+  function drawChartWithPoints(data, hoverIndexVal, jPoints, bPoints, yMaxVal) {
+    const wrap = document.getElementById('chart-wrap');
+    const rect = wrap ? wrap.getBoundingClientRect() : { width: 300, height: 220 };
+    let cssW = (rect && rect.width) || 300;
+    let cssH = (rect && rect.height) || 220;
+    if (cssW <= 0 || cssH <= 0) { cssW = 300; cssH = 220; }
+
+    const out = setupCanvasDPR(canvas, cssW, cssH);
+    const c = out.ctx;
+    const w = cssW;
+    const h = cssH;
+    c.clearRect(0, 0, w, h);
+
+    if (!data || data.length === 0) {
+      c.fillStyle = 'rgba(255,255,255,0.5)';
+      c.font = '14px Inter, sans-serif';
+      c.textAlign = 'center';
+      c.fillText('Нет данных', w / 2, h / 2);
+      chartState.data = [];
+      chartState.padding = null;
+      return;
+    }
+
+    const padding = { top: 20, right: 20, bottom: 32, left: 48 };
+    const chartW = w - padding.left - padding.right;
+    const chartH = h - padding.top - padding.bottom;
+    const { yMax, ticks } = buildTicks(yMaxVal, 5);
+    chartState.padding = padding;
+    chartState.chartW = chartW;
+    chartState.chartH = chartH;
+    chartState.yMax = yMax;
+    chartState.w = w;
+    chartState.h = h;
+    chartState._lastJPoints = jPoints;
+    chartState._lastBPoints = bPoints;
+
+    c.save();
+    c.fillStyle = makeGradient(c, 0, 0, 0, h, [
+      [0, 'rgba(255,255,255,0.025)'],
+      [1, 'rgba(0,0,0,0)']
+    ]);
+    c.fillRect(0, 0, w, h);
+    c.restore();
+
+    drawGrid(c, padding, chartW, chartH, ticks);
+    drawYAxisLabels(c, padding, chartW, chartH, ticks);
+    drawSeries(c, jPoints, padding, chartW, chartH, '#2F80FF', [
+      [0.0, 'rgba(47,128,255,0.25)'],
+      [0.6, 'rgba(47,128,255,0.06)'],
+      [1.0, 'rgba(47,128,255,0)']
+    ]);
+    drawSeries(c, bPoints, padding, chartW, chartH, '#00D18F', [
+      [0.0, 'rgba(0,209,143,0.2)'],
+      [0.6, 'rgba(0,209,143,0.05)'],
+      [1.0, 'rgba(0,209,143,0)']
+    ]);
+    drawXAxisLabels(c, data, padding, chartW, h, currentPeriod, formatTime);
+    if (hoverIndexVal != null) {
+      const i = Math.max(0, Math.min(hoverIndexVal, data.length - 1));
+      const hoverX = padding.left + (i / Math.max(1, data.length - 1)) * chartW;
+      drawHover(c, hoverX, jPoints[i], bPoints[i], padding, chartH, data, jPoints, bPoints);
+    }
+  }
+
+  function drawChart(data, hoverIndexVal) {
+    const wrap = document.getElementById('chart-wrap');
+    const rect = wrap ? wrap.getBoundingClientRect() : { width: 300, height: 220 };
+    let cssW = (rect && rect.width) || 300;
+    let cssH = (rect && rect.height) || 220;
+    if (cssW <= 0 || cssH <= 0) { cssW = 300; cssH = 220; }
+
     const out = setupCanvasDPR(canvas, cssW, cssH);
     const c = out.ctx;
     const w = cssW;
@@ -192,14 +402,14 @@
     chartState.padding = null;
 
     if (!data || data.length === 0) {
-      c.fillStyle = 'rgba(255,255,255,0.55)';
+      c.fillStyle = 'rgba(255,255,255,0.5)';
       c.font = '14px Inter, sans-serif';
       c.textAlign = 'center';
       c.fillText('Нет данных', w / 2, h / 2);
       return;
     }
 
-    const padding = { top: 18, right: 18, bottom: 30, left: 46 };
+    const padding = { top: 20, right: 20, bottom: 32, left: 48 };
     const chartW = w - padding.left - padding.right;
     const chartH = h - padding.top - padding.bottom;
     const jArr = data.map(d => d.jupiter || 0);
@@ -208,9 +418,14 @@
     const { yMax, ticks } = buildTicks(rawMax, 5);
     chartState = { data, padding, chartW, chartH, yMax, w, h };
 
+    const jPoints = computePoints(jArr, padding, chartW, chartH, yMax);
+    const bPoints = computePoints(bArr, padding, chartW, chartH, yMax);
+    chartState._lastJPoints = jPoints;
+    chartState._lastBPoints = bPoints;
+
     c.save();
     c.fillStyle = makeGradient(c, 0, 0, 0, h, [
-      [0, 'rgba(255,255,255,0.02)'],
+      [0, 'rgba(255,255,255,0.025)'],
       [1, 'rgba(0,0,0,0)']
     ]);
     c.fillRect(0, 0, w, h);
@@ -218,26 +433,21 @@
 
     drawGrid(c, padding, chartW, chartH, ticks);
     drawYAxisLabels(c, padding, chartW, chartH, ticks);
-    const jPoints = computePoints(jArr, padding, chartW, chartH, yMax);
-    const bPoints = computePoints(bArr, padding, chartW, chartH, yMax);
-
     drawSeries(c, jPoints, padding, chartW, chartH, '#2F80FF', [
-      [0.0, 'rgba(47,128,255,0.22)'],
-      [0.65, 'rgba(47,128,255,0.06)'],
+      [0.0, 'rgba(47,128,255,0.25)'],
+      [0.6, 'rgba(47,128,255,0.06)'],
       [1.0, 'rgba(47,128,255,0)']
     ]);
     drawSeries(c, bPoints, padding, chartW, chartH, '#00D18F', [
-      [0.0, 'rgba(0,209,143,0.18)'],
-      [0.65, 'rgba(0,209,143,0.05)'],
+      [0.0, 'rgba(0,209,143,0.2)'],
+      [0.6, 'rgba(0,209,143,0.05)'],
       [1.0, 'rgba(0,209,143,0)']
     ]);
-
     drawXAxisLabels(c, data, padding, chartW, h, currentPeriod, formatTime);
-
-    if (hoverIndex != null) {
-      const i = Math.max(0, Math.min(hoverIndex, data.length - 1));
+    if (hoverIndexVal != null) {
+      const i = Math.max(0, Math.min(hoverIndexVal, data.length - 1));
       const hoverX = padding.left + (i / Math.max(1, data.length - 1)) * chartW;
-      drawHover(c, hoverX, jPoints[i], bPoints[i], padding, chartH);
+      drawHover(c, hoverX, jPoints[i], bPoints[i], padding, chartH, data, jPoints, bPoints);
     }
   }
 
@@ -255,6 +465,24 @@
     return Math.max(0, Math.min(idx, data.length - 1));
   }
 
+  function getMinMaxForTooltip(data) {
+    if (!data?.length) return null;
+    const jArr = data.map(d => d.jupiter || 0);
+    const bArr = data.map(d => d.bybit || 0);
+    const jMin = Math.min(...jArr);
+    const jMax = Math.max(...jArr);
+    const bMin = Math.min(...bArr);
+    const bMax = Math.max(...bArr);
+    const jMinIdx = jArr.indexOf(jMin);
+    const jMaxIdx = jArr.indexOf(jMax);
+    const bMinIdx = bArr.indexOf(bMin);
+    const bMaxIdx = bArr.indexOf(bMax);
+    return {
+      jMin, jMax, jMinIdx, jMaxIdx,
+      bMin, bMax, bMinIdx, bMaxIdx
+    };
+  }
+
   function showChartTooltip(e) {
     const tooltip = document.getElementById('chart-tooltip');
     const idx = pickIndexByClientX(e.clientX);
@@ -269,17 +497,27 @@
     if (rafHover) cancelAnimationFrame(rafHover);
     rafHover = requestAnimationFrame(() => {
       hoverIndex = idx;
-      drawChart(chartState.data, hoverIndex);
+      const jPoints = chartState._lastJPoints || [];
+      const bPoints = chartState._lastBPoints || [];
+      drawChartWithPoints(chartState.data, hoverIndex, jPoints, bPoints, chartState.yMax);
 
       const d = chartState.data[hoverIndex];
       const jup = d.jupiter || 0;
       const byb = d.bybit || 0;
+      const mm = getMinMaxForTooltip(chartState.data);
+      let extra = '';
+      if (mm) {
+        extra =
+          '<div class="chart-tooltip-minmax">' +
+          '<span class="chart-tooltip-row"><span class="chart-tooltip-dot jupiter"></span> Jupiter min: <b>' + mm.jMin + '</b> · max: <b>' + mm.jMax + '</b></span>' +
+          '<span class="chart-tooltip-row"><span class="chart-tooltip-dot bybit"></span> Bybit min: <b>' + mm.bMin + '</b> · max: <b>' + mm.bMax + '</b></span>' +
+          '</div>';
+      }
       tooltip.innerHTML =
-        '<div style="font-weight:700;margin-bottom:6px;color:rgba(255,255,255,0.75)">' +
-          formatTime(d.ts, currentPeriod) +
-        '</div>' +
+        '<div class="chart-tooltip-time">' + formatTime(d.ts, currentPeriod) + '</div>' +
         '<div class="chart-tooltip-row"><span class="chart-tooltip-dot jupiter"></span> Jupiter: <b>' + jup + '</b></div>' +
-        '<div class="chart-tooltip-row"><span class="chart-tooltip-dot bybit"></span> Bybit: <b>' + byb + '</b></div>';
+        '<div class="chart-tooltip-row"><span class="chart-tooltip-dot bybit"></span> Bybit: <b>' + byb + '</b></div>' +
+        extra;
 
       const wrap = document.getElementById('chart-wrap');
       const rect = wrap.getBoundingClientRect();
@@ -287,11 +525,11 @@
       const hoverX = padding.left + (hoverIndex / Math.max(1, chartState.data.length - 1)) * chartW;
 
       tooltip.classList.add('visible');
-      let left = rect.left + hoverX + 12;
-      let top = e.clientY - 60;
+      let left = rect.left + hoverX + 14;
+      let top = e.clientY - 70;
       const tt = tooltip.getBoundingClientRect();
-      const pad = 10;
-      if (left + tt.width > window.innerWidth - pad) left = rect.left + hoverX - tt.width - 12;
+      const pad = 12;
+      if (left + tt.width > window.innerWidth - pad) left = rect.left + hoverX - tt.width - 14;
       if (top < pad) top = rect.top + 10;
       if (top + tt.height > window.innerHeight - pad) top = window.innerHeight - tt.height - pad;
       tooltip.style.left = Math.max(pad, Math.min(left, window.innerWidth - tt.width - pad)) + 'px';
@@ -307,12 +545,35 @@
   }
 
   const chartWrap = document.getElementById('chart-wrap');
-  chartWrap.addEventListener('mousemove', showChartTooltip, { passive: true });
-  chartWrap.addEventListener('mouseleave', hideChartTooltip, { passive: true });
-  chartWrap.addEventListener('touchmove', (e) => {
-    if (e.touches[0]) showChartTooltip({ clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
-  }, { passive: true });
-  chartWrap.addEventListener('touchend', hideChartTooltip, { passive: true });
+  if (chartWrap) {
+    chartWrap.addEventListener('mousemove', showChartTooltip, { passive: true });
+    chartWrap.addEventListener('mouseleave', hideChartTooltip, { passive: true });
+    chartWrap.addEventListener('touchmove', (e) => {
+      if (e.touches[0]) showChartTooltip({ clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
+    }, { passive: true });
+    chartWrap.addEventListener('touchend', hideChartTooltip, { passive: true });
+  }
+
+  // ---------- Telegram Desktop: размер контейнера может появиться с задержкой ----------
+  function scheduleRedraw() {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (chartState.data?.length) drawChart(chartState.data, hoverIndex);
+      });
+    });
+  }
+
+  if (typeof ResizeObserver !== 'undefined' && chartWrap) {
+    const ro = new ResizeObserver(() => scheduleRedraw());
+    ro.observe(chartWrap);
+  }
+  window.addEventListener('resize', scheduleRedraw);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') scheduleRedraw();
+  });
+  if (window.Telegram?.WebApp) {
+    window.Telegram.WebApp.onEvent('viewportChanged', scheduleRedraw);
+  }
 
   function updateStats(data) {
     const el = document.getElementById('stats-row');
@@ -377,7 +638,22 @@
     if (data.length > 0) {
       statusEl.className = 'status success';
       statusEl.textContent = 'Данные загружены';
-      drawChart(data);
+      const wrap = document.getElementById('chart-wrap');
+      const rect = wrap ? wrap.getBoundingClientRect() : {};
+      let cssW = (rect.width > 0 && rect.height > 0) ? rect.width : 300;
+      let cssH = (rect.width > 0 && rect.height > 0) ? rect.height : 220;
+      if (cssW <= 0) cssW = 300;
+      if (cssH <= 0) cssH = 220;
+      const padding = { top: 20, right: 20, bottom: 32, left: 48 };
+      const chartW = cssW - padding.left - padding.right;
+      const chartH = cssH - padding.top - padding.bottom;
+      const jArr = data.map(d => d.jupiter || 0);
+      const bArr = data.map(d => d.bybit || 0);
+      const rawMax = Math.max(1, ...jArr, ...bArr);
+      const { yMax } = buildTicks(rawMax, 5);
+      const jPoints = computePoints(jArr, padding, chartW, chartH, yMax);
+      const bPoints = computePoints(bArr, padding, chartW, chartH, yMax);
+      startTransition(data, jPoints, bPoints, yMax);
       updateStats(data);
     } else if (lastError) {
       statusEl.className = 'status error';
@@ -392,15 +668,13 @@
     }
   }
 
-  function resize() {
-    fetchAndDraw();
-  }
-  window.addEventListener('resize', resize);
-
   window.App = window.App || {};
   window.App.chart = {
     fetchAndDraw,
     setCurrentPeriod: function(p) { currentPeriod = p; },
-    getCurrentPeriod: function() { return currentPeriod; }
+    getCurrentPeriod: function() { return currentPeriod; },
+    redraw: function() {
+      if (chartState.data?.length) drawChart(chartState.data, hoverIndex);
+    }
   };
 })();
