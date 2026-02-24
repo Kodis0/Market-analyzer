@@ -600,10 +600,7 @@ body { padding: 20px; padding-bottom: 88px; }
   gap: 16px;
   position: relative;
 }
-/* Подсказка поверх следующих строк при наведении на "?" */
-.settings-item:has(.settings-help:hover) {
-  z-index: 10010;
-}
+
 .settings-item-key {
   color: var(--text-dim);
   flex: 1;
@@ -640,11 +637,25 @@ body { padding: 20px; padding-bottom: 88px; }
   content: none;
   display: none;
 }
-/* Глобальный тултип для параметров — поверх всего (в т.ч. в Telegram Mini App), не обрезается скроллом */
-.settings-global-tooltip {
+
+/* Самый верхний слой поверх любых карточек/таблиц в Telegram WebView */
+.ui-overlay {
   position: fixed;
+  inset: 0;
   z-index: 2147483647;
+  pointer-events: none;      /* чтобы клики проходили сквозь */
+  transform: translateZ(0);  /* форсим отдельный композитный слой */
   isolation: isolate;
+}
+
+/* Глобальный тултип для параметров — поверх всего (в т.ч. в Telegram Mini App), не обрезается скроллом */
+/* Tooltip рисуем внутри overlay */
+.settings-global-tooltip {
+  position: absolute; /* было fixed — меняем на absolute */
+  z-index: 1;
+  will-change: transform;
+  transform: translate3d(0,0,0);
+
   max-width: 280px;
   min-width: 180px;
   padding: 10px 14px;
@@ -657,14 +668,15 @@ body { padding: 20px; padding-bottom: 88px; }
   white-space: normal;
   line-height: 1.45;
   box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-  pointer-events: none;
   display: none;
   left: 0;
   top: 0;
 }
+
 .settings-global-tooltip.visible {
   display: block;
 }
+
 .settings-item-val {
   font-weight: 500;
   color: var(--text);
