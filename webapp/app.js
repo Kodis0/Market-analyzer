@@ -657,44 +657,81 @@ function renderSettingsList(s, labels) {
   });
   const tooltipEl = document.getElementById('settings-global-tooltip');
   if (tooltipEl) {
-    if (tooltipEl.parentNode !== document.body) document.body.appendChild(tooltipEl);
+    // гарантируем overlay
+    let overlay = document.getElementById('ui-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'ui-overlay';
+      overlay.className = 'ui-overlay';
+      overlay.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(overlay);
+    }
+  
+    // переносим tooltip внутрь overlay (важно для Telegram WebView)
+    if (tooltipEl.parentNode !== overlay) overlay.appendChild(tooltipEl);
+  
     if (!tooltipEl.dataset.listenersAttached) {
       tooltipEl.dataset.listenersAttached = '1';
+  
       document.addEventListener('touchstart', (e) => {
         if (!e.target.closest('.settings-help')) tooltipEl.classList.remove('visible');
       }, { passive: true });
+  
+      // прячем при скролле (чтобы не оставался "в воздухе")
+      const list = document.getElementById('settings-list');
+      list?.addEventListener('scroll', () => tooltipEl.classList.remove('visible'), { passive: true });
+      window.addEventListener('scroll', () => tooltipEl.classList.remove('visible'), { passive: true });
+      window.addEventListener('resize', () => tooltipEl.classList.remove('visible'));
     }
+  
     function showTooltip(text, triggerEl) {
       tooltipEl.textContent = text;
       tooltipEl.classList.add('visible');
       tooltipEl.setAttribute('aria-hidden', 'false');
+  
       const rect = triggerEl.getBoundingClientRect();
       const pad = 8;
-      tooltipEl.style.left = '';
-      tooltipEl.style.top = '';
+  
+      // Сначала ставим примерно, потом корректируем по фактическим размерам
+      tooltipEl.style.left = (rect.left + rect.width / 2) + 'px';
+      tooltipEl.style.top  = (rect.bottom + 10) + 'px';
+  
       requestAnimationFrame(() => {
         const tr = tooltipEl.getBoundingClientRect();
+  
         let left = rect.left + rect.width / 2 - tr.width / 2;
-        let top = rect.bottom + 8;
+        let top  = rect.bottom + 10;
+  
+        // если не влезает вниз — показываем сверху
+        if (top + tr.height > window.innerHeight - pad) {
+          top = rect.top - tr.height - 10;
+        }
+  
         left = Math.max(pad, Math.min(left, window.innerWidth - tr.width - pad));
-        top = Math.max(pad, Math.min(top, window.innerHeight - tr.height - pad));
+        top  = Math.max(pad, Math.min(top, window.innerHeight - tr.height - pad));
+  
         tooltipEl.style.left = left + 'px';
-        tooltipEl.style.top = top + 'px';
+        tooltipEl.style.top  = top + 'px';
       });
     }
+  
     function hideTooltip() {
       tooltipEl.classList.remove('visible');
       tooltipEl.setAttribute('aria-hidden', 'true');
     }
+  
     settingsList.querySelectorAll('.settings-help[data-tooltip]').forEach(help => {
       const text = help.getAttribute('data-tooltip');
       if (!text) return;
+  
       help.addEventListener('mouseenter', () => showTooltip(text, help));
       help.addEventListener('mouseleave', hideTooltip);
-      help.addEventListener('touchstart', () => {
+      help.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         if (tooltipEl.classList.contains('visible') && tooltipEl.textContent === text) hideTooltip();
         else showTooltip(text, help);
-      }, { passive: true });
+      }, { passive: false });
     });
   }
 }
