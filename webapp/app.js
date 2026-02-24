@@ -625,7 +625,7 @@ function renderSettingsList(s, labels) {
     .map(([k, v]) => {
       const label = escapeHtml(labels[k] || k);
       const tooltip = SETTING_TOOLTIPS[k];
-      const helpIcon = tooltip ? '<span class="settings-help" data-tooltip="' + escapeHtml(tooltip) + '">?</span>' : '';
+      const helpIcon = tooltip ? '<span class="settings-help" data-tooltip="' + escapeHtml(tooltip) + '" title="">?</span>' : '';
       const isBool = typeof v === 'boolean';
       if (isBool) {
         const on = v ? 'on' : 'off';
@@ -657,31 +657,44 @@ function renderSettingsList(s, labels) {
   });
   const tooltipEl = document.getElementById('settings-global-tooltip');
   if (tooltipEl) {
+    if (tooltipEl.parentNode !== document.body) document.body.appendChild(tooltipEl);
+    if (!tooltipEl.dataset.listenersAttached) {
+      tooltipEl.dataset.listenersAttached = '1';
+      document.addEventListener('touchstart', (e) => {
+        if (!e.target.closest('.settings-help')) tooltipEl.classList.remove('visible');
+      }, { passive: true });
+    }
+    function showTooltip(text, triggerEl) {
+      tooltipEl.textContent = text;
+      tooltipEl.classList.add('visible');
+      tooltipEl.setAttribute('aria-hidden', 'false');
+      const rect = triggerEl.getBoundingClientRect();
+      const pad = 8;
+      tooltipEl.style.left = '';
+      tooltipEl.style.top = '';
+      requestAnimationFrame(() => {
+        const tr = tooltipEl.getBoundingClientRect();
+        let left = rect.left + rect.width / 2 - tr.width / 2;
+        let top = rect.bottom + 8;
+        left = Math.max(pad, Math.min(left, window.innerWidth - tr.width - pad));
+        top = Math.max(pad, Math.min(top, window.innerHeight - tr.height - pad));
+        tooltipEl.style.left = left + 'px';
+        tooltipEl.style.top = top + 'px';
+      });
+    }
+    function hideTooltip() {
+      tooltipEl.classList.remove('visible');
+      tooltipEl.setAttribute('aria-hidden', 'true');
+    }
     settingsList.querySelectorAll('.settings-help[data-tooltip]').forEach(help => {
       const text = help.getAttribute('data-tooltip');
       if (!text) return;
-      help.addEventListener('mouseenter', () => {
-        tooltipEl.textContent = text;
-        tooltipEl.classList.add('visible');
-        tooltipEl.setAttribute('aria-hidden', 'false');
-        const rect = help.getBoundingClientRect();
-        const pad = 8;
-        tooltipEl.style.left = '';
-        tooltipEl.style.top = '';
-        requestAnimationFrame(() => {
-          const tr = tooltipEl.getBoundingClientRect();
-          let left = rect.left + rect.width / 2 - tr.width / 2;
-          let top = rect.bottom + 8;
-          left = Math.max(pad, Math.min(left, window.innerWidth - tr.width - pad));
-          top = Math.max(pad, Math.min(top, window.innerHeight - tr.height - pad));
-          tooltipEl.style.left = left + 'px';
-          tooltipEl.style.top = top + 'px';
-        });
-      });
-      help.addEventListener('mouseleave', () => {
-        tooltipEl.classList.remove('visible');
-        tooltipEl.setAttribute('aria-hidden', 'true');
-      });
+      help.addEventListener('mouseenter', () => showTooltip(text, help));
+      help.addEventListener('mouseleave', hideTooltip);
+      help.addEventListener('touchstart', () => {
+        if (tooltipEl.classList.contains('visible') && tooltipEl.textContent === text) hideTooltip();
+        else showTooltip(text, help);
+      }, { passive: true });
     });
   }
 }

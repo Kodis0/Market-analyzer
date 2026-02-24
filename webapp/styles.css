@@ -640,10 +640,11 @@ body { padding: 20px; padding-bottom: 88px; }
   content: none;
   display: none;
 }
-/* Глобальный тултип для параметров — поверх всего, не обрезается скроллом */
+/* Глобальный тултип для параметров — поверх всего (в т.ч. в Telegram Mini App), не обрезается скроллом */
 .settings-global-tooltip {
   position: fixed;
-  z-index: 999999;
+  z-index: 2147483647;
+  isolation: isolate;
   max-width: 280px;
   min-width: 180px;
   padding: 10px 14px;
