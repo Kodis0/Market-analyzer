@@ -8,6 +8,17 @@ import aiohttp
 log = logging.getLogger("telegram")
 
 
+def _load_tg_messages_from_db() -> list[dict]:
+    """Load persisted message_ids from DB. Used at startup."""
+    try:
+        from api.db import get_tg_messages
+
+        return get_tg_messages()
+    except Exception as e:
+        log.warning("Failed to load tg_messages from DB: %s", e)
+        return []
+
+
 class TelegramNotifier:
     def __init__(
         self,
@@ -45,6 +56,18 @@ class TelegramNotifier:
         # key -> stale flag
         self._stale: dict[str, bool] = {}
 
+        # Restore from DB after restart (delete_stale survives deploy)
+        for row in _load_tg_messages_from_db():
+            k = row.get("key")
+            mid = row.get("message_id")
+            ts = row.get("ts", 0)
+            if k and mid is not None:
+                self._msg_ids[k] = int(mid)
+                self._last_seen[k] = float(ts)
+                self._stale[k] = False
+        if self._msg_ids:
+            log.info("Restored %d tg_messages from DB", len(self._msg_ids))
+
     def update_stale_settings(self, stale_ttl_sec: float, delete_stale: bool) -> None:
         """Обновить настройки устаревания (вызывается при /settings)."""
         self.stale_ttl_sec = float(stale_ttl_sec)
@@ -59,6 +82,24 @@ class TelegramNotifier:
             if not data.get("ok"):
                 raise RuntimeError(f"Telegram API error {method}: {data}")
             return data
+
+    async def _save_msg_to_db(self, key: str, message_id: int, ts: float) -> None:
+        """Persist message_id to DB so it survives restart."""
+        try:
+            from api.db import upsert_tg_message_async
+
+            await upsert_tg_message_async(key, message_id, int(ts))
+        except Exception as e:
+            log.warning("Failed to save tg_message to DB: %s", e)
+
+    async def _remove_msg_from_db(self, key: str) -> None:
+        """Remove from DB after message deleted. Keeps DB small."""
+        try:
+            from api.db import delete_tg_message_async
+
+            await delete_tg_message_async(key)
+        except Exception as e:
+            log.warning("Failed to remove tg_message from DB: %s", e)
 
     async def send(self, text: str, reply_markup: dict | None = None) -> int:
         payload: dict = {
@@ -126,6 +167,7 @@ class TelegramNotifier:
             self._last_edit[key] = now
             self._last_sent_text[key] = text
             self._last_sent_markup[key] = reply_markup
+            await self._save_msg_to_db(key, new_id, now)
             return
 
         prev_text = self._last_sent_text.get(key)
@@ -138,6 +180,7 @@ class TelegramNotifier:
             self._last_edit[key] = now
             self._last_sent_text[key] = text
             self._last_sent_markup[key] = reply_markup
+            await self._save_msg_to_db(key, msg_id, now)
         except Exception as e:
             log.warning("edit failed for key=%s msg_id=%s: %s; sending new", key, msg_id, e)
             self._msg_ids.pop(key, None)
@@ -146,6 +189,7 @@ class TelegramNotifier:
             self._last_edit[key] = now
             self._last_sent_text[key] = text
             self._last_sent_markup[key] = reply_markup
+            await self._save_msg_to_db(key, new_id, now)
 
     async def expire_stale(self) -> None:
         if not self.edit_mode:
@@ -169,7 +213,7 @@ class TelegramNotifier:
 
             text = self._last_text.get(key, "")
             reply_markup = self._last_markup.get(key)
-            stale_text = self._make_stale_text(text, last_seen)
+            stale_text = self._make_stale_text(text or "Сигнал устарел", last_seen)
 
             if self.delete_stale:
                 try:
@@ -179,8 +223,15 @@ class TelegramNotifier:
                     self._last_sent_text.pop(key, None)
                     self._last_sent_markup.pop(key, None)
                     self._stale[key] = True
+                    await self._remove_msg_from_db(key)
                     continue
                 except Exception as e:
+                    err_str = str(e).lower()
+                    if "not found" in err_str or "message to delete" in err_str:
+                        self._msg_ids.pop(key, None)
+                        self._stale[key] = True
+                        await self._remove_msg_from_db(key)
+                        continue
                     log.warning("delete failed for key=%s msg_id=%s: %s; fallback to edit", key, msg_id, e)
 
             try:
@@ -189,6 +240,7 @@ class TelegramNotifier:
                 self._last_sent_text[key] = stale_text
                 self._last_sent_markup[key] = reply_markup
                 self._stale[key] = True
+                await self._save_msg_to_db(key, msg_id, now)
             except Exception as e:
                 log.warning("stale edit failed for key=%s msg_id=%s: %s; sending new", key, msg_id, e)
                 try:
@@ -198,5 +250,43 @@ class TelegramNotifier:
                     self._last_sent_text[key] = stale_text
                     self._last_sent_markup[key] = reply_markup
                     self._stale[key] = True
+                    await self._save_msg_to_db(key, new_id, now)
                 except Exception as e2:
                     log.warning("stale send failed for key=%s: %s", key, e2)
+
+    async def verify_and_cleanup_stale(self) -> None:
+        """
+        Periodic task: for records in DB that are stale, try to delete from Telegram.
+        Cleans up DB (removes record whether delete succeeds or message already gone).
+        Runs rarely (e.g. every 30 min) to catch messages we missed (crash before delete).
+        """
+        if not self.delete_stale or self.stale_ttl_sec <= 0:
+            return
+        try:
+            from api.db import get_stale_tg_messages_async
+
+            rows = await get_stale_tg_messages_async(self.stale_ttl_sec)
+            for row in rows:
+                key = row.get("key")
+                msg_id = row.get("message_id")
+                if not key or msg_id is None:
+                    continue
+                try:
+                    await self.delete(msg_id)
+                    await self._remove_msg_from_db(key)
+                    self._msg_ids.pop(key, None)
+                    self._last_seen.pop(key, None)
+                    self._stale[key] = True
+                    log.debug("verify_and_cleanup: deleted key=%s msg_id=%s", key, msg_id)
+                except Exception as e:
+                    err_str = str(e).lower()
+                    if "not found" in err_str or "message to delete" in err_str:
+                        await self._remove_msg_from_db(key)
+                        self._msg_ids.pop(key, None)
+                        self._last_seen.pop(key, None)
+                        self._stale[key] = True
+                        log.debug("verify_and_cleanup: msg already gone key=%s, cleaned DB", key)
+                    else:
+                        log.warning("verify_and_cleanup: delete failed key=%s: %s", key, e)
+        except Exception as e:
+            log.warning("verify_and_cleanup failed: %s", e)

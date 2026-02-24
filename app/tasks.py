@@ -97,6 +97,25 @@ def make_stale_loop(ctx: AppContext):
     return stale_loop
 
 
+TG_VERIFY_INTERVAL_SEC = 30 * 60  # 30 min — редкая перепроверка
+
+
+def make_tg_verify_loop(ctx: AppContext):
+    """Periodic verify: delete stale messages from DB that we missed (e.g. crash). Cleans DB."""
+
+    async def tg_verify_loop():
+        while True:
+            await asyncio.sleep(TG_VERIFY_INTERVAL_SEC)
+            if not ctx.settings.delete_stale:
+                continue
+            try:
+                await ctx.tg.verify_and_cleanup_stale()
+            except Exception as e:
+                log.warning("tg_verify_loop error: %s", e)
+
+    return tg_verify_loop
+
+
 def make_auto_tune_loop(ctx: AppContext):
     tuner = AutoTuner(config=TunerConfig())
     apply_settings_reload = make_apply_settings_reload(ctx)

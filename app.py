@@ -31,6 +31,7 @@ from app.tasks import (
     make_stats_heartbeat_loop,
     make_status_loop,
     make_stale_loop,
+    make_tg_verify_loop,
     make_ws_health_loop,
 )
 
@@ -56,6 +57,7 @@ async def main(cfg_path: str) -> None:
 
         status_loop = make_status_loop(ctx)
         stale_loop = make_stale_loop(ctx)
+        tg_verify_loop = make_tg_verify_loop(ctx)
         auto_tune_loop = make_auto_tune_loop(ctx)
         stats_heartbeat_loop = make_stats_heartbeat_loop(ctx)
         ws_health_loop = make_ws_health_loop(ctx)
@@ -115,6 +117,7 @@ async def main(cfg_path: str) -> None:
             asyncio.create_task(ctx.engine.run(on_signal), name="arb_engine"),
             asyncio.create_task(status_loop(), name="status"),
             asyncio.create_task(stale_loop(), name="tg_stale"),
+            asyncio.create_task(tg_verify_loop(), name="tg_verify"),
             asyncio.create_task(auto_tune_loop(), name="auto_tune"),
             asyncio.create_task(stats_heartbeat_loop(), name="stats_heartbeat"),
             asyncio.create_task(

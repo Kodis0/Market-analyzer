@@ -43,6 +43,14 @@ CREATE TABLE IF NOT EXISTS signal_history (
 );
 
 CREATE INDEX IF NOT EXISTS idx_signal_history_ts ON signal_history(ts);
+
+CREATE TABLE IF NOT EXISTS tg_messages (
+    key TEXT PRIMARY KEY,
+    message_id INTEGER NOT NULL,
+    ts INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_tg_messages_ts ON tg_messages(ts);
 """
 
 
@@ -393,3 +401,82 @@ def delete_signal(signal_id: int) -> bool:
 async def delete_signal_async(signal_id: int) -> bool:
     """Non-blocking delete_signal. Use in async context."""
     return await asyncio.to_thread(delete_signal, signal_id)
+
+
+# --- tg_messages: persistence for Telegram message_id (delete_stale survives restart) ---
+
+
+def upsert_tg_message(key: str, message_id: int, ts: int) -> None:
+    """Save or update message_id for signal key. Called when we send/edit a message."""
+    if _conn is None:
+        return
+    try:
+        _conn.execute(
+            """
+            INSERT INTO tg_messages (key, message_id, ts) VALUES (?, ?, ?)
+            ON CONFLICT(key) DO UPDATE SET message_id = excluded.message_id, ts = excluded.ts
+            """,
+            (key, message_id, ts),
+        )
+        _conn.commit()
+    except Exception as e:
+        log.warning("tg_messages upsert failed: %s", e)
+
+
+def get_tg_messages() -> list[dict]:
+    """Load all tg_messages for restore after restart. Returns [{key, message_id, ts}, ...]."""
+    if _conn is None:
+        return []
+    try:
+        cur = _conn.execute(
+            "SELECT key, message_id, ts FROM tg_messages ORDER BY ts DESC"
+        )
+        return [
+            {"key": r[0], "message_id": r[1], "ts": r[2]}
+            for r in cur.fetchall()
+        ]
+    except Exception as e:
+        log.warning("tg_messages get failed: %s", e)
+        return []
+
+
+def delete_tg_message(key: str) -> None:
+    """Remove record after message was deleted from chat. Keeps DB small."""
+    if _conn is None:
+        return
+    try:
+        _conn.execute("DELETE FROM tg_messages WHERE key = ?", (key,))
+        _conn.commit()
+    except Exception as e:
+        log.warning("tg_messages delete failed: %s", e)
+
+
+def get_stale_tg_messages(stale_ttl_sec: float) -> list[dict]:
+    """Get records where ts is older than stale_ttl_sec. For verify-and-delete task."""
+    if _conn is None:
+        return []
+    cutoff = int(time.time()) - int(stale_ttl_sec)
+    try:
+        cur = _conn.execute(
+            "SELECT key, message_id, ts FROM tg_messages WHERE ts < ?",
+            (cutoff,),
+        )
+        return [
+            {"key": r[0], "message_id": r[1], "ts": r[2]}
+            for r in cur.fetchall()
+        ]
+    except Exception as e:
+        log.warning("tg_messages get_stale failed: %s", e)
+        return []
+
+
+async def upsert_tg_message_async(key: str, message_id: int, ts: int) -> None:
+    return await asyncio.to_thread(upsert_tg_message, key, message_id, ts)
+
+
+async def delete_tg_message_async(key: str) -> None:
+    return await asyncio.to_thread(delete_tg_message, key)
+
+
+async def get_stale_tg_messages_async(stale_ttl_sec: float) -> list[dict]:
+    return await asyncio.to_thread(get_stale_tg_messages, stale_ttl_sec)
