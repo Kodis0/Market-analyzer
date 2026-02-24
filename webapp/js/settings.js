@@ -13,6 +13,7 @@
   const exchangeToggle = document.getElementById('exchange-toggle');
   const autoTuneToggle = document.getElementById('auto-tune-toggle');
   const deleteStaleToggle = document.getElementById('delete-stale-toggle');
+  const deleteStaleWrap = document.getElementById('delete-stale-wrap');
   const settingsList = document.getElementById('settings-list');
 
   const SETTINGS_HIDDEN_KEYS = new Set(['exchange_enabled', 'auto_tune_enabled', 'auto_tune_bounds', 'delete_stale']);
@@ -166,19 +167,18 @@
     }
   });
 
-  deleteStaleToggle.addEventListener('click', async () => {
+  function toggleDeleteStale() {
     const next = !deleteStaleToggle.classList.contains('on');
     deleteStaleToggle.classList.toggle('on', next);
     deleteStaleToggle.classList.toggle('off', !next);
-    try {
-      await updateSetting('delete_stale', next);
+    updateSetting('delete_stale', next).then(() => {
       if (window.App.history?.fetchSignalHistory) window.App.history.fetchSignalHistory();
-    } catch (_) {
-      deleteStaleToggle.classList.toggle('on', !next);
-      deleteStaleToggle.classList.toggle('off', next);
-      fetchStatusAndSettings();
-    }
-  });
+    });
+  }
+  if (deleteStaleWrap) {
+    deleteStaleWrap.addEventListener('click', toggleDeleteStale);
+    deleteStaleWrap.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleDeleteStale(); } });
+  }
 
   exchangeToggle.addEventListener('click', async () => {
     const next = !exchangeToggle.classList.contains('on');
