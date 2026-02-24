@@ -402,6 +402,18 @@ body { padding: 20px; padding-bottom: 88px; }
   color: var(--text-dim);
   margin-top: 2px;
 }
+.history-item-stale-label {
+  font-size: 0.7em;
+  color: var(--text-dim);
+}
+.history-item-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.history-item-meta {
+  text-align: right;
+}
 .history-item-profit {
   font-weight: 600;
   color: var(--accent);
@@ -798,6 +810,8 @@ body { padding: 20px; padding-bottom: 88px; }
 .console-line.warning { color: #f6ad55; }
 .console-empty { color: var(--text-dim); text-align: center; padding: 24px; }
 .console-auto-refresh { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--text-dim); }
+.header-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.console-toolbar-actions { display: flex; align-items: center; gap: 12px; }
 
 @media (prefers-color-scheme: light) {
   :root {

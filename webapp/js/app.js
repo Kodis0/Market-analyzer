@@ -1,22 +1,29 @@
 /**
  * Точка входа: инициализация, привязка событий, запуск загрузки данных.
- * Зависит от: config, utils, chart, history, settings, console (подключаются до этого скрипта).
+ * Зависит от: config, utils, constants, api-client, chart, history, settings, console.
  * Размер canvas задаётся в chart.js (DPR + ResizeObserver); здесь только запрос данных и отложенная перерисовка для Telegram Desktop.
  */
 (function() {
-  const historyCard = window.App.history.getHistoryCard();
+  'use strict';
+
+  var historyCard = window.App.history.getHistoryCard();
 
   function loadChart() {
     window.App.chart.fetchAndDraw();
   }
 
+  function redrawChart() {
+    if (window.App.chart && window.App.chart.redraw) {
+      window.App.chart.redraw();
+    }
+  }
+
   window.addEventListener('resize', loadChart);
   loadChart();
-  // Telegram Desktop: контейнер может получить размер с задержкой — перерисовка графика без повторного запроса
-  setTimeout(function() { if (window.App.chart?.redraw) window.App.chart.redraw(); }, 100);
-  setTimeout(function() { if (window.App.chart?.redraw) window.App.chart.redraw(); }, 400);
+  setTimeout(redrawChart, 100);
+  setTimeout(redrawChart, 400);
 
-  historyCard.classList.add('expanded');
+  if (historyCard) historyCard.classList.add('expanded');
   window.App.history.fetchSignalHistory();
 
   if (window.Telegram && window.Telegram.WebApp) {
@@ -24,47 +31,56 @@
     window.Telegram.WebApp.expand();
   }
 
-  document.getElementById('btn-refresh').addEventListener('click', () => {
+  document.getElementById('btn-refresh').addEventListener('click', function() {
     window.App.chart.fetchAndDraw();
     window.App.history.fetchSignalHistory();
   });
 
-  document.getElementById('period-select').addEventListener('change', (e) => {
+  document.getElementById('period-select').addEventListener('change', function(e) {
     window.App.chart.setCurrentPeriod(e.target.value);
     window.App.chart.fetchAndDraw();
   });
 
-  document.getElementById('history-header').addEventListener('click', () => {
-    historyCard.classList.toggle('expanded');
-    if (historyCard.classList.contains('expanded')) window.App.history.fetchSignalHistory();
+  document.getElementById('history-header').addEventListener('click', function() {
+    if (historyCard) historyCard.classList.toggle('expanded');
+    if (historyCard && historyCard.classList.contains('expanded')) {
+      window.App.history.fetchSignalHistory();
+    }
   });
 
-  document.getElementById('history-period').addEventListener('change', (e) => {
+  document.getElementById('history-period').addEventListener('change', function(e) {
     window.App.history.setHistoryPeriod(e.target.value);
     window.App.history.fetchSignalHistory();
   });
 
-  document.getElementById('history-hide-stale').addEventListener('change', () => {
-    const data = window.App.history.getLastHistoryData();
+  document.getElementById('history-hide-stale').addEventListener('change', function() {
+    var data = window.App.history.getLastHistoryData();
     if (data && data.length) window.App.history.renderHistory(data);
   });
 
-  document.addEventListener('visibilitychange', () => {
+  document.addEventListener('visibilitychange', function() {
     if (document.visibilityState !== 'visible') return;
-    if (document.getElementById('tab-main')?.classList.contains('active')) {
+    var tabMain = document.getElementById('tab-main');
+    var tabSettings = document.getElementById('tab-settings');
+    if (tabMain && tabMain.classList.contains('active')) {
       window.App.history.fetchSignalHistory();
     }
-    if (document.getElementById('tab-settings')?.classList.contains('active')) {
+    if (tabSettings && tabSettings.classList.contains('active')) {
       window.App.settings.fetchStatusAndSettings();
     }
   });
 
-  document.querySelectorAll('.nav-item').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const tab = btn.dataset.tab;
-      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-      document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
-      document.getElementById('tab-' + tab).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var tab = btn.dataset.tab;
+      document.querySelectorAll('.tab-panel').forEach(function(p) {
+        p.classList.remove('active');
+      });
+      document.querySelectorAll('.nav-item').forEach(function(b) {
+        b.classList.remove('active');
+      });
+      var tabEl = document.getElementById('tab-' + tab);
+      if (tabEl) tabEl.classList.add('active');
       btn.classList.add('active');
       if (tab === 'main') {
         window.App.history.fetchSignalHistory();
@@ -81,18 +97,27 @@
     });
   });
 
-  document.getElementById('console-auto-refresh')?.addEventListener('change', function() {
-    if (document.getElementById('tab-console')?.classList.contains('active')) {
-      if (this.checked) window.App.console.startConsoleAutoRefresh();
-      else window.App.console.stopConsoleAutoRefresh();
-    }
-  });
+  var consoleAutoRefresh = document.getElementById('console-auto-refresh');
+  if (consoleAutoRefresh) {
+    consoleAutoRefresh.addEventListener('change', function() {
+      var tabConsole = document.getElementById('tab-console');
+      if (tabConsole && tabConsole.classList.contains('active')) {
+        if (this.checked) window.App.console.startConsoleAutoRefresh();
+        else window.App.console.stopConsoleAutoRefresh();
+      }
+    });
+  }
 
-  document.getElementById('console-refresh-interval')?.addEventListener('change', function() {
-    if (document.getElementById('tab-console')?.classList.contains('active') && document.getElementById('console-auto-refresh')?.checked) {
-      window.App.console.startConsoleAutoRefresh();
-    }
-  });
+  var consoleRefreshInterval = document.getElementById('console-refresh-interval');
+  if (consoleRefreshInterval) {
+    consoleRefreshInterval.addEventListener('change', function() {
+      var tabConsole = document.getElementById('tab-console');
+      var cb = document.getElementById('console-auto-refresh');
+      if (tabConsole && tabConsole.classList.contains('active') && cb && cb.checked) {
+        window.App.console.startConsoleAutoRefresh();
+      }
+    });
+  }
 
   document.getElementById('btn-console-refresh').addEventListener('click', window.App.console.fetchConsoleLogs);
 })();
