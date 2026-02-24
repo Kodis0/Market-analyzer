@@ -6,18 +6,24 @@
 (function() {
   'use strict';
 
-  var MAIN = window.App.Constants.MAIN;
-  var historyCard = window.App.history.getHistoryCard();
+  var MAIN = (window.App && window.App.Constants && window.App.Constants.MAIN) || {
+    REFRESH_INTERVAL_SEC: 5,
+    REFRESH_LABEL: 'Refresh',
+    REFRESHING_LABEL: 'Refresh...'
+  };
+  var historyCard = document.getElementById('history-card');
   var btnRefresh = document.getElementById('btn-refresh');
   var btnRefreshLabel = btnRefresh ? btnRefresh.querySelector('.btn-refresh-label') : null;
   var mainAutoRefreshTimer = null;
 
   function loadChart() {
-    window.App.chart.fetchAndDraw();
+    if (window.App && window.App.chart && window.App.chart.fetchAndDraw) {
+      window.App.chart.fetchAndDraw();
+    }
   }
 
   function redrawChart() {
-    if (window.App.chart && window.App.chart.redraw) {
+    if (window.App && window.App.chart && window.App.chart.redraw) {
       window.App.chart.redraw();
     }
   }
@@ -36,22 +42,34 @@
   }
 
   async function refreshMainData() {
+    if (!btnRefresh) return;
     setRefreshButtonLoading(true);
+    var start = Date.now();
+    await new Promise(function(r) { requestAnimationFrame(r); });
     try {
-      await Promise.all([
-        window.App.chart.fetchAndDraw(),
-        window.App.history.fetchSignalHistory()
-      ]);
+      var chart = window.App && window.App.chart;
+      var history = window.App && window.App.history;
+      var promises = [];
+      if (chart && chart.fetchAndDraw) promises.push(chart.fetchAndDraw());
+      if (history && history.fetchSignalHistory) promises.push(history.fetchSignalHistory());
+      if (promises.length) await Promise.all(promises);
     } catch (e) {
       console.error('Refresh failed:', e);
     } finally {
+      var elapsed = Date.now() - start;
+      var minVisible = 300;
+      if (elapsed < minVisible) {
+        await new Promise(function(r) { setTimeout(r, minVisible - elapsed); });
+      }
       setRefreshButtonLoading(false);
     }
   }
 
   function startMainAutoRefresh() {
     stopMainAutoRefresh();
-    mainAutoRefreshTimer = setInterval(refreshMainData, MAIN.REFRESH_INTERVAL_SEC * 1000);
+    mainAutoRefreshTimer = setInterval(function() {
+      refreshMainData();
+    }, MAIN.REFRESH_INTERVAL_SEC * 1000);
   }
 
   function stopMainAutoRefresh() {
@@ -59,11 +77,6 @@
       clearInterval(mainAutoRefreshTimer);
       mainAutoRefreshTimer = null;
     }
-  }
-
-  function isMainTabActive() {
-    var tabMain = document.getElementById('tab-main');
-    return tabMain && tabMain.classList.contains('active');
   }
 
   window.addEventListener('resize', loadChart);
@@ -78,9 +91,11 @@
     window.Telegram.WebApp.expand();
   }
 
-  btnRefresh.addEventListener('click', function() {
-    refreshMainData();
-  });
+  if (btnRefresh) {
+    btnRefresh.addEventListener('click', function() {
+      refreshMainData();
+    });
+  }
 
   document.getElementById('period-select').addEventListener('change', function(e) {
     window.App.chart.setCurrentPeriod(e.target.value);
