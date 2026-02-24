@@ -62,11 +62,18 @@
     easeOutCubic: function(t) { return 1 - Math.pow(1 - t, 3); }
   };
 
+  const MAIN = {
+    REFRESH_INTERVAL_SEC: 5,
+    REFRESH_LABEL: 'Refresh',
+    REFRESHING_LABEL: 'Refresh...'
+  };
+
   window.App = window.App || {};
   window.App.Constants = {
     CHART,
     MESSAGES,
     SETTINGS,
-    EASING
+    EASING,
+    MAIN
   };
 })();

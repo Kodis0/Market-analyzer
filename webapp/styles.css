@@ -88,6 +88,14 @@ body { padding: 20px; padding-bottom: 88px; }
 .btn-refresh svg {
   width: 18px;
   height: 18px;
+  flex-shrink: 0;
+}
+.btn-refresh.loading .btn-refresh-icon {
+  animation: btn-refresh-spin 0.8s linear infinite;
+}
+@keyframes btn-refresh-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 .select-styled {
   padding: 8px 12px;

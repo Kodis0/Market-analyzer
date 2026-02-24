@@ -6,7 +6,11 @@
 (function() {
   'use strict';
 
+  var MAIN = window.App.Constants.MAIN;
   var historyCard = window.App.history.getHistoryCard();
+  var btnRefresh = document.getElementById('btn-refresh');
+  var btnRefreshLabel = btnRefresh ? btnRefresh.querySelector('.btn-refresh-label') : null;
+  var mainAutoRefreshTimer = null;
 
   function loadChart() {
     window.App.chart.fetchAndDraw();
@@ -18,22 +22,64 @@
     }
   }
 
+  function setRefreshButtonLoading(loading) {
+    if (!btnRefresh) return;
+    if (loading) {
+      btnRefresh.classList.add('loading');
+      btnRefresh.disabled = true;
+      if (btnRefreshLabel) btnRefreshLabel.textContent = MAIN.REFRESHING_LABEL;
+    } else {
+      btnRefresh.classList.remove('loading');
+      btnRefresh.disabled = false;
+      if (btnRefreshLabel) btnRefreshLabel.textContent = MAIN.REFRESH_LABEL;
+    }
+  }
+
+  async function refreshMainData() {
+    setRefreshButtonLoading(true);
+    try {
+      await Promise.all([
+        window.App.chart.fetchAndDraw(),
+        window.App.history.fetchSignalHistory()
+      ]);
+    } catch (e) {
+      console.error('Refresh failed:', e);
+    } finally {
+      setRefreshButtonLoading(false);
+    }
+  }
+
+  function startMainAutoRefresh() {
+    stopMainAutoRefresh();
+    mainAutoRefreshTimer = setInterval(refreshMainData, MAIN.REFRESH_INTERVAL_SEC * 1000);
+  }
+
+  function stopMainAutoRefresh() {
+    if (mainAutoRefreshTimer) {
+      clearInterval(mainAutoRefreshTimer);
+      mainAutoRefreshTimer = null;
+    }
+  }
+
+  function isMainTabActive() {
+    var tabMain = document.getElementById('tab-main');
+    return tabMain && tabMain.classList.contains('active');
+  }
+
   window.addEventListener('resize', loadChart);
-  loadChart();
   setTimeout(redrawChart, 100);
   setTimeout(redrawChart, 400);
 
   if (historyCard) historyCard.classList.add('expanded');
-  window.App.history.fetchSignalHistory();
+  refreshMainData();
 
   if (window.Telegram && window.Telegram.WebApp) {
     window.Telegram.WebApp.ready();
     window.Telegram.WebApp.expand();
   }
 
-  document.getElementById('btn-refresh').addEventListener('click', function() {
-    window.App.chart.fetchAndDraw();
-    window.App.history.fetchSignalHistory();
+  btnRefresh.addEventListener('click', function() {
+    refreshMainData();
   });
 
   document.getElementById('period-select').addEventListener('change', function(e) {
@@ -63,7 +109,8 @@
     var tabMain = document.getElementById('tab-main');
     var tabSettings = document.getElementById('tab-settings');
     if (tabMain && tabMain.classList.contains('active')) {
-      window.App.history.fetchSignalHistory();
+      refreshMainData();
+      startMainAutoRefresh();
     }
     if (tabSettings && tabSettings.classList.contains('active')) {
       window.App.settings.fetchStatusAndSettings();
@@ -84,6 +131,9 @@
       btn.classList.add('active');
       if (tab === 'main') {
         window.App.history.fetchSignalHistory();
+        startMainAutoRefresh();
+      } else {
+        stopMainAutoRefresh();
       }
       if (tab === 'settings') {
         window.App.settings.fetchStatusAndSettings();
@@ -96,6 +146,8 @@
       }
     });
   });
+
+  startMainAutoRefresh();
 
   var consoleAutoRefresh = document.getElementById('console-auto-refresh');
   if (consoleAutoRefresh) {
