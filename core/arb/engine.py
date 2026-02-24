@@ -315,8 +315,8 @@ class ArbEngine:
                                         if not ready:
                                             self._dbg_inc("A_skip_persistence")
                                         else:
-                                            key = f"{token_key}:JUP->BYBIT:{int(self.notional)}"
-                                            if not self.dedup.can_send(key, profit):
+                                            key = f"{token_key}:JUP->BYBIT"
+                                            if not self.dedup.can_send(f"{token_key}:JUP->BYBIT:{int(self.notional)}", profit):
                                                 self._dbg_inc("A_skip_dedup")
                                             else:
                                                 net_pct = (profit / self.notional) * Decimal("100")
@@ -341,7 +341,7 @@ class ArbEngine:
                                                 sig = Signal(
                                                     key, token_key, "JUP->BYBIT", profit, self.notional, text, buttons
                                                 )
-                                                self.dedup.mark_sent(key, profit)
+                                                self.dedup.mark_sent(f"{token_key}:JUP->BYBIT:{int(self.notional)}", profit)
                                                 res = on_signal(sig)
                                                 if asyncio.iscoroutine(res):
                                                     await res
@@ -435,8 +435,8 @@ class ArbEngine:
                                         if not ready2:
                                             self._dbg_inc("B_skip_persistence")
                                         else:
-                                            key2 = f"{token_key}:BYBIT->JUP:{int(self.notional)}"
-                                            if not self.dedup.can_send(key2, profit2):
+                                            key2 = f"{token_key}:BYBIT->JUP"
+                                            if not self.dedup.can_send(f"{token_key}:BYBIT->JUP:{int(self.notional)}", profit2):
                                                 self._dbg_inc("B_skip_dedup")
                                             else:
                                                 net_pct2 = (profit2 / self.notional) * Decimal("100")
@@ -467,7 +467,7 @@ class ArbEngine:
                                                     text2,
                                                     buttons2,
                                                 )
-                                                self.dedup.mark_sent(key2, profit2)
+                                                self.dedup.mark_sent(f"{token_key}:BYBIT->JUP:{int(self.notional)}", profit2)
                                                 res2 = on_signal(sig2)
                                                 if asyncio.iscoroutine(res2):
                                                     await res2
