@@ -9,13 +9,13 @@
   const apiDot = document.getElementById('status-api-dot');
   const apiVal = document.getElementById('status-api-val');
   const exchangeDot = document.getElementById('status-exchange-dot');
-  const deleteStaleToggle = document.getElementById('delete-stale-toggle');
   const exchangeVal = document.getElementById('status-exchange-val');
   const exchangeToggle = document.getElementById('exchange-toggle');
-  const deleteStaleWrap = document.getElementById('delete-stale-wrap');
   const autoTuneToggle = document.getElementById('auto-tune-toggle');
+  const deleteStaleToggle = document.getElementById('delete-stale-toggle');
   const exchangeWrap = document.getElementById('exchange-toggle-wrap');
   const autoTuneWrap = document.getElementById('auto-tune-wrap');
+  const deleteStaleWrap = document.getElementById('delete-stale-wrap');
   const settingsList = document.getElementById('settings-list');
 
   const SETTINGS_HIDDEN_KEYS = new Set(['exchange_enabled', 'auto_tune_enabled', 'auto_tune_bounds', 'delete_stale']);
@@ -236,6 +236,7 @@
     fetchDebounceTimer = null;
     fetchStatusAndSettingsImpl();
   });
+
   bindToggleWrap(exchangeWrap, toggleExchange);
   bindToggleWrap(autoTuneWrap, toggleAutoTune);
   bindToggleWrap(deleteStaleWrap, toggleDeleteStale);
