@@ -98,7 +98,8 @@ async def _register_bot_commands(session: aiohttp.ClientSession, bot_token: str,
 DEFAULT_PINNED_TEXT = (
     "Навигация по единой торговой системе.\n"
     "Здесь собраны все инструменты для мониторинга арбитражных возможностей между Jupiter и Bybit.\n"
-    "Нажмите кнопку ниже для доступа к настройкам и актуальной информации."
+    "Нажмите кнопку ниже для доступа к настройкам и актуальной информации.\n"
+    "Чтобы дашборд открылся внутри Telegram (без ошибки авторизации): откройте бота в личке и нажмите кнопку меню слева от поля ввода."
 )
 
 
@@ -118,13 +119,14 @@ def _make_navigation_button_payload(
     if thread_id is not None:
         payload["message_thread_id"] = thread_id
 
+    # InlineKeyboardButton с web_app разрешён только в личных чатах; в группе — BUTTON_TYPE_INVALID.
+    # Используем url. Для открытия внутри Telegram: кнопка меню бота (BotFather → Menu Button) или t.me/bot/app.
     url = (web_app_url or "").strip()
     if url.startswith("https://"):
-        # web_app — открывает Mini App внутри Telegram (с initData). url — открывает в браузере (без initData → 401).
         payload["reply_markup"] = {
             "inline_keyboard": [
                 [
-                    {"text": "НАВИГАЦИЯ", "web_app": {"url": url}},
+                    {"text": "НАВИГАЦИЯ", "url": url},
                 ]
             ],
         }
@@ -132,7 +134,7 @@ def _make_navigation_button_payload(
         payload["reply_markup"] = {
             "inline_keyboard": [
                 [
-                    {"text": "НАВИГАЦИЯ", "web_app": {"url": "https://t.me/AutoArbitrage0Bot/market"}},
+                    {"text": "НАВИГАЦИЯ", "url": "https://t.me/AutoArbitrage0Bot/market"},
                 ]
             ],
         }

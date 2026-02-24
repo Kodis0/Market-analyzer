@@ -58,12 +58,12 @@ async def main() -> None:
     if thread_id is not None:
         payload["message_thread_id"] = thread_id
 
+    # InlineKeyboardButton с web_app в группах даёт BUTTON_TYPE_INVALID — только url.
     if web_app_url and str(web_app_url).strip().startswith("https://"):
-        # web_app — открывает Mini App в Telegram (с initData). url — в браузере (без initData → 401).
         payload["reply_markup"] = {
             "inline_keyboard": [
                 [
-                    {"text": "НАВИГАЦИЯ", "web_app": {"url": str(web_app_url).strip()}},
+                    {"text": "НАВИГАЦИЯ", "url": str(web_app_url).strip()},
                 ]
             ],
         }
@@ -71,7 +71,7 @@ async def main() -> None:
         payload["reply_markup"] = {
             "inline_keyboard": [
                 [
-                    {"text": "НАВИГАЦИЯ", "web_app": {"url": "https://t.me/BotFather"}},
+                    {"text": "НАВИГАЦИЯ", "url": "https://t.me/BotFather"},
                 ]
             ],
         }
