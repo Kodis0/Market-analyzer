@@ -76,7 +76,6 @@ class RuntimeSettings:
             "jupiter_poll_interval_sec": "Интервал опроса Jupiter (сек)",
             "max_ob_age_ms": "Макс. возраст стакана (мс)",
             "stale_ttl_sec": "Время до устаревания сигнала (сек, 0=выкл)",
-            "delete_stale": "Удалять устаревшие (true/false)",
             "exchange_enabled": "Биржевая логика вкл (true/false)",
             "auto_tune_enabled": "Авто-подстройка параметров вкл (true/false)",
         }
@@ -142,7 +141,6 @@ class RuntimeSettings:
             "<code>jupiter_poll_interval_sec</code> — интервал опроса Jupiter (сек)",
             "<code>max_ob_age_ms</code> — макс. возраст стакана (мс)",
             "<code>stale_ttl_sec</code> — время до устаревания (сек, 0=выкл)",
-            "<code>delete_stale</code> — удалять устаревшие (true/false)",
             "<code>exchange_enabled</code> — биржевая логика вкл (true/false). Быстрее: /exchange on|off",
             "<code>bybit_taker_fee_bps</code> — комиссия Bybit (bps)",
             "<code>solana_tx_fee_usd</code> — комиссия Solana ($)",
@@ -196,11 +194,9 @@ class RuntimeSettings:
 
 <b>Устаревшие сигналы:</b>
 • <code>stale_ttl_sec</code> — через сколько сек сигнал считается устаревшим (0 = выключено)
-• <code>delete_stale</code> — true = удалять сообщения, false = редактировать на «устарел»
 
 <b>Пример:</b> <code>/settings min_profit_usd 20</code>
-<b>Пример:</b> <code>/settings stale_ttl_sec 300</code> — устаревать через 5 мин
-<b>Пример:</b> <code>/settings delete_stale true</code> — удалять устаревшие"""
+<b>Пример:</b> <code>/settings stale_ttl_sec 300</code> — устаревать через 5 мин"""
 
 
 def load_runtime_settings(path: str, defaults: RuntimeSettings | None = None) -> RuntimeSettings:
