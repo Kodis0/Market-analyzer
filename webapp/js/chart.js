@@ -210,13 +210,12 @@
       updateStats(data);
     } else if (lastError) {
       statusEl.className = 'status error';
-      const suffix = lastError.status === 429 ? '' : '. Проверь, что бот запущен, туннель работает, и API доступен.';
-      statusEl.textContent = 'Ошибка: ' + lastError.message + suffix;
+      statusEl.textContent = 'Ошибка';
       drawChart([]);
       document.getElementById('stats-row').style.display = 'none';
     } else {
       statusEl.className = 'status success';
-      statusEl.textContent = 'Нет данных за период. Бот записывает запросы Jupiter/Bybit — подожди или выбери другой период.';
+      statusEl.textContent = '';
       drawChart([]);
       document.getElementById('stats-row').style.display = 'none';
     }

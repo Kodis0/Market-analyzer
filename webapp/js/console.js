@@ -32,17 +32,17 @@
       const r = await fetch(getApiBase() + '/api/logs?limit=100', { headers: getAuthHeaders() });
       if (!r.ok) {
         if (r.status === 404) {
-          el.innerHTML = '<div class="console-empty">Консоль отключена в настройках сервера</div>';
+          el.innerHTML = '';
           return;
         }
-        if (r.status === 401) throw new Error('Откройте дашборд через Telegram (кнопка «Навигация»)');
-        if (r.status === 429) throw new Error('Слишком много запросов. Подождите минуту.');
+        if (r.status === 401) throw new Error('Auth');
+        if (r.status === 429) throw new Error('Rate limit');
         throw new Error('HTTP ' + r.status);
       }
       const data = await r.json();
       const lines = data.lines || [];
       if (lines.length === 0) {
-        el.innerHTML = '<div class="console-empty">Нет логов</div>';
+        el.innerHTML = '';
         return;
       }
       el.innerHTML = lines.map(line => {
@@ -51,7 +51,7 @@
       }).join('');
       el.scrollTop = el.scrollHeight;
     } catch (e) {
-      el.innerHTML = '<div class="console-empty">Ошибка: ' + escapeHtml(e.message || String(e)) + '</div>';
+      el.innerHTML = '';
     }
   }
 
