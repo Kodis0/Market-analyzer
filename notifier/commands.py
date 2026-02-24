@@ -120,10 +120,11 @@ def _make_navigation_button_payload(
 
     url = (web_app_url or "").strip()
     if url.startswith("https://"):
+        # web_app — открывает Mini App внутри Telegram (с initData). url — открывает в браузере (без initData → 401).
         payload["reply_markup"] = {
             "inline_keyboard": [
                 [
-                    {"text": "НАВИГАЦИЯ", "url": url},
+                    {"text": "НАВИГАЦИЯ", "web_app": {"url": url}},
                 ]
             ],
         }
@@ -131,7 +132,7 @@ def _make_navigation_button_payload(
         payload["reply_markup"] = {
             "inline_keyboard": [
                 [
-                    {"text": "НАВИГАЦИЯ", "url": "https://t.me/AutoArbitrage0Bot/market"},
+                    {"text": "НАВИГАЦИЯ", "web_app": {"url": "https://t.me/AutoArbitrage0Bot/market"}},
                 ]
             ],
         }
