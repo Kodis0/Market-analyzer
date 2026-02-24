@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import shutil
 import sqlite3
 import threading
 import time
@@ -56,6 +57,17 @@ def close() -> None:
         _conn = None
 
 
+def _integrity_ok(conn: sqlite3.Connection) -> bool:
+    """Run PRAGMA integrity_check; return True if database is ok."""
+    try:
+        cur = conn.execute("PRAGMA integrity_check")
+        row = cur.fetchone()
+        return row is not None and str(row[0]).upper() == "OK"
+    except Exception as e:
+        log.warning("integrity_check failed: %s", e)
+        return False
+
+
 def init(db_path: Path) -> None:
     global DB_PATH, _conn, _buffer
     if _conn is not None:
@@ -69,6 +81,31 @@ def init(db_path: Path) -> None:
     DB_PATH = Path(db_path)
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     _conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
+    if not _integrity_ok(_conn):
+        _conn.close()
+        _conn = None
+        backup_path = DB_PATH.parent / (DB_PATH.name + ".corrupted." + str(int(time.time())))
+        try:
+            shutil.move(str(DB_PATH), str(backup_path))
+            for suffix in ("-wal", "-shm"):
+                extra = Path(str(DB_PATH) + suffix)
+                if extra.exists():
+                    try:
+                        extra.unlink()
+                    except Exception:
+                        pass
+            log.warning(
+                "Database corrupted, moved to %s; creating new empty DB at %s",
+                backup_path,
+                DB_PATH,
+            )
+        except Exception as e:
+            log.warning("Could not move corrupted DB: %s", e)
+            try:
+                DB_PATH.unlink()
+            except Exception:
+                pass
+        _conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
     _conn.executescript(SCHEMA)
     try:
         _conn.execute("ALTER TABLE signal_history ADD COLUMN status TEXT DEFAULT 'active'")
