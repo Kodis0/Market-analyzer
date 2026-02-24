@@ -598,6 +598,11 @@ body { padding: 20px; padding-bottom: 88px; }
   border: 1px solid rgba(255,255,255,0.06);
   font-size: 0.85rem;
   gap: 16px;
+  position: relative;
+}
+/* Подсказка поверх следующих строк при наведении на "?" */
+.settings-item:has(.settings-help:hover) {
+  z-index: 10010;
 }
 .settings-item-key {
   color: var(--text-dim);
