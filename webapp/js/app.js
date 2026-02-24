@@ -51,9 +51,7 @@
 
   function startMainAutoRefresh() {
     stopMainAutoRefresh();
-    mainAutoRefreshTimer = setInterval(function() {
-      refreshMainData();
-    }, MAIN.REFRESH_INTERVAL_SEC * 1000);
+    mainAutoRefreshTimer = setInterval(refreshMainData, MAIN.REFRESH_INTERVAL_SEC * 1000);
   }
 
   function stopMainAutoRefresh() {
@@ -61,6 +59,11 @@
       clearInterval(mainAutoRefreshTimer);
       mainAutoRefreshTimer = null;
     }
+  }
+
+  function isMainTabActive() {
+    var tabMain = document.getElementById('tab-main');
+    return tabMain && tabMain.classList.contains('active');
   }
 
   window.addEventListener('resize', loadChart);
