@@ -110,11 +110,11 @@
           <span id="status-exchange-val" class="status-value">—</span>
         </div>
       </div>
-      <div class="exchange-toggle-wrap">
+      <div class="exchange-toggle-wrap" id="exchange-toggle-wrap" role="button" tabindex="0" title="Биржевая логика — вкл/выкл">
         <span class="exchange-toggle-label">Биржевая логика (Jupiter, Bybit, арбитраж)</span>
         <div id="exchange-toggle" class="exchange-toggle off" title="Вкл/выкл"></div>
       </div>
-      <div class="exchange-toggle-wrap">
+      <div class="exchange-toggle-wrap" id="auto-tune-wrap" role="button" tabindex="0" title="AutoTune — вкл/выкл">
         <span class="exchange-toggle-label">AutoTune</span>
         <div id="auto-tune-toggle" class="exchange-toggle off" title="Вкл/выкл"></div>
       </div>
@@ -180,8 +180,6 @@
       </button>
     </nav>
   </div>
-
-  <div id="ui-overlay" class="ui-overlay" aria-hidden="true"></div>
 
   <script src="js/config.js"></script>
   <script src="js/utils.js"></script>

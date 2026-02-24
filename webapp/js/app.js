@@ -71,15 +71,6 @@
       }
       if (tab === 'settings') {
         window.App.settings.fetchStatusAndSettings();
-        fetch(window.App.getApiBase() + '/api/auto_tune', { headers: window.App.getAuthHeaders() })
-          .then(r => r.ok ? r.json() : null)
-          .then(d => {
-            const autoTuneToggle = window.App.settings.getAutoTuneToggle();
-            if (d && autoTuneToggle) {
-              autoTuneToggle.classList.toggle('on', !!d.enabled);
-              autoTuneToggle.classList.toggle('off', !d.enabled);
-            }
-          });
       }
       if (tab === 'console') {
         window.App.console.fetchConsoleLogs();

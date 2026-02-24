@@ -13,17 +13,38 @@
   const exchangeToggle = document.getElementById('exchange-toggle');
   const autoTuneToggle = document.getElementById('auto-tune-toggle');
   const deleteStaleToggle = document.getElementById('delete-stale-toggle');
+  const exchangeWrap = document.getElementById('exchange-toggle-wrap');
+  const autoTuneWrap = document.getElementById('auto-tune-wrap');
   const deleteStaleWrap = document.getElementById('delete-stale-wrap');
   const settingsList = document.getElementById('settings-list');
 
   const SETTINGS_HIDDEN_KEYS = new Set(['exchange_enabled', 'auto_tune_enabled', 'auto_tune_bounds', 'delete_stale']);
+  const DEBOUNCE_MS = 150;
+
+  let fetchDebounceTimer = null;
 
   function setStatusDot(el, ok) {
     el.classList.remove('ok', 'err', 'unknown');
     el.classList.add(ok === true ? 'ok' : (ok === false ? 'err' : 'unknown'));
   }
 
-  async function fetchStatusAndSettings() {
+  function setToggleState(toggleEl, on) {
+    if (!toggleEl) return;
+    toggleEl.classList.toggle('on', on);
+    toggleEl.classList.toggle('off', !on);
+  }
+
+  function showError(msg) {
+    if (window.Telegram?.WebApp?.showAlert) {
+      window.Telegram.WebApp.showAlert(msg);
+    } else {
+      console.error(msg);
+    }
+  }
+
+  const AUTH_MSG = 'Откройте дашборд через Telegram (кнопка «Навигация»)';
+
+  async function fetchStatusAndSettingsImpl() {
     setStatusDot(apiDot, null);
     apiVal.textContent = 'Проверка...';
     setStatusDot(exchangeDot, null);
@@ -36,7 +57,7 @@
       ]);
 
       if (!statusRes.ok) {
-        const msg = statusRes.status === 401 ? 'Откройте дашборд через Telegram (кнопка «Навигация»)' : statusRes.status === 429 ? 'Слишком много запросов. Подождите минуту.' : 'Status ' + statusRes.status;
+        const msg = statusRes.status === 401 ? AUTH_MSG : statusRes.status === 429 ? 'Слишком много запросов. Подождите минуту.' : 'Status ' + statusRes.status;
         throw new Error(msg);
       }
       const status = await statusRes.json();
@@ -45,11 +66,9 @@
       const exEnabled = !!status.exchange_enabled;
       setStatusDot(exchangeDot, exEnabled);
       exchangeVal.textContent = exEnabled ? 'Включена' : 'Выключена';
-      exchangeToggle.classList.toggle('on', exEnabled);
-      exchangeToggle.classList.toggle('off', !exEnabled);
+      setToggleState(exchangeToggle, exEnabled);
       if ('auto_tune_enabled' in status) {
-        autoTuneToggle.classList.toggle('on', !!status.auto_tune_enabled);
-        autoTuneToggle.classList.toggle('off', !status.auto_tune_enabled);
+        setToggleState(autoTuneToggle, !!status.auto_tune_enabled);
       }
 
       if (settingsRes.ok) {
@@ -57,9 +76,7 @@
         const s = data.settings || {};
         const labels = data.labels || {};
         if ('delete_stale' in s) {
-          const on = !!s.delete_stale;
-          deleteStaleToggle.classList.toggle('on', on);
-          deleteStaleToggle.classList.toggle('off', !on);
+          setToggleState(deleteStaleToggle, !!s.delete_stale);
         }
         renderSettingsList(s, labels);
       }
@@ -68,14 +85,19 @@
       apiVal.textContent = 'Офлайн';
       setStatusDot(exchangeDot, null);
       exchangeVal.textContent = '—';
-      exchangeToggle.classList.add('off');
-      exchangeToggle.classList.remove('on');
-      autoTuneToggle?.classList.add('off');
-      autoTuneToggle?.classList.remove('on');
-      deleteStaleToggle?.classList.add('off');
-      deleteStaleToggle?.classList.remove('on');
-      settingsList.innerHTML = '';
+      setToggleState(exchangeToggle, false);
+      setToggleState(autoTuneToggle, false);
+      setToggleState(deleteStaleToggle, false);
+      if (settingsList) settingsList.innerHTML = '';
     }
+  }
+
+  function fetchStatusAndSettings() {
+    if (fetchDebounceTimer) clearTimeout(fetchDebounceTimer);
+    fetchDebounceTimer = setTimeout(() => {
+      fetchDebounceTimer = null;
+      fetchStatusAndSettingsImpl();
+    }, DEBOUNCE_MS);
   }
 
   async function updateSetting(key, value) {
@@ -85,16 +107,16 @@
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ [key]: value })
       });
-      if (!r.ok) throw new Error(r.status === 401 ? 'Откройте дашборд через Telegram (кнопка «Навигация»)' : 'HTTP ' + r.status);
+      if (!r.ok) throw new Error(r.status === 401 ? AUTH_MSG : 'HTTP ' + r.status);
       const data = await r.json();
       if (data.updated && data.updated[key] !== undefined) {
-        const item = settingsList.querySelector('[data-key="' + key + '"]');
+        const safeKey = CSS.escape ? CSS.escape(key) : key.replace(/[!"#$%&'()*+,.\/:;<=>?@[\\\]^`{|}~]/g, '\\$&');
+        const item = settingsList.querySelector('[data-key="' + safeKey + '"]');
         if (item) {
           const toggle = item.querySelector('.settings-toggle');
           const input = item.querySelector('.settings-input');
           if (toggle) {
-            toggle.classList.toggle('on', data.updated[key]);
-            toggle.classList.toggle('off', !data.updated[key]);
+            setToggleState(toggle, data.updated[key]);
           }
           if (input) {
             input.value = data.updated[key];
@@ -107,18 +129,84 @@
     }
   }
 
+  async function updateToggle(id, endpoint, bodyKey, bodyValue, onSuccess) {
+    const toggleEl = id === 'exchange' ? exchangeToggle : id === 'auto_tune' ? autoTuneToggle : deleteStaleToggle;
+    const next = !toggleEl.classList.contains('on');
+    setToggleState(toggleEl, next);
+
+    try {
+      const body = bodyKey ? { [bodyKey]: bodyValue !== undefined ? bodyValue : next } : { enabled: next };
+      const r = await fetch(getApiBase() + endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify(body)
+      });
+      if (!r.ok) throw new Error(r.status === 401 ? AUTH_MSG : 'HTTP ' + r.status);
+      const data = await r.json();
+
+      if (id === 'exchange') {
+        const ok = data.exchange_enabled !== undefined ? data.exchange_enabled : next;
+        setToggleState(exchangeToggle, ok);
+        setStatusDot(exchangeDot, ok);
+        exchangeVal.textContent = ok ? 'Включена' : 'Выключена';
+      } else if (id === 'auto_tune') {
+        const ok = !!(data?.auto_tune?.enabled ?? data?.enabled ?? next);
+        setToggleState(autoTuneToggle, ok);
+      } else if (id === 'delete_stale') {
+        const ok = data.updated?.delete_stale !== undefined ? data.updated.delete_stale : next;
+        setToggleState(deleteStaleToggle, ok);
+        if (onSuccess) onSuccess();
+      }
+    } catch (e) {
+      setToggleState(toggleEl, !next);
+      if (id === 'exchange') {
+        setStatusDot(exchangeDot, null);
+        exchangeVal.textContent = '—';
+      }
+      fetchStatusAndSettings();
+      showError(e.message || 'Ошибка сохранения');
+    }
+  }
+
+  function toggleExchange() {
+    updateToggle('exchange', '/api/exchange', 'enabled', undefined);
+  }
+
+  function toggleAutoTune() {
+    updateToggle('auto_tune', '/api/auto_tune', 'enabled', undefined);
+  }
+
+  function toggleDeleteStale() {
+    updateToggle('delete_stale', '/api/settings', 'delete_stale', undefined, () => {
+      if (window.App.history?.fetchSignalHistory) window.App.history.fetchSignalHistory();
+    });
+  }
+
+  function bindToggleWrap(wrap, handler) {
+    if (!wrap) return;
+    wrap.addEventListener('click', (e) => { e.preventDefault(); handler(); });
+    wrap.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        handler();
+      }
+    });
+  }
+
   function renderSettingsList(s, labels) {
+    if (!settingsList) return;
     settingsList.innerHTML = Object.entries(s)
       .filter(([k]) => !SETTINGS_HIDDEN_KEYS.has(k))
       .map(([k, v]) => {
         const label = escapeHtml(labels[k] || k);
+        const safeK = escapeHtml(k);
         const isBool = typeof v === 'boolean';
         if (isBool) {
           const on = v ? 'on' : 'off';
-          return '<div class="settings-item" data-key="' + escapeHtml(k) + '"><span class="settings-item-key">' + label + '</span><div class="settings-toggle ' + on + '" data-key="' + escapeHtml(k) + '" role="button" tabindex="0"></div></div>';
+          return '<div class="settings-item" data-key="' + safeK + '"><span class="settings-item-key">' + label + '</span><div class="settings-toggle ' + on + '" data-key="' + safeK + '" role="button" tabindex="0"></div></div>';
         }
         const step = Number.isInteger(v) ? '1' : '0.01';
-        return '<div class="settings-item" data-key="' + escapeHtml(k) + '"><span class="settings-item-key">' + label + '</span><input type="number" class="settings-input" data-key="' + escapeHtml(k) + '" value="' + escapeHtml(String(v)) + '" step="' + step + '"></div>';
+        return '<div class="settings-item" data-key="' + safeK + '"><span class="settings-item-key">' + label + '</span><input type="number" class="settings-input" data-key="' + safeK + '" value="' + escapeHtml(String(v)) + '" step="' + step + '"></div>';
       }).join('');
     settingsList.querySelectorAll('.settings-toggle').forEach(el => {
       el.addEventListener('click', () => updateSetting(el.dataset.key, !el.classList.contains('on')));
@@ -143,65 +231,18 @@
     });
   }
 
-  document.getElementById('btn-settings-refresh').addEventListener('click', fetchStatusAndSettings);
-
-  autoTuneToggle.addEventListener('click', async () => {
-    const next = !autoTuneToggle.classList.contains('on');
-    autoTuneToggle.classList.toggle('on', next);
-    autoTuneToggle.classList.toggle('off', !next);
-    try {
-      const r = await fetch(getApiBase() + '/api/auto_tune', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ enabled: next })
-      });
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      const d = await r.json();
-      const ok = !!(d?.auto_tune?.enabled ?? d?.enabled);
-      autoTuneToggle.classList.toggle('on', ok);
-      autoTuneToggle.classList.toggle('off', !ok);
-    } catch (_) {
-      autoTuneToggle.classList.toggle('on', !next);
-      autoTuneToggle.classList.toggle('off', next);
-      fetchStatusAndSettings();
-    }
+  document.getElementById('btn-settings-refresh').addEventListener('click', () => {
+    if (fetchDebounceTimer) clearTimeout(fetchDebounceTimer);
+    fetchDebounceTimer = null;
+    fetchStatusAndSettingsImpl();
   });
 
-  function toggleDeleteStale() {
-    const next = !deleteStaleToggle.classList.contains('on');
-    deleteStaleToggle.classList.toggle('on', next);
-    deleteStaleToggle.classList.toggle('off', !next);
-    updateSetting('delete_stale', next).then(() => {
-      if (window.App.history?.fetchSignalHistory) window.App.history.fetchSignalHistory();
-    });
-  }
-  if (deleteStaleWrap) {
-    deleteStaleWrap.addEventListener('click', toggleDeleteStale);
-    deleteStaleWrap.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleDeleteStale(); } });
-  }
-
-  exchangeToggle.addEventListener('click', async () => {
-    const next = !exchangeToggle.classList.contains('on');
-    try {
-      const r = await fetch(getApiBase() + '/api/exchange', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ enabled: next })
-      });
-      if (!r.ok) throw new Error(r.status === 401 ? 'Откройте дашборд через Telegram (кнопка «Навигация»)' : 'HTTP ' + r.status);
-      const data = await r.json();
-      exchangeToggle.classList.toggle('on', data.exchange_enabled);
-      exchangeToggle.classList.toggle('off', !data.exchange_enabled);
-      setStatusDot(exchangeDot, data.exchange_enabled);
-      exchangeVal.textContent = data.exchange_enabled ? 'Включена' : 'Выключена';
-    } catch (e) {
-      fetchStatusAndSettings();
-    }
-  });
+  bindToggleWrap(exchangeWrap, toggleExchange);
+  bindToggleWrap(autoTuneWrap, toggleAutoTune);
+  bindToggleWrap(deleteStaleWrap, toggleDeleteStale);
 
   window.App = window.App || {};
   window.App.settings = {
-    fetchStatusAndSettings,
-    getAutoTuneToggle: function() { return autoTuneToggle; }
+    fetchStatusAndSettings
   };
 })();
