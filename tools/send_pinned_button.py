@@ -36,7 +36,10 @@ async def main() -> None:
     tg = cfg.get("telegram") or {}
     chat_id = tg.get("chat_id")
     thread_id = tg.get("thread_id")
+    # app_link (t.me/бот/приложение) открывается как Mini App; иначе web_app_url
+    app_link = tg.get("app_link") or os.environ.get("APP_LINK")
     web_app_url = tg.get("web_app_url") or os.environ.get("WEB_APP_URL")
+    button_url = (app_link or web_app_url or "").strip()
     pinned_text = tg.get("pinned_message_text") or (
         "Навигация по единой торговой системе.\n"
         "Здесь собраны все инструменты для мониторинга арбитражных возможностей между Jupiter и Bybit.\n"
@@ -58,24 +61,16 @@ async def main() -> None:
     if thread_id is not None:
         payload["message_thread_id"] = thread_id
 
-    # InlineKeyboardButton с web_app в группах даёт BUTTON_TYPE_INVALID — только url.
-    if web_app_url and str(web_app_url).strip().startswith("https://"):
+    # Ссылка t.me/бот/приложение открывается как Mini App. Прямой https:// — в браузере.
+    if button_url and (button_url.startswith("https://t.me/") or button_url.startswith("https://")):
         payload["reply_markup"] = {
-            "inline_keyboard": [
-                [
-                    {"text": "НАВИГАЦИЯ", "url": str(web_app_url).strip()},
-                ]
-            ],
+            "inline_keyboard": [[{"text": "НАВИГАЦИЯ", "url": button_url}]],
         }
     else:
         payload["reply_markup"] = {
-            "inline_keyboard": [
-                [
-                    {"text": "НАВИГАЦИЯ", "url": "https://t.me/BotFather"},
-                ]
-            ],
+            "inline_keyboard": [[{"text": "НАВИГАЦИЯ", "url": "https://t.me/BotFather"}]],
         }
-        payload["text"] = "Добавь web_app_url в config.yaml и задеплой webapp/ на netlify.com/drop"
+        payload["text"] = "Добавь telegram.app_link (t.me/Бот/приложение) или web_app_url в config.yaml"
 
     async with aiohttp.ClientSession() as session:
         async with session.post(TG_SEND.format(token=token), json=payload) as r:

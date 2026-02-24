@@ -6,7 +6,8 @@ from pydantic import BaseModel, Field
 class TelegramCfg(BaseModel):
     chat_id: int
     thread_id: int | None = None
-    web_app_url: str | None = None  # URL для кнопки "Навигация" (Web App)
+    web_app_url: str | None = None  # URL дашборда (https://...). Нужен для Menu Button в BotFather.
+    app_link: str | None = None  # Ссылка t.me/БотUsername/AppShortName — открывается как Mini App (в т.ч. из группы)
     pinned_message_text: str | None = None  # Текст закреплённого сообщения (редактируй в config.yaml)
 
 

@@ -98,8 +98,7 @@ async def _register_bot_commands(session: aiohttp.ClientSession, bot_token: str,
 DEFAULT_PINNED_TEXT = (
     "Навигация по единой торговой системе.\n"
     "Здесь собраны все инструменты для мониторинга арбитражных возможностей между Jupiter и Bybit.\n"
-    "Нажмите кнопку ниже для доступа к настройкам и актуальной информации.\n"
-    "Чтобы дашборд открылся внутри Telegram (без ошибки авторизации): откройте бота в личке и нажмите кнопку меню слева от поля ввода."
+    "Нажмите кнопку ниже — откроется дашборд в Telegram (Mini App)."
 )
 
 
@@ -108,6 +107,7 @@ def _make_navigation_button_payload(
     thread_id: int | None,
     web_app_url: str | None,
     pinned_text: str | None = None,
+    app_link: str | None = None,
 ) -> dict:
     text = (pinned_text or DEFAULT_PINNED_TEXT).strip() or DEFAULT_PINNED_TEXT
     payload: dict = {
@@ -119,24 +119,17 @@ def _make_navigation_button_payload(
     if thread_id is not None:
         payload["message_thread_id"] = thread_id
 
-    # InlineKeyboardButton с web_app разрешён только в личных чатах; в группе — BUTTON_TYPE_INVALID.
-    # Используем url. Для открытия внутри Telegram: кнопка меню бота (BotFather → Menu Button) или t.me/bot/app.
-    url = (web_app_url or "").strip()
-    if url.startswith("https://"):
+    # Ссылка t.me/бот/приложение открывается как Mini App (в т.ч. из группы). Прямой https:// — в браузере.
+    button_url = (app_link or "").strip() if app_link else (web_app_url or "").strip()
+    if not button_url:
+        button_url = "https://t.me/AutoArbitrage0Bot/market"
+    elif button_url.startswith("https://t.me/"):
+        pass  # уже t.me — откроется Mini App
+    elif button_url.startswith("https://"):
+        pass  # прямой URL — откроется в браузере
+    if button_url:
         payload["reply_markup"] = {
-            "inline_keyboard": [
-                [
-                    {"text": "НАВИГАЦИЯ", "url": url},
-                ]
-            ],
-        }
-    else:
-        payload["reply_markup"] = {
-            "inline_keyboard": [
-                [
-                    {"text": "НАВИГАЦИЯ", "url": "https://t.me/AutoArbitrage0Bot/market"},
-                ]
-            ],
+            "inline_keyboard": [[{"text": "НАВИГАЦИЯ", "url": button_url}]],
         }
 
     return payload
@@ -155,6 +148,7 @@ async def run_settings_command_handler(
     pinned_message_text: str | None = None,
     poll_interval_sec: float = 2.0,
     on_exchange_toggle: Callable[[bool], Awaitable[None]] | None = None,
+    app_link: str | None = None,
 ) -> None:
     """
     Poll for Telegram updates and handle /settings, /help commands.
@@ -234,7 +228,9 @@ async def run_settings_command_handler(
                 # /pin_setup
                 if cmd == "/pin_setup":
                     url_send_full = TG_SEND_MESSAGE.format(token=bot_token)
-                    pl = _make_navigation_button_payload(chat_id, thread_id, web_app_url, pinned_message_text)
+                    pl = _make_navigation_button_payload(
+                        chat_id, thread_id, web_app_url, pinned_message_text, app_link=app_link
+                    )
                     try:
                         async with session.post(url_send_full, json=pl, timeout=aiohttp.ClientTimeout(total=10)) as r:
                             j = await r.json()

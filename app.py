@@ -128,6 +128,7 @@ async def main(cfg_path: str) -> None:
                     stop_event=commands_stop,
                     web_app_url=getattr(cfg.telegram, "web_app_url", None),
                     pinned_message_text=getattr(cfg.telegram, "pinned_message_text", None),
+                    app_link=getattr(cfg.telegram, "app_link", None),
                     on_exchange_toggle=on_exchange_toggle,
                 ),
                 name="settings_cmd",

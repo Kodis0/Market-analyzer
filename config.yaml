@@ -2356,8 +2356,12 @@ api:
 telegram:
   chat_id: -1003881338901
   thread_id: null
-  # URL кнопки «Навигация» — должен совпадать с Direct Links в BotFather
+  # URL дашборда (для Menu Button в BotFather). Direct Link в BotFather указывает сюда.
   web_app_url: https://market.arbmarketsystem.ru
+  # Ссылка t.me/БотUsername/AppShortName — кнопка «Навигация» откроет Mini App (в т.ч. из группы).
+  # Создай приложение в BotFather: /newapp → short name (напр. market) → URL = web_app_url выше.
+  # Тогда app_link = https://t.me/ТвойБотUsername/market
+  app_link: https://t.me/AutoArbitrage0Bot/market
   pinned_message_text: |
     Навигация по единой торговой системе.
     Здесь собраны все инструменты для мониторинга арбитражных возможностей между Jupiter и Bybit.
