@@ -628,7 +628,7 @@ body { padding: 20px; padding-bottom: 88px; }
 .settings-help:hover {
   background: var(--accent);
   color: var(--bg);
-  z-index: 10002;
+  z-index: 100004;
 }
 .settings-help[data-tooltip]:hover::after {
   content: attr(data-tooltip);
