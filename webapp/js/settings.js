@@ -12,6 +12,8 @@
   const exchangeVal = document.getElementById('status-exchange-val');
   const exchangeToggle = document.getElementById('exchange-toggle');
   const autoTuneToggle = document.getElementById('auto-tune-toggle');
+  const deleteStaleToggle = document.getElementById('delete-stale-toggle');
+  const deleteStaleWrap = document.getElementById('delete-stale-wrap');
   const settingsList = document.getElementById('settings-list');
 
   const SETTINGS_HIDDEN_KEYS = new Set(['exchange_enabled', 'auto_tune_enabled', 'auto_tune_bounds', 'delete_stale']);
@@ -54,6 +56,11 @@
         const data = await settingsRes.json();
         const s = data.settings || {};
         const labels = data.labels || {};
+        if ('delete_stale' in s) {
+          const on = !!s.delete_stale;
+          deleteStaleToggle.classList.toggle('on', on);
+          deleteStaleToggle.classList.toggle('off', !on);
+        }
         renderSettingsList(s, labels);
       }
     } catch (e) {
@@ -65,6 +72,8 @@
       exchangeToggle.classList.remove('on');
       autoTuneToggle?.classList.add('off');
       autoTuneToggle?.classList.remove('on');
+      deleteStaleToggle?.classList.add('off');
+      deleteStaleToggle?.classList.remove('on');
       settingsList.innerHTML = '';
     }
   }
@@ -157,6 +166,19 @@
       fetchStatusAndSettings();
     }
   });
+
+  function toggleDeleteStale() {
+    const next = !deleteStaleToggle.classList.contains('on');
+    deleteStaleToggle.classList.toggle('on', next);
+    deleteStaleToggle.classList.toggle('off', !next);
+    updateSetting('delete_stale', next).then(() => {
+      if (window.App.history?.fetchSignalHistory) window.App.history.fetchSignalHistory();
+    });
+  }
+  if (deleteStaleWrap) {
+    deleteStaleWrap.addEventListener('click', toggleDeleteStale);
+    deleteStaleWrap.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleDeleteStale(); } });
+  }
 
   exchangeToggle.addEventListener('click', async () => {
     const next = !exchangeToggle.classList.contains('on');
