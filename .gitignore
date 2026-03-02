@@ -9,3 +9,4 @@ settings.json
 *.sqlite
 *.sqlite3
 request_stats.db
+.quarantine.yaml
