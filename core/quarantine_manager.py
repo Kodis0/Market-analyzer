@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -171,51 +170,45 @@ class QuarantineManager:
         poll_sec: float = 10.0,
         on_symbols_changed: Callable[[], Any] | None = None,
     ) -> None:
-        """Watch quarantine file and apply changes."""
-        last_mtime = 0.0
+        """
+        Watch quarantine file and apply changes.
+        Every iteration: load file, prune expired by TTL, persist if needed, sync in-memory.
+        Раньше обновление было только при mtime — истёкшие по TTL записи не снимались до рестарта.
+        """
         while True:
             try:
-                mtime = os.path.getmtime(self.quarantine_path)
-            except FileNotFoundError:
-                mtime = 0.0
+                async with self._file_lock:
+                    q = load_quarantine(str(self.quarantine_path))
+                    q2 = prune_expired(q)
+                    if set(q2.keys()) != set(q.keys()):
+                        save_quarantine(str(self.quarantine_path), q2)
+                    new_set = set(q2.keys())
+            except Exception:
+                log.exception("Failed to sync quarantine file=%s", self.quarantine_path)
+                new_set = set()
 
-            changed = mtime > last_mtime
-            last_mtime = max(last_mtime, mtime)
+            async with self._lock:
+                before = set(self.quarantined_set)
+                added = new_set - before
+                removed = before - new_set
 
-            if changed:
-                try:
-                    async with self._file_lock:
-                        q = load_quarantine(str(self.quarantine_path))
-                        q2 = prune_expired(q)
-                        if q2.keys() != q.keys():
-                            save_quarantine(str(self.quarantine_path), q2)
-                        new_set = set(q2.keys())
-                except Exception:
-                    log.exception("Failed to sync quarantine file=%s", self.quarantine_path)
-                    new_set = set()
+                if added or removed:
+                    self.quarantined_set.clear()
+                    self.quarantined_set.update(new_set)
+                    self._apply_quarantine_to_cfg()
+                    self._rebuild_token_cfgs_inplace()
 
-                async with self._lock:
-                    before = set(self.quarantined_set)
-                    added = new_set - before
-                    removed = before - new_set
+                    if on_symbols_changed:
+                        result = on_symbols_changed()
+                        if asyncio.iscoroutine(result):
+                            await result
 
-                    if added or removed:
-                        self.quarantined_set.clear()
-                        self.quarantined_set.update(new_set)
-                        self._apply_quarantine_to_cfg()
-                        self._rebuild_token_cfgs_inplace()
-
-                        if on_symbols_changed:
-                            result = on_symbols_changed()
-                            if asyncio.iscoroutine(result):
-                                await result
-
-                        log.warning(
-                            "Quarantine sync: added=%d removed=%d active=%d quarantined=%d",
-                            len(added),
-                            len(removed),
-                            len(self.cfg.bybit.symbols),
-                            len(self.quarantined_set),
-                        )
+                    log.warning(
+                        "Quarantine sync: added=%d removed=%d active=%d quarantined=%d",
+                        len(added),
+                        len(removed),
+                        len(self.cfg.bybit.symbols),
+                        len(self.quarantined_set),
+                    )
 
             await asyncio.sleep(poll_sec)
