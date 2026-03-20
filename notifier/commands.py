@@ -252,12 +252,12 @@ async def run_settings_command_handler(
                 "inline_keyboard": [
                     [
                         {
-                            "text": "Купить на Bybit",
+                            "text": f"{CUSTOM_GREEN_EMOJI_HTML} Купить на Bybit",
                             "url": "https://www.bybit.com/en/trade/spot/BTC/USDT",
                             "style": "green",
                         },
                         {
-                            "text": "Продать на Jupiter",
+                            "text": f"{CUSTOM_RED_EMOJI_HTML} Продать на Jupiter",
                             "url": "https://jup.ag/swap/BTC-USDC",
                             "style": "red",
                         },
