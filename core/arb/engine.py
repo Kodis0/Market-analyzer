@@ -34,6 +34,7 @@ B_AMOUNT_RATIO_MAX = Decimal("1.003")
 # B-branch requote prune: interval between prunes, max age of entries to keep
 B_REQUOTE_PRUNE_INTERVAL_SEC = 60.0
 B_REQUOTE_PRUNE_AGE_SEC = 600  # 10 min
+CUSTOM_ALERT_EMOJI_HTML = '<tg-emoji emoji-id="5420323339723881652">🚨</tg-emoji>'
 
 
 class ArbEngine:
@@ -346,7 +347,7 @@ class ArbEngine:
                                                     else "n/a"
                                                 )
                                                 text = (
-                                                    f"🚨 <b>АРБИТРАЖ</b> • <b>{token_key}</b>\n"
+                                                    f"{CUSTOM_ALERT_EMOJI_HTML} <b>АРБИТРАЖ</b> • <b>{token_key}</b>\n"
                                                     f"Маршрут: <b>Jupiter → Bybit</b>\n"
                                                     f"Объём: <code>{self.notional:.0f} USDC</code>\n"
                                                     f"Ожидаемый выход: <code>{stable_out:.2f} USDT</code>\n"
@@ -490,7 +491,7 @@ class ArbEngine:
                                                     else "n/a"
                                                 )
                                                 text2 = (
-                                                    f"🚨 <b>АРБИТРАЖ</b> • <b>{token_key}</b>\n"
+                                                    f"{CUSTOM_ALERT_EMOJI_HTML} <b>АРБИТРАЖ</b> • <b>{token_key}</b>\n"
                                                     f"Маршрут: <b>Bybit → Jupiter</b>\n"
                                                     f"Объём: <code>{self.notional:.0f} USDC</code>\n"
                                                     f"Ожидаемый выход: <code>{stable_out2:.2f} USDT</code>\n"
