@@ -134,6 +134,26 @@ class TelegramNotifier:
         payload: dict = {"chat_id": self.chat_id, "message_id": message_id}
         await self._post("deleteMessage", payload)
 
+    async def delete_message_for_key(self, key: str, message_id: int) -> None:
+        """
+        Удалить сообщение из Telegram и почистить запись из БД/кэшей по ключу.
+        Используется для плановой чистки "хвостов" после сбоев/рассинхрона.
+        """
+        # Помечаем локально, чтобы никто не пытался редактировать
+        self._stale[key] = True
+        self._msg_ids.pop(key, None)
+        self._last_seen.pop(key, None)
+        self._last_edit.pop(key, None)
+        self._last_text.pop(key, None)
+        self._last_markup.pop(key, None)
+        self._last_sent_text.pop(key, None)
+        self._last_sent_markup.pop(key, None)
+
+        try:
+            await self.delete(int(message_id))
+        finally:
+            await self._remove_msg_from_db(key)
+
     def _make_stale_text(self, text: str, last_seen_ts: float) -> str:
         if "Сигнал устарел" in text:
             return text
@@ -183,6 +203,14 @@ class TelegramNotifier:
             await self._save_msg_to_db(key, msg_id, now)
         except Exception as e:
             log.warning("edit failed for key=%s msg_id=%s: %s; invalidating, next upsert will send one new", key, msg_id, e)
+            # Best-effort: если edit упал, то старое сообщение может остаться "висящим" в чате.
+            # Попробуем удалить его, чтобы не копить сироты.
+            try:
+                await self.delete(int(msg_id))
+            except Exception as del_e:
+                err_str = str(del_e).lower()
+                if "not found" not in err_str and "message to delete" not in err_str:
+                    log.debug("edit-fail cleanup delete failed key=%s msg_id=%s: %s", key, msg_id, del_e)
             self._msg_ids.pop(key, None)
             self._last_edit.pop(key, None)
             self._last_sent_text.pop(key, None)
@@ -240,7 +268,10 @@ class TelegramNotifier:
                 self._last_sent_text[key] = stale_text
                 self._last_sent_markup[key] = reply_markup
                 self._stale[key] = True
-                await self._save_msg_to_db(key, msg_id, now)
+                # Важно: не сбрасываем ts в БД на "время редактирования".
+                # Иначе по TTL такие сообщения не будут считаться устаревшими при
+                # последующей hourly/verify чистке.
+                await self._save_msg_to_db(key, msg_id, float(last_seen))
             except Exception as e:
                 log.warning("stale edit failed for key=%s msg_id=%s: %s; sending new", key, msg_id, e)
                 try:
@@ -250,9 +281,49 @@ class TelegramNotifier:
                     self._last_sent_text[key] = stale_text
                     self._last_sent_markup[key] = reply_markup
                     self._stale[key] = True
-                    await self._save_msg_to_db(key, new_id, now)
+                    await self._save_msg_to_db(key, new_id, float(last_seen))
                 except Exception as e2:
                     log.warning("stale send failed for key=%s: %s", key, e2)
+
+    async def cleanup_stale_msgs_by_ttl(self) -> None:
+        """
+        Удалить сообщения в чате, которые устарели по TTL.
+        Проверка "висящих" сообщений раз в час (или реже) помогает после падений
+        или при других ситуациях, когда expire_stale мог только "пометить устаревшим",
+        но не удалить.
+        """
+        if self.stale_ttl_sec <= 0:
+            return
+
+        try:
+            from api.db import get_stale_tg_messages_async
+
+            rows = await get_stale_tg_messages_async(self.stale_ttl_sec)
+            for row in rows:
+                key = row.get("key")
+                msg_id = row.get("message_id")
+                if not key or msg_id is None:
+                    continue
+
+                # Гасим гонку с expire_stale(): чтобы он не пытался edit/send для этого ключа.
+                self._stale[key] = True
+                self._msg_ids.pop(key, None)
+                self._last_seen.pop(key, None)
+                self._last_edit.pop(key, None)
+                self._last_sent_text.pop(key, None)
+                self._last_sent_markup.pop(key, None)
+
+                try:
+                    await self.delete(int(msg_id))
+                except Exception as e:
+                    err_str = str(e).lower()
+                    if "not found" not in err_str and "message to delete" not in err_str:
+                        log.warning("hourly cleanup delete failed key=%s msg_id=%s: %s", key, msg_id, e)
+
+                # Убираем запись из БД, независимо от результата delete.
+                await self._remove_msg_from_db(key)
+        except Exception as e:
+            log.warning("cleanup_stale_msgs_by_ttl failed: %s", e)
 
     async def verify_and_cleanup_stale(self) -> None:
         """
