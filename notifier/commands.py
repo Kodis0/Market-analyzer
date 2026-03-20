@@ -20,6 +20,7 @@ log = logging.getLogger("commands")
 TG_GET_UPDATES = "https://api.telegram.org/bot{token}/getUpdates"
 TG_SEND_MESSAGE = "https://api.telegram.org/bot{token}/sendMessage"
 TG_DELETE_MESSAGE = "https://api.telegram.org/bot{token}/deleteMessage"
+TG_EDIT_MESSAGE_TEXT = "https://api.telegram.org/bot{token}/editMessageText"
 TG_SET_MY_COMMANDS = "https://api.telegram.org/bot{token}/setMyCommands"
 LIGHTNING_MESSAGE_EFFECT_ID = "5123236135417415011"
 
@@ -204,6 +205,23 @@ async def run_settings_command_handler(
         except Exception:
             pass
 
+    async def edit_message(message_id: int, text: str) -> None:
+        if not message_id:
+            return
+        url_edit = TG_EDIT_MESSAGE_TEXT.format(token=bot_token)
+        payload: dict = {
+            "chat_id": chat_id,
+            "message_id": int(message_id),
+            "text": text,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True,
+        }
+        try:
+            async with session.post(url_edit, json=payload, timeout=aiohttp.ClientTimeout(total=10)) as _:
+                pass
+        except Exception:
+            pass
+
     async def send_test_signal_and_autodelete() -> None:
         payload: dict = {
             "chat_id": chat_id,
@@ -336,17 +354,26 @@ async def run_settings_command_handler(
                         continue
                     progress_mid = await send("⏳ Запуск ручной проверки сигналов...")
                     try:
+                        if progress_mid:
+                            await edit_message(progress_mid, "🔄 Идёт ручная проверка сигналов...\nПожалуйста, подожди.")
                         # Защита от зависания ручной проверки: всегда даём финальный ответ.
                         result_text = await asyncio.wait_for(on_cleanup(), timeout=180.0)
+                        if progress_mid:
+                            await edit_message(progress_mid, result_text)
+                        else:
+                            await send(result_text)
                     except asyncio.TimeoutError:
                         result_text = "⚠️ /cleanup: проверка заняла слишком много времени (таймаут 180с). Попробуй ещё раз."
+                        if progress_mid:
+                            await edit_message(progress_mid, result_text)
+                        else:
+                            await send(result_text)
                     except Exception as e:
                         result_text = f"❌ /cleanup: ошибка: {e}"
-                    finally:
                         if progress_mid:
-                            await delete_message(progress_mid)
-
-                    await send(result_text)
+                            await edit_message(progress_mid, result_text)
+                        else:
+                            await send(result_text)
                     continue
 
                 # /test_signal
