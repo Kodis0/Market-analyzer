@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from datetime import datetime, timedelta, timezone
 from collections.abc import Callable
 from decimal import Decimal, getcontext
 from typing import TYPE_CHECKING, Any
@@ -247,6 +248,8 @@ class ArbEngine:
             now_ms = self.state.now_ms()
             bybit_last_cts_ms = int(ob.last_cts_ms or ob.last_update_ms or now_ms)
 
+            tz_msk = timezone(timedelta(hours=3))
+
             # Snapshot quotes under lock, then use copies outside. Poller may update qp
             # concurrently; using j_buy/j_sell avoids race and keeps evaluation consistent.
             async with qp.lock:
@@ -325,18 +328,20 @@ class ArbEngine:
                                                 price_jup = self.notional / token_out
                                                 price_bybit = sim_sell.avg_price
                                                 tg_updated_ts = int(time.time())
-                                                tg_updated_str = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(tg_updated_ts))
+                                                tg_updated_str = datetime.fromtimestamp(tg_updated_ts, tz=tz_msk).strftime(
+                                                    "%Y-%m-%d %H:%M:%S"
+                                                )
                                                 jup_last_ts = int(buy_updated_ms // 1000) if buy_updated_ms else 0
                                                 bybit_last_ts = int(bybit_last_cts_ms // 1000) if bybit_last_cts_ms else 0
                                                 jup_age_ms = max(0, now_ms - buy_updated_ms) if buy_updated_ms else 0
                                                 bybit_age_ms = max(0, now_ms - bybit_last_cts_ms) if bybit_last_cts_ms else 0
                                                 jup_last_str = (
-                                                    time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(jup_last_ts))
+                                                    datetime.fromtimestamp(jup_last_ts, tz=tz_msk).strftime("%Y-%m-%d %H:%M:%S")
                                                     if jup_last_ts
                                                     else "n/a"
                                                 )
                                                 bybit_last_str = (
-                                                    time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(bybit_last_ts))
+                                                    datetime.fromtimestamp(bybit_last_ts, tz=tz_msk).strftime("%Y-%m-%d %H:%M:%S")
                                                     if bybit_last_ts
                                                     else "n/a"
                                                 )
@@ -349,8 +354,8 @@ class ArbEngine:
                                                     f"Комиссии/запас: <code>{required:.2f}$</code>\n"
                                                     f"Цена на Jupiter: <code>{price_jup:.6f}$</code>\n"
                                                     f"Цена на Bybit: <code>{price_bybit:.6f}$</code>"
-                                                    f"\n\n<b>Последнее изменение (Telegram):</b> <code>{tg_updated_str} UTC</code>"
-                                                    f"\n<b>Последняя проверка бирж:</b> <code>Jupiter: {jup_last_str} ({jup_age_ms}ms) | Bybit: {bybit_last_str} ({bybit_age_ms}ms)</code>"
+                                                    f"\n\n<b>Последнее изменение (Telegram):</b> <code>{tg_updated_str} MSK</code>"
+                                                    f"\n<b>Последняя проверка бирж:</b>\n<code>Jupiter: {jup_last_str} ({jup_age_ms}ms)</code>\n<code>Bybit: {bybit_last_str} ({bybit_age_ms}ms)</code>"
                                                 )
                                                 buttons: Buttons = [
                                                     [
@@ -463,18 +468,24 @@ class ArbEngine:
                                                 price_bybit2 = sim_buy2.avg_price
                                                 price_jup2 = stable_out2 / token_out2
                                                 tg_updated_ts2 = int(time.time())
-                                                tg_updated_str2 = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(tg_updated_ts2))
+                                                tg_updated_str2 = datetime.fromtimestamp(tg_updated_ts2, tz=tz_msk).strftime(
+                                                    "%Y-%m-%d %H:%M:%S"
+                                                )
                                                 jup_last_ts2 = int(sell_updated_ms // 1000) if sell_updated_ms else 0
                                                 bybit_last_ts2 = int(bybit_last_cts_ms // 1000) if bybit_last_cts_ms else 0
                                                 jup_age_ms2 = max(0, now_ms - sell_updated_ms) if sell_updated_ms else 0
                                                 bybit_age_ms2 = max(0, now_ms - bybit_last_cts_ms) if bybit_last_cts_ms else 0
                                                 jup_last_str2 = (
-                                                    time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(jup_last_ts2))
+                                                    datetime.fromtimestamp(jup_last_ts2, tz=tz_msk).strftime(
+                                                        "%Y-%m-%d %H:%M:%S"
+                                                    )
                                                     if jup_last_ts2
                                                     else "n/a"
                                                 )
                                                 bybit_last_str2 = (
-                                                    time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(bybit_last_ts2))
+                                                    datetime.fromtimestamp(bybit_last_ts2, tz=tz_msk).strftime(
+                                                        "%Y-%m-%d %H:%M:%S"
+                                                    )
                                                     if bybit_last_ts2
                                                     else "n/a"
                                                 )
@@ -487,8 +498,8 @@ class ArbEngine:
                                                     f"Комиссии/запас: <code>{required:.2f}$</code>\n"
                                                     f"Цена на Bybit: <code>{price_bybit2:.6f}$</code>\n"
                                                     f"Цена на Jupiter: <code>{price_jup2:.6f}$</code>"
-                                                    f"\n\n<b>Последнее изменение (Telegram):</b> <code>{tg_updated_str2} UTC</code>"
-                                                    f"\n<b>Последняя проверка бирж:</b> <code>Jupiter: {jup_last_str2} ({jup_age_ms2}ms) | Bybit: {bybit_last_str2} ({bybit_age_ms2}ms)</code>"
+                                                    f"\n\n<b>Последнее изменение (Telegram):</b> <code>{tg_updated_str2} MSK</code>"
+                                                    f"\n<b>Последняя проверка бирж:</b>\n<code>Jupiter: {jup_last_str2} ({jup_age_ms2}ms)</code>\n<code>Bybit: {bybit_last_str2} ({bybit_age_ms2}ms)</code>"
                                                 )
                                                 buttons2: Buttons = [
                                                     [
