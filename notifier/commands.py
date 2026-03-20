@@ -24,6 +24,7 @@ TG_DELETE_MESSAGE = "https://api.telegram.org/bot{token}/deleteMessage"
 TG_EDIT_MESSAGE_TEXT = "https://api.telegram.org/bot{token}/editMessageText"
 TG_SET_MY_COMMANDS = "https://api.telegram.org/bot{token}/setMyCommands"
 LIGHTNING_MESSAGE_EFFECT_ID = "5123236135417415011"
+CUSTOM_ALERT_EMOJI_HTML = '<tg-emoji emoji-id="5420323339723881652">🚨</tg-emoji>'
 
 
 def _parse_settings_args(text: str) -> tuple[str, Any] | None:
@@ -227,7 +228,7 @@ async def run_settings_command_handler(
         payload: dict = {
             "chat_id": chat_id,
             "text": (
-                "⚡️ 🚨 <b>АРБИТРАЖ</b> • <b>TEST</b>\n"
+                f"⚡️ {CUSTOM_ALERT_EMOJI_HTML} <b>АРБИТРАЖ</b> • <b>TEST</b>\n"
                 "Маршрут: <b>Bybit → Jupiter</b>\n"
                 "Объём: <code>1000 USDC</code>\n"
                 "Ожидаемый выход: <code>1013.42 USDT</code>\n"
