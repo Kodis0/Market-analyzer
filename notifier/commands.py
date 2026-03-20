@@ -224,11 +224,11 @@ async def run_settings_command_handler(
         except Exception:
             pass
 
-    async def send_test_signal_and_autodelete() -> None:
+    async def send_test_signal_and_autodelete(command_message_id: int | None = None) -> None:
         payload: dict = {
             "chat_id": chat_id,
             "text": (
-                f"⚡️ {CUSTOM_ALERT_EMOJI_HTML} <b>АРБИТРАЖ</b> • <b>TEST</b>\n"
+                f"{CUSTOM_ALERT_EMOJI_HTML} <b>АРБИТРАЖ</b> • <b>TEST</b>\n"
                 "Маршрут: <b>Bybit → Jupiter</b>\n"
                 "Объём: <code>1000 USDC</code>\n"
                 "Ожидаемый выход: <code>1013.42 USDT</code>\n"
@@ -275,7 +275,7 @@ async def run_settings_command_handler(
         if not sent_message_id:
             return
 
-        async def _del_later(mid: int) -> None:
+        async def _del_later(mid: int, user_cmd_mid: int | None) -> None:
             await asyncio.sleep(60)
             delete_payload: dict = {"chat_id": chat_id, "message_id": mid}
             try:
@@ -289,7 +289,19 @@ async def run_settings_command_handler(
                 # silently ignore: test message is non-critical
                 pass
 
-        asyncio.create_task(_del_later(sent_message_id))
+            # Удаляем и сообщение-команду пользователя (/test_signal), если есть.
+            if user_cmd_mid:
+                try:
+                    async with session.post(
+                        url_delete,
+                        json={"chat_id": chat_id, "message_id": int(user_cmd_mid)},
+                        timeout=aiohttp.ClientTimeout(total=10),
+                    ) as _:
+                        pass
+                except Exception:
+                    pass
+
+        asyncio.create_task(_del_later(sent_message_id, command_message_id))
 
     while not stop_event.is_set():
         try:
@@ -395,7 +407,7 @@ async def run_settings_command_handler(
 
                 # /test_signal
                 if cmd == "/test_signal":
-                    await send_test_signal_and_autodelete()
+                    await send_test_signal_and_autodelete(int(msg.get("message_id") or 0))
                     continue
 
                 # /exchange on|off
