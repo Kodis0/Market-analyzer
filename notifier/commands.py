@@ -268,41 +268,41 @@ async def run_settings_command_handler(
             pass
 
     async def send_test_signal_and_autodelete(command_message_id: int | None = None) -> None:
-    try:
-        text = (
-            f"{CUSTOM_ALERT_EMOJI_HTML} <b>АРБИТРАЖ</b> • <b>TEST</b>\n"
-            "Маршрут: <b>Bybit → Jupiter</b>\n"
-            "Объём: <code>1000 USDC</code>\n"
-            "Ожидаемый выход: <code>1013.42 USDT</code>\n"
-            "Чистая прибыль: <b>5.73$</b> (<b>0.57%</b>)\n"
-            "Комиссии/запас: <code>7.69$</code>\n"
-            "Цена на Bybit: <code>1.234567$</code>\n"
-            "Цена на Jupiter: <code>1.241800$</code>\n"
-            "\n"
-            "<b>Последнее изменение (Telegram):</b> <code>2026-03-20 22:22:22 MSK</code>\n"
-            "<b>Последняя проверка бирж:</b>\n"
-            "<code>Jupiter: 2026-03-20 22:22:21 (412ms)</code>\n"
-            "<code>Bybit: 2026-03-20 22:22:22 (97ms)</code>\n"
-            "\n"
-            "🧪 <i>Тестовый сигнал для проверки UI. Сообщение удалится через 1 минуту.</i>"
-        )
+        try:
+            text = (
+                f"{CUSTOM_ALERT_EMOJI_HTML} <b>АРБИТРАЖ</b> • <b>TEST</b>\n"
+                "Маршрут: <b>Bybit → Jupiter</b>\n"
+                "Объём: <code>1000 USDC</code>\n"
+                "Ожидаемый выход: <code>1013.42 USDT</code>\n"
+                "Чистая прибыль: <b>5.73$</b> (<b>0.57%</b>)\n"
+                "Комиссии/запас: <code>7.69$</code>\n"
+                "Цена на Bybit: <code>1.234567$</code>\n"
+                "Цена на Jupiter: <code>1.241800$</code>\n"
+                "\n"
+                "<b>Последнее изменение (Telegram):</b> <code>2026-03-20 22:22:22 MSK</code>\n"
+                "<b>Последняя проверка бирж:</b>\n"
+                "<code>Jupiter: 2026-03-20 22:22:21 (412ms)</code>\n"
+                "<code>Bybit: 2026-03-20 22:22:22 (97ms)</code>\n"
+                "\n"
+                "🧪 <i>Тестовый сигнал для проверки UI. Сообщение удалится через 1 минуту.</i>"
+            )
 
-        sent_message_id = await send(text, reply_markup=_build_test_signal_markup())
-        if not sent_message_id:
-            await send("❌ Не удалось отправить тестовый сигнал")
-            return
+            sent_message_id = await send(text, reply_markup=_build_test_signal_markup())
+            if not sent_message_id:
+                await send("❌ Не удалось отправить тестовый сигнал")
+                return
 
-        async def _del_later(mid: int, user_cmd_mid: int | None) -> None:
-            await asyncio.sleep(60)
-            await delete_message(mid)
-            if user_cmd_mid:
-                await delete_message(int(user_cmd_mid))
+            async def _del_later(mid: int, user_cmd_mid: int | None) -> None:
+                await asyncio.sleep(60)
+                await delete_message(mid)
+                if user_cmd_mid:
+                    await delete_message(int(user_cmd_mid))
 
-        asyncio.create_task(_del_later(sent_message_id, command_message_id))
+            asyncio.create_task(_del_later(sent_message_id, command_message_id))
 
-    except Exception as e:
-        log.exception("send_test_signal_and_autodelete error: %s", e)
-        await send(f"❌ Ошибка /test_signal: {e}")
+        except Exception as e:
+            log.exception("send_test_signal_and_autodelete error: %s", e)
+            await send(f"❌ Ошибка /test_signal: {e}")
 
     while not stop_event.is_set():
         try:
