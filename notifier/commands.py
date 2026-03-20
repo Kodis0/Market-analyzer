@@ -81,6 +81,7 @@ async def _register_bot_commands(session: aiohttp.ClientSession, bot_token: str,
     commands = [
         {"command": "settings", "description": "Настройки: /settings min_profit_usd 20"},
         {"command": "exchange", "description": "Вкл/выкл биржевую логику: /exchange on|off"},
+        {"command": "cleanup", "description": "Проверить висящие сигналы и удалить не-прибыльные: /cleanup"},
         {"command": "help", "description": "Справка по параметрам"},
         {"command": "pin_setup", "description": "Отправить сообщение с кнопкой Навигация (закрепи вручную)"},
     ]
@@ -149,6 +150,7 @@ async def run_settings_command_handler(
     poll_interval_sec: float = 2.0,
     on_exchange_toggle: Callable[[bool], Awaitable[None]] | None = None,
     app_link: str | None = None,
+    on_cleanup: Callable[[], Awaitable[str]] | None = None,
 ) -> None:
     """
     Poll for Telegram updates and handle /settings, /help commands.
@@ -204,6 +206,16 @@ async def run_settings_command_handler(
                 # /help
                 if cmd == "/help":
                     await send(RuntimeSettings.format_help())
+                    continue
+
+                # /cleanup
+                if cmd == "/cleanup":
+                    if on_cleanup is None:
+                        await send("❌ Команда /cleanup отключена на сервере")
+                        continue
+                    await send("⏳ Запуск ручной проверки сигналов...")
+                    result_text = await on_cleanup()
+                    await send(result_text)
                     continue
 
                 # /exchange on|off

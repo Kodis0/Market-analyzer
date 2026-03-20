@@ -34,6 +34,7 @@ from app.tasks import (
     make_tg_hourly_cleanup_loop,
     make_tg_verify_loop,
     make_ws_health_loop,
+    cleanup_non_profitable_msgs_profit_based_once,
 )
 
 log = logging.getLogger("app")
@@ -94,6 +95,15 @@ async def main(cfg_path: str) -> None:
         api_server_mod = __import__("api.server", fromlist=["run_server"])
         full_tokens = dict(cfg.trading.tokens)
 
+        async def on_manual_cleanup() -> str:
+            try:
+                deleted, checked = await cleanup_non_profitable_msgs_profit_based_once(ctx, max_rows=60, max_checks_per_run=60)
+                if checked == 0:
+                    return "ℹ️ /cleanup: нечего проверять (обмен выключен или stale_ttl_sec<=0 либо кандидатов нет)."
+                return f"✅ /cleanup: проверено={checked}, удалено={deleted}"
+            except Exception as e:
+                return f"❌ /cleanup: ошибка: {e}"
+
         tasks: list[asyncio.Task] = [
             asyncio.create_task(
                 api_server_mod.run_server(
@@ -136,6 +146,7 @@ async def main(cfg_path: str) -> None:
                     pinned_message_text=getattr(cfg.telegram, "pinned_message_text", None),
                     app_link=getattr(cfg.telegram, "app_link", None),
                     on_exchange_toggle=on_exchange_toggle,
+                    on_cleanup=on_manual_cleanup,
                 ),
                 name="settings_cmd",
             ),
