@@ -164,7 +164,7 @@ async def run_settings_command_handler(
     url_send = TG_SEND_MESSAGE.format(token=bot_token)
     offset = 0
 
-    async def send(text: str) -> None:
+    async def send(text: str) -> int | None:
         payload: dict = {
             "chat_id": chat_id,
             "text": text,
@@ -173,7 +173,24 @@ async def run_settings_command_handler(
         }
         if thread_id is not None:
             payload["message_thread_id"] = thread_id
-        async with session.post(url_send, json=payload, timeout=aiohttp.ClientTimeout(total=10)) as _:
+        try:
+            async with session.post(url_send, json=payload, timeout=aiohttp.ClientTimeout(total=10)) as r:
+                j = await r.json(content_type=None)
+            if j.get("ok"):
+                return int((j.get("result") or {}).get("message_id") or 0)
+        except Exception:
+            pass
+        return None
+
+    async def delete_message(message_id: int) -> None:
+        if not message_id:
+            return
+        url_delete = TG_DELETE_MESSAGE.format(token=bot_token)
+        payload = {"chat_id": chat_id, "message_id": int(message_id)}
+        try:
+            async with session.post(url_delete, json=payload, timeout=aiohttp.ClientTimeout(total=10)) as _:
+                pass
+        except Exception:
             pass
 
     async def send_test_signal_and_autodelete() -> None:
@@ -282,8 +299,18 @@ async def run_settings_command_handler(
                     if on_cleanup is None:
                         await send("❌ Команда /cleanup отключена на сервере")
                         continue
-                    await send("⏳ Запуск ручной проверки сигналов...")
-                    result_text = await on_cleanup()
+                    progress_mid = await send("⏳ Запуск ручной проверки сигналов...")
+                    try:
+                        # Защита от зависания ручной проверки: всегда даём финальный ответ.
+                        result_text = await asyncio.wait_for(on_cleanup(), timeout=180.0)
+                    except asyncio.TimeoutError:
+                        result_text = "⚠️ /cleanup: проверка заняла слишком много времени (таймаут 180с). Попробуй ещё раз."
+                    except Exception as e:
+                        result_text = f"❌ /cleanup: ошибка: {e}"
+                    finally:
+                        if progress_mid:
+                            await delete_message(progress_mid)
+
                     await send(result_text)
                     continue
 
