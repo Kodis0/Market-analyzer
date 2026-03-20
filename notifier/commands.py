@@ -238,7 +238,6 @@ async def run_settings_command_handler(
                 "Комиссии/запас: <code>7.69$</code>\n"
                 "Цена на Bybit: <code>1.234567$</code>\n"
                 "Цена на Jupiter: <code>1.241800$</code>\n"
-                f"<b>Действия:</b> {CUSTOM_GREEN_EMOJI_HTML} Купить / {CUSTOM_RED_EMOJI_HTML} Продать\n"
                 "\n"
                 "<b>Последнее изменение (Telegram):</b> <code>2026-03-20 22:22:22 MSK</code>\n"
                 "<b>Последняя проверка бирж:</b>\n"
