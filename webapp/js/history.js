@@ -76,14 +76,17 @@
       var dir = formatDirection(s.direction || '');
       var profit = Number(s.profit_usd);
       var ts = Number(s.ts) || 0;
+      var dirKey = String(s.direction || '');
+      var dotClass = dirKey === 'JUP->BYBIT' ? 'jup' : 'bybit';
+      var dotEmoji = dirKey === 'JUP->BYBIT' ? '🟢' : '🔴';
       return (
         '<li class="history-item ' + (stale ? 'stale' : '') + '" data-id="' + (hasId ? s.id : '') + '">' +
         '<div><div class="history-item-token">' + escapeHtml(token) + (stale ? ' <span class="history-item-stale-label">(устарел)</span>' : '') + '</div>' +
-        '<div class="history-item-direction">' + escapeHtml(dir) + '</div></div>' +
+        '<div class="history-item-direction"><span class="history-dir-dot ' + dotClass + '">' + dotEmoji + '</span>' + escapeHtml(dir) + '</div></div>' +
         '<div class="history-item-right">' +
         '<div class="history-item-actions">' +
-        (hasId && !stale ? '<button type="button" class="history-btn stale-btn" title="Пометить устаревшим">⏱</button>' : '') +
-        (hasId ? '<button type="button" class="history-btn del-btn" title="Удалить">✕</button>' : '') +
+        (hasId && !stale ? '<button type="button" class="history-btn stale-btn" title="Пометить устаревшим"><span class="history-anim-icon history-anim-clock">⏳</span></button>' : '') +
+        (hasId ? '<button type="button" class="history-btn del-btn" title="Удалить"><span class="history-anim-icon history-anim-x">✕</span></button>' : '') +
         '</div>' +
         '<div class="history-item-meta">' +
         '<div class="history-item-profit">+' + (isNaN(profit) ? '0.00' : profit.toFixed(2)) + '$</div>' +
