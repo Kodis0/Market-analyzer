@@ -21,6 +21,7 @@ TG_GET_UPDATES = "https://api.telegram.org/bot{token}/getUpdates"
 TG_SEND_MESSAGE = "https://api.telegram.org/bot{token}/sendMessage"
 TG_DELETE_MESSAGE = "https://api.telegram.org/bot{token}/deleteMessage"
 TG_SET_MY_COMMANDS = "https://api.telegram.org/bot{token}/setMyCommands"
+LIGHTNING_MESSAGE_EFFECT_ID = "5123236135417415011"
 
 
 def _parse_settings_args(text: str) -> tuple[str, Any] | None:
@@ -164,15 +165,22 @@ async def run_settings_command_handler(
     url_send = TG_SEND_MESSAGE.format(token=bot_token)
     offset = 0
 
-    async def send(text: str) -> int | None:
+    async def send_to_chat(
+        target_chat_id: int,
+        text: str,
+        target_thread_id: int | None = None,
+        message_effect_id: str | None = None,
+    ) -> int | None:
         payload: dict = {
-            "chat_id": chat_id,
+            "chat_id": target_chat_id,
             "text": text,
             "parse_mode": "HTML",
             "disable_web_page_preview": True,
         }
-        if thread_id is not None:
-            payload["message_thread_id"] = thread_id
+        if target_thread_id is not None:
+            payload["message_thread_id"] = target_thread_id
+        if message_effect_id is not None:
+            payload["message_effect_id"] = message_effect_id
         try:
             async with session.post(url_send, json=payload, timeout=aiohttp.ClientTimeout(total=10)) as r:
                 j = await r.json(content_type=None)
@@ -181,6 +189,9 @@ async def run_settings_command_handler(
         except Exception:
             pass
         return None
+
+    async def send(text: str) -> int | None:
+        return await send_to_chat(chat_id, text, target_thread_id=thread_id)
 
     async def delete_message(message_id: int) -> None:
         if not message_id:
@@ -219,7 +230,7 @@ async def run_settings_command_handler(
                 "inline_keyboard": [
                     [
                         {"text": "🟢 Купить на Bybit", "url": "https://www.bybit.com/en/trade/spot/BTC/USDT"},
-                        {"text": "⚡️ 🔴 Продать на Jupiter", "url": "https://jup.ag/swap/BTC-USDC"},
+                        {"text": "🔴 Продать на Jupiter", "url": "https://jup.ag/swap/BTC-USDC"},
                     ]
                 ]
             },
@@ -278,16 +289,40 @@ async def run_settings_command_handler(
                 if not msg:
                     continue
 
-                from_chat = msg.get("chat", {}) or {}
-                if int(from_chat.get("id", 0)) != chat_id:
-                    continue
-
                 text = (msg.get("text") or "").strip()
                 if not text.startswith("/"):
                     continue
 
                 cmd = text.split()[0].lower() if text.split() else ""
                 cmd = re.sub(r"@\S+$", "", cmd)  # Remove @botname
+
+                from_chat = msg.get("chat", {}) or {}
+                from_chat_id = int(from_chat.get("id", 0))
+                from_chat_type = str(from_chat.get("type") or "")
+
+                # /start in private chat: greeting with animated effect (if allowed)
+                if cmd == "/start" and from_chat_type == "private":
+                    welcome_text = (
+                        "✨ <b>Привет!</b>\n"
+                        "Я бот арбитражных сигналов.\n\n"
+                        "⚡️ Здесь ты можешь протестировать визуал сообщений и команды.\n"
+                        "🧪 Для теста UI: <code>/test_signal</code>\n"
+                        "🧹 Ручная проверка: <code>/cleanup</code>\n"
+                        "⚙️ Настройки: <code>/settings</code>"
+                    )
+                    # Try with animated message effect first, fallback to plain send.
+                    sent_mid = await send_to_chat(
+                        from_chat_id,
+                        welcome_text,
+                        target_thread_id=None,
+                        message_effect_id=LIGHTNING_MESSAGE_EFFECT_ID,
+                    )
+                    if not sent_mid:
+                        await send_to_chat(from_chat_id, welcome_text, target_thread_id=None, message_effect_id=None)
+                    continue
+
+                if from_chat_id != chat_id:
+                    continue
 
                 # /help
                 if cmd == "/help":
