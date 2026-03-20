@@ -6,6 +6,7 @@ import asyncio
 import logging
 import time
 from decimal import Decimal
+from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
 
 from core.auto_tune.tuner import AutoTuner, TunerBounds, TunerConfig
@@ -128,6 +129,7 @@ async def cleanup_non_profitable_msgs_profit_based_once(
     ctx: AppContext,
     max_rows: int = 60,
     max_checks_per_run: int = 60,
+    progress_cb: Callable[[str], Awaitable[None]] | None = None,
 ) -> tuple[int, int]:
     """
     Однократная проверка: удалить сообщения в ТГ, если по этому ключу (token:direction)
@@ -143,6 +145,8 @@ async def cleanup_non_profitable_msgs_profit_based_once(
 
     rows = await get_stale_tg_messages_async(ctx.tg.stale_ttl_sec)
     if not rows:
+        if progress_cb:
+            await progress_cb("ℹ️ Ручная проверка: нечего проверять (кандидатов нет).")
         return 0, 0
 
     deleted_count = 0
@@ -305,7 +309,8 @@ async def cleanup_non_profitable_msgs_profit_based_once(
 
         return False
 
-    for row in rows[:max_rows]:
+    total = min(len(rows), max_rows)
+    for idx, row in enumerate(rows[:max_rows], start=1):
         if jup_checks >= max_checks_per_run:
             break
 
@@ -319,6 +324,16 @@ async def cleanup_non_profitable_msgs_profit_based_once(
         if not profitable:
             await ctx.tg.delete_message_for_key(str(key), int(msg_id))
             deleted_count += 1
+        left_count = checked_count - deleted_count
+
+        if progress_cb:
+            # Обновляем состояние после каждого проверенного сообщения
+            await progress_cb(
+                "🔄 Идёт ручная проверка сигналов...\n"
+                f"Проверено: {checked_count}/{total}\n"
+                f"Удалено: {deleted_count}\n"
+                f"Оставлено: {left_count}"
+            )
 
     return deleted_count, checked_count
 

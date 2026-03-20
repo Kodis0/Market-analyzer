@@ -95,12 +95,17 @@ async def main(cfg_path: str) -> None:
         api_server_mod = __import__("api.server", fromlist=["run_server"])
         full_tokens = dict(cfg.trading.tokens)
 
-        async def on_manual_cleanup() -> str:
+        async def on_manual_cleanup(set_progress) -> str:
             try:
-                deleted, checked = await cleanup_non_profitable_msgs_profit_based_once(ctx, max_rows=60, max_checks_per_run=60)
+                deleted, checked = await cleanup_non_profitable_msgs_profit_based_once(
+                    ctx,
+                    max_rows=60,
+                    max_checks_per_run=60,
+                    progress_cb=set_progress,
+                )
                 if checked == 0:
                     return "ℹ️ /cleanup: нечего проверять (обмен выключен или stale_ttl_sec<=0 либо кандидатов нет)."
-                return f"✅ /cleanup: проверено={checked}, удалено={deleted}"
+                return f"✅ /cleanup: проверено={checked}, удалено={deleted}, оставлено={checked - deleted}"
             except Exception as e:
                 return f"❌ /cleanup: ошибка: {e}"
 

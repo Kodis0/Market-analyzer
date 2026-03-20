@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 import re
 from collections.abc import Awaitable, Callable
 from typing import Any
@@ -154,7 +155,7 @@ async def run_settings_command_handler(
     poll_interval_sec: float = 2.0,
     on_exchange_toggle: Callable[[bool], Awaitable[None]] | None = None,
     app_link: str | None = None,
-    on_cleanup: Callable[[], Awaitable[str]] | None = None,
+    on_cleanup: Callable[[Callable[[str], Awaitable[None]]], Awaitable[str]] | None = None,
 ) -> None:
     """
     Poll for Telegram updates and handle /settings, /help commands.
@@ -353,26 +354,41 @@ async def run_settings_command_handler(
                         await send("❌ Команда /cleanup отключена на сервере")
                         continue
                     progress_mid = await send("⏳ Запуск ручной проверки сигналов...")
+                    last_edit_ts = 0.0
+
+                    async def set_progress(text: str) -> None:
+                        nonlocal last_edit_ts
+                        if not progress_mid:
+                            return
+                        # Ограничиваем частоту edit, чтобы не словить 429 от Telegram.
+                        now = time.time()
+                        if (now - last_edit_ts) < 1.2:
+                            return
+                        last_edit_ts = now
+                        try:
+                            await edit_message(progress_mid, text)
+                        except Exception:
+                            # Не останавливаем cleanup из-за проблем с UI-обновлением.
+                            pass
+
+                    # Сообщение сразу переходит в режим "идёт проверка"
+                    await set_progress("🔄 Идёт ручная проверка сигналов...\nПожалуйста, подожди.")
+
                     try:
-                        if progress_mid:
-                            await edit_message(progress_mid, "🔄 Идёт ручная проверка сигналов...\nПожалуйста, подожди.")
                         # Защита от зависания ручной проверки: всегда даём финальный ответ.
-                        result_text = await asyncio.wait_for(on_cleanup(), timeout=180.0)
-                        if progress_mid:
-                            await edit_message(progress_mid, result_text)
-                        else:
+                        result_text = await asyncio.wait_for(on_cleanup(set_progress), timeout=180.0)
+                        await set_progress(result_text)
+                        if not progress_mid:
                             await send(result_text)
                     except asyncio.TimeoutError:
                         result_text = "⚠️ /cleanup: проверка заняла слишком много времени (таймаут 180с). Попробуй ещё раз."
-                        if progress_mid:
-                            await edit_message(progress_mid, result_text)
-                        else:
+                        await set_progress(result_text)
+                        if not progress_mid:
                             await send(result_text)
                     except Exception as e:
                         result_text = f"❌ /cleanup: ошибка: {e}"
-                        if progress_mid:
-                            await edit_message(progress_mid, result_text)
-                        else:
+                        await set_progress(result_text)
+                        if not progress_mid:
                             await send(result_text)
                     continue
 
