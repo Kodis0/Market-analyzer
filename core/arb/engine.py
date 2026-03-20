@@ -35,6 +35,8 @@ B_AMOUNT_RATIO_MAX = Decimal("1.003")
 B_REQUOTE_PRUNE_INTERVAL_SEC = 60.0
 B_REQUOTE_PRUNE_AGE_SEC = 600  # 10 min
 CUSTOM_ALERT_EMOJI_HTML = '<tg-emoji emoji-id="5420323339723881652">🚨</tg-emoji>'
+CUSTOM_GREEN_EMOJI_HTML = '<tg-emoji emoji-id="5416081784641168838">🟢</tg-emoji>'
+CUSTOM_RED_EMOJI_HTML = '<tg-emoji emoji-id="5411225014148014586">🔴</tg-emoji>'
 
 
 class ArbEngine:
@@ -355,6 +357,7 @@ class ArbEngine:
                                                     f"Комиссии/запас: <code>{required:.2f}$</code>\n"
                                                     f"Цена на Jupiter: <code>{price_jup:.6f}$</code>\n"
                                                     f"Цена на Bybit: <code>{price_bybit:.6f}$</code>"
+                                                    f"\n<b>Действия:</b> {CUSTOM_GREEN_EMOJI_HTML} Купить / {CUSTOM_RED_EMOJI_HTML} Продать"
                                                     f"\n\n<b>Последнее изменение (Telegram):</b> <code>{tg_updated_str} MSK</code>"
                                                     f"\n<b>Последняя проверка бирж:</b>\n<code>Jupiter: {jup_last_str} ({jup_age_ms}ms)</code>\n<code>Bybit: {bybit_last_str} ({bybit_age_ms}ms)</code>"
                                                 )
@@ -499,6 +502,7 @@ class ArbEngine:
                                                     f"Комиссии/запас: <code>{required:.2f}$</code>\n"
                                                     f"Цена на Bybit: <code>{price_bybit2:.6f}$</code>\n"
                                                     f"Цена на Jupiter: <code>{price_jup2:.6f}$</code>"
+                                                    f"\n<b>Действия:</b> {CUSTOM_GREEN_EMOJI_HTML} Купить / {CUSTOM_RED_EMOJI_HTML} Продать"
                                                     f"\n\n<b>Последнее изменение (Telegram):</b> <code>{tg_updated_str2} MSK</code>"
                                                     f"\n<b>Последняя проверка бирж:</b>\n<code>Jupiter: {jup_last_str2} ({jup_age_ms2}ms)</code>\n<code>Bybit: {bybit_last_str2} ({bybit_age_ms2}ms)</code>"
                                                 )

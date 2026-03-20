@@ -25,6 +25,8 @@ TG_EDIT_MESSAGE_TEXT = "https://api.telegram.org/bot{token}/editMessageText"
 TG_SET_MY_COMMANDS = "https://api.telegram.org/bot{token}/setMyCommands"
 LIGHTNING_MESSAGE_EFFECT_ID = "5123236135417415011"
 CUSTOM_ALERT_EMOJI_HTML = '<tg-emoji emoji-id="5420323339723881652">🚨</tg-emoji>'
+CUSTOM_GREEN_EMOJI_HTML = '<tg-emoji emoji-id="5416081784641168838">🟢</tg-emoji>'
+CUSTOM_RED_EMOJI_HTML = '<tg-emoji emoji-id="5411225014148014586">🔴</tg-emoji>'
 
 
 def _parse_settings_args(text: str) -> tuple[str, Any] | None:
@@ -236,6 +238,7 @@ async def run_settings_command_handler(
                 "Комиссии/запас: <code>7.69$</code>\n"
                 "Цена на Bybit: <code>1.234567$</code>\n"
                 "Цена на Jupiter: <code>1.241800$</code>\n"
+                f"<b>Действия:</b> {CUSTOM_GREEN_EMOJI_HTML} Купить / {CUSTOM_RED_EMOJI_HTML} Продать\n"
                 "\n"
                 "<b>Последнее изменение (Telegram):</b> <code>2026-03-20 22:22:22 MSK</code>\n"
                 "<b>Последняя проверка бирж:</b>\n"
