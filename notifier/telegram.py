@@ -101,7 +101,12 @@ class TelegramNotifier:
         except Exception as e:
             log.warning("Failed to remove tg_message from DB: %s", e)
 
-    async def send(self, text: str, reply_markup: dict | None = None) -> int:
+    async def send(
+        self,
+        text: str,
+        reply_markup: dict | None = None,
+        message_effect_id: str | None = None,
+    ) -> int:
         payload: dict = {
             "chat_id": self.chat_id,
             "text": text,
@@ -112,6 +117,10 @@ class TelegramNotifier:
             payload["message_thread_id"] = self.thread_id
         if reply_markup is not None:
             payload["reply_markup"] = reply_markup
+        if message_effect_id is not None:
+            # Telegram animated message effects (premium/free) via Bot API.
+            # Note: per Bot API docs this is limited to private chats.
+            payload["message_effect_id"] = message_effect_id
 
         data = await self._post("sendMessage", payload)
         msg = data.get("result") or {}
@@ -160,7 +169,13 @@ class TelegramNotifier:
         minutes = max(0, int((time.time() - last_seen_ts) // 60))
         return f"{text}\n\n⏱ <i>Сигнал устарел ({minutes} мин назад)</i>"
 
-    async def upsert(self, key: str, text: str, reply_markup: dict | None = None) -> None:
+    async def upsert(
+        self,
+        key: str,
+        text: str,
+        reply_markup: dict | None = None,
+        message_effect_id: str | None = None,
+    ) -> None:
         now = time.time()
         self._last_seen[key] = now
         self._last_text[key] = text
@@ -173,7 +188,7 @@ class TelegramNotifier:
         self._stale[key] = False
 
         if not self.edit_mode:
-            await self.send(text, reply_markup=reply_markup)
+            await self.send(text, reply_markup=reply_markup, message_effect_id=message_effect_id)
             return
 
         last = self._last_edit.get(key, 0.0)
@@ -182,7 +197,7 @@ class TelegramNotifier:
 
         msg_id = self._msg_ids.get(key)
         if msg_id is None:
-            new_id = await self.send(text, reply_markup=reply_markup)
+            new_id = await self.send(text, reply_markup=reply_markup, message_effect_id=message_effect_id)
             self._msg_ids[key] = new_id
             self._last_edit[key] = now
             self._last_sent_text[key] = text

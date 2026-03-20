@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 log = logging.getLogger("app.handlers")
 
 AUTO_TUNE_HISTORY_MAX = 50
+PREMIUM_LIGHTNING_MESSAGE_EFFECT_ID = "5123236135417415011"
 
 
 def make_on_signal(ctx: AppContext):
@@ -24,7 +25,8 @@ def make_on_signal(ctx: AppContext):
         reply_markup = sig.to_reply_markup() if hasattr(sig, "to_reply_markup") else None
         # Тот же ключ, что и в record_signal: один слот на (token, direction) — обновление, а не спам.
         key = f"{sig.token}:{sig.direction}"
-        await ctx.tg.upsert(key, sig.text, reply_markup=reply_markup)
+        message_effect_id = PREMIUM_LIGHTNING_MESSAGE_EFFECT_ID if sig.direction == "BYBIT->JUP" else None
+        await ctx.tg.upsert(key, sig.text, reply_markup=reply_markup, message_effect_id=message_effect_id)
         try:
             from api.db import record_signal_async
 
