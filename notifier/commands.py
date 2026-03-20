@@ -251,8 +251,16 @@ async def run_settings_command_handler(
             "reply_markup": {
                 "inline_keyboard": [
                     [
-                        {"text": "🟢 Купить на Bybit", "url": "https://www.bybit.com/en/trade/spot/BTC/USDT"},
-                        {"text": "🔴 Продать на Jupiter", "url": "https://jup.ag/swap/BTC-USDC"},
+                        {
+                            "text": "Купить на Bybit",
+                            "url": "https://www.bybit.com/en/trade/spot/BTC/USDT",
+                            "style": "green",
+                        },
+                        {
+                            "text": "Продать на Jupiter",
+                            "url": "https://jup.ag/swap/BTC-USDC",
+                            "style": "red",
+                        },
                     ]
                 ]
             },
@@ -339,10 +347,6 @@ async def run_settings_command_handler(
                     welcome_text = (
                         "✨ <b>Привет!</b>\n"
                         "Я бот арбитражных сигналов.\n\n"
-                        "⚡️ Здесь ты можешь протестировать визуал сообщений и команды.\n"
-                        "🧪 Для теста UI: <code>/test_signal</code>\n"
-                        "🧹 Ручная проверка: <code>/cleanup</code>\n"
-                        "⚙️ Настройки: <code>/settings</code>"
                     )
                     # Try with animated message effect first, fallback to plain send.
                     sent_mid = await send_to_chat(
