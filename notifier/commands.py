@@ -19,6 +19,7 @@ log = logging.getLogger("commands")
 
 TG_GET_UPDATES = "https://api.telegram.org/bot{token}/getUpdates"
 TG_SEND_MESSAGE = "https://api.telegram.org/bot{token}/sendMessage"
+TG_DELETE_MESSAGE = "https://api.telegram.org/bot{token}/deleteMessage"
 TG_SET_MY_COMMANDS = "https://api.telegram.org/bot{token}/setMyCommands"
 
 
@@ -82,6 +83,7 @@ async def _register_bot_commands(session: aiohttp.ClientSession, bot_token: str,
         {"command": "settings", "description": "Настройки: /settings min_profit_usd 20"},
         {"command": "exchange", "description": "Вкл/выкл биржевую логику: /exchange on|off"},
         {"command": "cleanup", "description": "Проверить висящие сигналы и удалить не-прибыльные: /cleanup"},
+        {"command": "test_signal", "description": "Тестовый сигнал (авто-удаление через 1 мин)"},
         {"command": "help", "description": "Справка по параметрам"},
         {"command": "pin_setup", "description": "Отправить сообщение с кнопкой Навигация (закрепи вручную)"},
     ]
@@ -174,6 +176,73 @@ async def run_settings_command_handler(
         async with session.post(url_send, json=payload, timeout=aiohttp.ClientTimeout(total=10)) as _:
             pass
 
+    async def send_test_signal_and_autodelete() -> None:
+        payload: dict = {
+            "chat_id": chat_id,
+            "text": (
+                "⚡️ 🚨 <b>АРБИТРАЖ</b> • <b>TEST</b>\n"
+                "Маршрут: <b>Bybit → Jupiter</b>\n"
+                "Объём: <code>1000 USDC</code>\n"
+                "Ожидаемый выход: <code>1013.42 USDT</code>\n"
+                "Чистая прибыль: <b>5.73$</b> (<b>0.57%</b>)\n"
+                "Комиссии/запас: <code>7.69$</code>\n"
+                "Цена на Bybit: <code>1.234567$</code>\n"
+                "Цена на Jupiter: <code>1.241800$</code>\n"
+                "\n"
+                "<b>Последнее изменение (Telegram):</b> <code>2026-03-20 22:22:22 MSK</code>\n"
+                "<b>Последняя проверка бирж:</b>\n"
+                "<code>Jupiter: 2026-03-20 22:22:21 (412ms)</code>\n"
+                "<code>Bybit: 2026-03-20 22:22:22 (97ms)</code>\n"
+                "\n"
+                "🧪 <i>Тестовый сигнал для проверки UI. Сообщение удалится через 1 минуту.</i>"
+            ),
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True,
+            "reply_markup": {
+                "inline_keyboard": [
+                    [
+                        {"text": "🟢 Купить на Bybit", "url": "https://www.bybit.com/en/trade/spot/BTC/USDT"},
+                        {"text": "⚡️ 🔴 Продать на Jupiter", "url": "https://jup.ag/swap/BTC-USDC"},
+                    ]
+                ]
+            },
+        }
+        if thread_id is not None:
+            payload["message_thread_id"] = thread_id
+
+        url_delete = TG_DELETE_MESSAGE.format(token=bot_token)
+        sent_message_id: int | None = None
+        try:
+            async with session.post(url_send, json=payload, timeout=aiohttp.ClientTimeout(total=10)) as r:
+                j = await r.json(content_type=None)
+            if j.get("ok"):
+                sent_message_id = int((j.get("result") or {}).get("message_id") or 0)
+            else:
+                await send(f"❌ Не удалось отправить тестовый сигнал: {j}")
+                return
+        except Exception as e:
+            await send(f"❌ Не удалось отправить тестовый сигнал: {e}")
+            return
+
+        if not sent_message_id:
+            return
+
+        async def _del_later(mid: int) -> None:
+            await asyncio.sleep(60)
+            delete_payload: dict = {"chat_id": chat_id, "message_id": mid}
+            try:
+                async with session.post(
+                    url_delete,
+                    json=delete_payload,
+                    timeout=aiohttp.ClientTimeout(total=10),
+                ) as _:
+                    pass
+            except Exception:
+                # silently ignore: test message is non-critical
+                pass
+
+        asyncio.create_task(_del_later(sent_message_id))
+
     while not stop_event.is_set():
         try:
             params = {"offset": offset, "timeout": 30}
@@ -216,6 +285,11 @@ async def run_settings_command_handler(
                     await send("⏳ Запуск ручной проверки сигналов...")
                     result_text = await on_cleanup()
                     await send(result_text)
+                    continue
+
+                # /test_signal
+                if cmd == "/test_signal":
+                    await send_test_signal_and_autodelete()
                     continue
 
                 # /exchange on|off
