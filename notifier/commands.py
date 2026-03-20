@@ -13,7 +13,6 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 import aiohttp
-from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from core.runtime_settings import RuntimeSettings, save_runtime_settings
 
@@ -154,19 +153,22 @@ def _make_navigation_button_payload(
 
 
 def _build_test_signal_markup() -> dict[str, Any]:
-    builder = InlineKeyboardBuilder()
-    builder.button(
-        text="Купить на Bybit",
-        url="https://www.bybit.com/en/trade/spot/BTC/USDT",
-        style="success",
-    )
-    builder.button(
-        text="Продать на Jupiter",
-        url="https://jup.ag/swap/BTC-USDC",
-        style="danger",
-    )
-    builder.adjust(2)
-    return builder.as_markup().model_dump(exclude_none=True)
+    return {
+        "inline_keyboard": [
+            [
+                {
+                    "text": "Купить на Bybit",
+                    "url": "https://www.bybit.com/en/trade/spot/BTC/USDT",
+                    "style": "success",
+                },
+                {
+                    "text": "Продать на Jupiter",
+                    "url": "https://jup.ag/swap/BTC-USDC",
+                    "style": "danger",
+                },
+            ]
+        ]
+    }
 
 
 async def run_settings_command_handler(
@@ -266,6 +268,7 @@ async def run_settings_command_handler(
             pass
 
     async def send_test_signal_and_autodelete(command_message_id: int | None = None) -> None:
+    try:
         text = (
             f"{CUSTOM_ALERT_EMOJI_HTML} <b>АРБИТРАЖ</b> • <b>TEST</b>\n"
             "Маршрут: <b>Bybit → Jupiter</b>\n"
@@ -296,6 +299,10 @@ async def run_settings_command_handler(
                 await delete_message(int(user_cmd_mid))
 
         asyncio.create_task(_del_later(sent_message_id, command_message_id))
+
+    except Exception as e:
+        log.exception("send_test_signal_and_autodelete error: %s", e)
+        await send(f"❌ Ошибка /test_signal: {e}")
 
     while not stop_event.is_set():
         try:
