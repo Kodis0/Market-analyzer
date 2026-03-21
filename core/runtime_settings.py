@@ -123,7 +123,7 @@ class RuntimeSettings:
 
     def format_for_telegram(self) -> str:
         lines = [
-            "<b>⚙️ Настройки бота</b>",
+            '<b><tg-emoji emoji-id="5341715473882955310">⚙️</tg-emoji> Настройки бота</b>',
             "",
             "<b>Доступные параметры (копируй для команды):</b>",
             "<code>min_profit_usd</code> — мин. прибыль ($)",
