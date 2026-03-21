@@ -23,6 +23,9 @@ if TYPE_CHECKING:
 
 log = logging.getLogger("app.tasks")
 
+# Один ключ за раз; Jupiter/стакан не должны блокировать /cleanup бесконечно.
+CLEANUP_PROFIT_CHECK_TIMEOUT_SEC = 40.0
+
 
 def make_status_loop(ctx: AppContext):
     async def status_loop():
@@ -131,16 +134,18 @@ async def cleanup_non_profitable_msgs_profit_based_once(
     progress_cb: Callable[[str], Awaitable[None]] | None = None,
 ) -> tuple[int, int]:
     """
-    Однократная проверка: удалить сообщения в ТГ, если по этому ключу (token:direction)
-    сейчас нет прибыли (profit <= 0).
+    Однократная проверка: кандидаты — устаревшие по TTL слоты из tg_messages и из памяти
+    TelegramNotifier (при отсутствии строки в БД она дописывается). Удаление в ТГ, если
+    по ключу сейчас нет прибыли (profit <= 0). На один ключ — таймаут, чтобы не зависать на Jupiter.
     Возвращает (deleted_count, checked_count).
     """
     if ctx.tg.stale_ttl_sec <= 0:
         return 0, 0
 
-    from api.db import get_stale_tg_messages_async
+    if progress_cb:
+        await progress_cb("🔄 Сбор кандидатов (БД + память)…")
 
-    rows = await get_stale_tg_messages_async(ctx.tg.stale_ttl_sec)
+    rows = await ctx.tg.list_stale_cleanup_candidates_async()
     if not rows:
         if progress_cb:
             await progress_cb("ℹ️ Ручная проверка: нечего проверять (кандидатов нет).")
@@ -332,7 +337,18 @@ async def cleanup_non_profitable_msgs_profit_based_once(
             continue
 
         checked_count += 1
-        profitable = await is_profitable_key(str(key))
+        try:
+            profitable = await asyncio.wait_for(
+                is_profitable_key(str(key)),
+                timeout=CLEANUP_PROFIT_CHECK_TIMEOUT_SEC,
+            )
+        except asyncio.TimeoutError:
+            log.warning(
+                "cleanup: таймаут проверки прибыли key=%s (>%ss), сообщение оставляем",
+                key,
+                CLEANUP_PROFIT_CHECK_TIMEOUT_SEC,
+            )
+            profitable = True
         if not profitable:
             await ctx.tg.delete_message_for_key(str(key), int(msg_id))
             deleted_count += 1

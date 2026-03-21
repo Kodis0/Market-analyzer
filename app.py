@@ -103,7 +103,7 @@ async def main(cfg_path: str) -> None:
                     progress_cb=set_progress,
                 )
                 if checked == 0:
-                    return "ℹ️ /cleanup: нечего проверять (stale_ttl_sec<=0 либо нет записей в tg_messages по TTL)."
+                    return "ℹ️ /cleanup: нечего проверять (stale_ttl_sec<=0 или нет устаревших слотов по TTL в БД и памяти)."
                 return f"✅ /cleanup: проверено={checked}, удалено={deleted}, оставлено={checked - deleted}"
             except Exception as e:
                 return f"❌ /cleanup: ошибка: {e}"

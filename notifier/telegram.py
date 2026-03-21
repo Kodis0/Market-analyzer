@@ -188,7 +188,12 @@ class TelegramNotifier:
         self._stale[key] = False
 
         if not self.edit_mode:
-            await self.send(text, reply_markup=reply_markup, message_effect_id=message_effect_id)
+            new_id = await self.send(text, reply_markup=reply_markup, message_effect_id=message_effect_id)
+            self._msg_ids[key] = new_id
+            self._last_edit[key] = now
+            self._last_sent_text[key] = text
+            self._last_sent_markup[key] = reply_markup
+            await self._save_msg_to_db(key, new_id, now)
             return
 
         last = self._last_edit.get(key, 0.0)
@@ -233,6 +238,56 @@ class TelegramNotifier:
             await self._remove_msg_from_db(key)
             # Не отправляем новое сообщение здесь — иначе при частых upsert получается спам.
             # Следующий upsert с этим key отправит одно новое сообщение (как в истории: один слот на token+direction).
+
+    async def list_stale_cleanup_candidates_async(self) -> list[dict]:
+        """
+        Кандидаты на /cleanup: записи из tg_messages по TTL + слоты из памяти (_msg_ids),
+        если по TTL они уже «старые». Память без строки в БД дописывается через upsert_tg_message.
+
+        Учитывает рассинхрон: если в БД старый ts, а в памяти сигнал уже обновлялся — кандидатом не считается.
+        """
+        if self.stale_ttl_sec <= 0:
+            return []
+        try:
+            from api.db import get_stale_tg_messages_async
+
+            ttl = float(self.stale_ttl_sec)
+            cutoff = time.time() - ttl
+
+            db_rows = await get_stale_tg_messages_async(ttl)
+            by_key: dict[str, dict] = {}
+
+            for r in db_rows:
+                k = str(r.get("key") or "")
+                if not k:
+                    continue
+                mid = r.get("message_id")
+                if mid is None:
+                    continue
+                ts_db = float(r.get("ts", 0))
+                last_seen = float(self._last_seen.get(k, ts_db))
+                if last_seen > cutoff:
+                    continue
+                mem_mid = self._msg_ids.get(k)
+                use_mid = int(mem_mid) if mem_mid is not None else int(mid)
+                by_key[k] = {"key": k, "message_id": use_mid, "ts": int(last_seen)}
+
+            for key, m_id in list(self._msg_ids.items()):
+                last_seen = float(self._last_seen.get(key, 0.0))
+                if last_seen > cutoff:
+                    continue
+                row = {"key": key, "message_id": int(m_id), "ts": int(last_seen)}
+                if key not in by_key:
+                    by_key[key] = row
+                    await self._save_msg_to_db(key, int(m_id), last_seen)
+                elif int(m_id) != int(by_key[key]["message_id"]):
+                    by_key[key] = row
+                    await self._save_msg_to_db(key, int(m_id), last_seen)
+
+            return sorted(by_key.values(), key=lambda x: int(x.get("ts", 0)))
+        except Exception as e:
+            log.warning("list_stale_cleanup_candidates_async failed: %s", e)
+            return []
 
     async def expire_stale(self) -> None:
         if not self.edit_mode:
@@ -311,9 +366,7 @@ class TelegramNotifier:
             return
 
         try:
-            from api.db import get_stale_tg_messages_async
-
-            rows = await get_stale_tg_messages_async(self.stale_ttl_sec)
+            rows = await self.list_stale_cleanup_candidates_async()
             for row in rows:
                 key = row.get("key")
                 msg_id = row.get("message_id")
@@ -349,9 +402,7 @@ class TelegramNotifier:
         if not self.delete_stale or self.stale_ttl_sec <= 0:
             return
         try:
-            from api.db import get_stale_tg_messages_async
-
-            rows = await get_stale_tg_messages_async(self.stale_ttl_sec)
+            rows = await self.list_stale_cleanup_candidates_async()
             for row in rows:
                 key = row.get("key")
                 msg_id = row.get("message_id")
