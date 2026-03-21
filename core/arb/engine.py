@@ -26,14 +26,17 @@ log = logging.getLogger("engine")
 
 if TYPE_CHECKING:
     from core.runtime_settings import RuntimeSettings
+
 getcontext().prec = 28
 
 # B-branch: allowed ratio of expected_raw / sell_amount_raw (tolerance for rounding)
 B_AMOUNT_RATIO_MIN = Decimal("0.997")
 B_AMOUNT_RATIO_MAX = Decimal("1.003")
+
 # B-branch requote prune: interval between prunes, max age of entries to keep
 B_REQUOTE_PRUNE_INTERVAL_SEC = 60.0
 B_REQUOTE_PRUNE_AGE_SEC = 600  # 10 min
+
 CUSTOM_ALERT_EMOJI_HTML = '<tg-emoji emoji-id="5420323339723881652">🚨</tg-emoji>'
 CUSTOM_GREEN_EMOJI_HTML = '<tg-emoji emoji-id="5416081784641168838">🟢</tg-emoji>'
 CUSTOM_RED_EMOJI_HTML = '<tg-emoji emoji-id="5411225014148014586">🔴</tg-emoji>'
@@ -102,31 +105,25 @@ class ArbEngine:
         )
         self.max_ob_age_ms = int(max_ob_age_ms)
 
-        # Quotes freshness (default: max(3x poll interval, 5000ms))
         if max_quote_age_ms is None:
             self.max_quote_age_ms = int(max(5000, float(jupiter_poll_interval_sec) * 3 * 1000))
         else:
             self.max_quote_age_ms = int(max_quote_age_ms)
 
-        # Debug instrumentation
         self._skip_stats = SkipStats(window_sec=30)
         self._stop = asyncio.Event()
-        self._exchange_enabled = exchange_enabled_event  # None = always enabled
+        self._exchange_enabled = exchange_enabled_event
 
-        # Denylist
         self.denylist = Denylist.build(symbols=denylist_symbols, regex=denylist_regex)
 
-        # B-branch sell re-quote throttling
         self._last_b_requote: dict[str, float] = {}
         self._last_b_requote_prune_ts: float = 0.0
         self.b_requote_cooldown_sec = 2.0
 
-        # Engine bounded concurrency (safe default)
         self.engine_concurrency = 64
         self._engine_sem = asyncio.Semaphore(self.engine_concurrency)
         self._engine_batch_mult = 4
 
-        # Quote poller component
         self._poller = QuotePoller(
             state=self.state,
             jup=self.jup,
@@ -148,7 +145,6 @@ class ArbEngine:
         self._stop.set()
 
     def reload_settings(self, settings: RuntimeSettings) -> None:
-        """Apply runtime settings. Called when user updates via /settings."""
         self.thresholds.bybit_taker_fee_bps = Decimal(str(settings.bybit_taker_fee_bps))
         self.thresholds.solana_tx_fee_usd = Decimal(str(settings.solana_tx_fee_usd))
         self.thresholds.latency_buffer_bps = Decimal(str(settings.latency_buffer_bps))
@@ -253,8 +249,6 @@ class ArbEngine:
 
             tz_msk = timezone(timedelta(hours=3))
 
-            # Snapshot quotes under lock, then use copies outside. Poller may update qp
-            # concurrently; using j_buy/j_sell avoids race and keeps evaluation consistent.
             async with qp.lock:
                 if qp.buy_quote is not None and (now_ms - int(qp.buy_updated_ms or 0)) > self.max_quote_age_ms:
                     self._dbg_inc("skip_stale_buy_quote")
@@ -279,7 +273,6 @@ class ArbEngine:
             jup_buy_url = jup_swap_url_by_symbol(bybit_symbol, buy=True)
             jup_sell_url = jup_swap_url_by_symbol(bybit_symbol, buy=False)
 
-            # ---------- A) Jupiter -> Bybit ----------
             a_key = f"{token_key}:A"
             a_valid = False
 
@@ -362,8 +355,8 @@ class ArbEngine:
                                                 )
                                                 buttons: Buttons = [
                                                     [
-                                                        ("🟢 Купить на Jupiter", jup_buy_url),
-                                                        ("🔴 Продать на Bybit", bybit_url),
+                                                        ("Купить на Jupiter", jup_buy_url),
+                                                        ("Продать на Bybit", bybit_url),
                                                     ]
                                                 ]
                                                 sig = Signal(
@@ -377,7 +370,6 @@ class ArbEngine:
             if not a_valid:
                 self.persistence.hit(a_key, False)
 
-            # ---------- B) Bybit -> Jupiter ----------
             b_key = f"{token_key}:B"
             b_valid = False
 
@@ -506,8 +498,8 @@ class ArbEngine:
                                                 )
                                                 buttons2: Buttons = [
                                                     [
-                                                        ("🟢 Купить на Bybit", bybit_url),
-                                                        ("🔴 Продать на Jupiter", jup_sell_url),
+                                                        ("Купить на Bybit", bybit_url),
+                                                        ("Продать на Jupiter", jup_sell_url),
                                                     ]
                                                 ]
                                                 sig2 = Signal(
@@ -540,6 +532,7 @@ class ArbEngine:
             if self._exchange_enabled is not None and not self._exchange_enabled.is_set():
                 await asyncio.sleep(1)
                 continue
+
             self._prune_b_requote()
             started = time.time()
             items = list(self.token_cfgs.items())
@@ -548,7 +541,8 @@ class ArbEngine:
             for i in range(0, len(items), batch_size):
                 chunk = items[i : i + batch_size]
                 tasks = [
-                    asyncio.create_task(self._run_one_bounded(token_key, cfg, on_signal)) for token_key, cfg in chunk
+                    asyncio.create_task(self._run_one_bounded(token_key, cfg, on_signal))
+                    for token_key, cfg in chunk
                 ]
                 await asyncio.gather(*tasks, return_exceptions=True)
                 await asyncio.sleep(0)
