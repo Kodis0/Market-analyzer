@@ -15,8 +15,12 @@ from typing import Any
 import aiohttp
 
 from core.runtime_settings import RuntimeSettings, save_runtime_settings
+from utils.log import log_task_exception
 
 log = logging.getLogger("commands")
+
+# /cleanup: через столько секунд удалить команду пользователя и ответ бота (одно сообщение, правки — то же message_id).
+CLEANUP_CMD_AUTODELETE_SEC = 600
 
 TG_GET_UPDATES = "https://api.telegram.org/bot{token}/getUpdates"
 TG_SEND_MESSAGE = "https://api.telegram.org/bot{token}/sendMessage"
@@ -486,15 +490,19 @@ async def run_settings_command_handler(
                         await send(f"{CUSTOM_ERROR_EMOJI_HTML} Команда /cleanup отключена на сервере")
                         continue
 
+                    user_cmd_mid = int(msg.get("message_id") or 0)
                     parts = text.split(maxsplit=1)
                     only_ttl_stale = True
                     if len(parts) > 1 and parts[1].strip().lower() in ("all", "все", "full"):
                         only_ttl_stale = False
 
+                    bot_message_ids: list[int] = []
                     progress_mid = await send(
                         f"{CUSTOM_HOURGLASS_EMOJI_HTML} Запуск ручной проверки сигналов"
                         f"({'все отслеживаемые слоты' if not only_ttl_stale else 'по TTL'})..."
                     )
+                    if progress_mid:
+                        bot_message_ids.append(int(progress_mid))
                     last_edit_ts = 0.0
 
                     async def set_progress(
@@ -527,7 +535,9 @@ async def run_settings_command_handler(
                         )
                         await set_progress(result_text, force=True)
                         if not progress_mid:
-                            await send(result_text)
+                            fm = await send(result_text)
+                            if fm:
+                                bot_message_ids.append(int(fm))
 
                     except asyncio.TimeoutError:
                         result_text = (
@@ -536,13 +546,29 @@ async def run_settings_command_handler(
                         )
                         await set_progress(result_text, force=True)
                         if not progress_mid:
-                            await send(result_text)
+                            fm = await send(result_text)
+                            if fm:
+                                bot_message_ids.append(int(fm))
 
                     except Exception as e:
                         result_text = f"{CUSTOM_ERROR_EMOJI_HTML} /cleanup: ошибка: {e}"
                         await set_progress(result_text, force=True)
                         if not progress_mid:
-                            await send(result_text)
+                            fm = await send(result_text)
+                            if fm:
+                                bot_message_ids.append(int(fm))
+
+                    async def _autodelete_cleanup_dialog() -> None:
+                        await asyncio.sleep(CLEANUP_CMD_AUTODELETE_SEC)
+                        seen: set[int] = set()
+                        for mid in (user_cmd_mid, *bot_message_ids):
+                            if not mid or mid in seen:
+                                continue
+                            seen.add(mid)
+                            await delete_message(mid)
+
+                    t = asyncio.create_task(_autodelete_cleanup_dialog())
+                    t.add_done_callback(log_task_exception)
 
                     continue
 
