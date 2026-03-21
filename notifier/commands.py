@@ -20,11 +20,11 @@ from utils.log import log_task_exception
 log = logging.getLogger("commands")
 
 # /cleanup: через столько секунд удалить команду пользователя и ответ бота (одно сообщение, правки — то же message_id).
-CLEANUP_CMD_AUTODELETE_SEC = 300
+CLEANUP_CMD_AUTODELETE_SEC = 60
 # /settings: команда пользователя + ответ(ы) бота.
-SETTINGS_CMD_AUTODELETE_SEC = 300
+SETTINGS_CMD_AUTODELETE_SEC = 60
 # /help: команда пользователя + текст справки.
-HELP_CMD_AUTODELETE_SEC = 180
+HELP_CMD_AUTODELETE_SEC = 60
 
 TG_GET_UPDATES = "https://api.telegram.org/bot{token}/getUpdates"
 TG_SEND_MESSAGE = "https://api.telegram.org/bot{token}/sendMessage"
