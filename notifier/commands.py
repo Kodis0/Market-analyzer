@@ -11,9 +11,10 @@ import re
 import time
 from collections.abc import Awaitable, Callable
 from typing import Any
-from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 import aiohttp
+from aiogram.types import InlineKeyboardButton
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from core.runtime_settings import RuntimeSettings, save_runtime_settings
 
@@ -115,13 +116,21 @@ async def _register_bot_commands(
         {"command": "help", "description": "Справка по параметрам"},
         {"command": "pin_setup", "description": "Отправить сообщение с кнопкой Навигация"},
     ]
+
     payload: dict[str, Any] = {"commands": commands}
     if chat_id:
         payload["scope"] = {"type": "chat", "chat_id": chat_id}
 
     try:
-        async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=10)) as response:
-            response.raise_for_status()
+        async with session.post(
+            url,
+            json=payload,
+            timeout=aiohttp.ClientTimeout(total=10),
+        ) as response:
+            data = await response.json(content_type=None)
+            if not data.get("ok", False):
+                log.warning("setMyCommands failed: %s", data)
+                return
         log.info("Bot commands registered")
     except Exception as e:
         log.warning("Failed to register bot commands: %s", e)
@@ -142,6 +151,7 @@ def _make_navigation_button_payload(
     app_link: str | None = None,
 ) -> dict[str, Any]:
     text = (pinned_text or DEFAULT_PINNED_TEXT).strip() or DEFAULT_PINNED_TEXT
+
     payload: dict[str, Any] = {
         "chat_id": chat_id,
         "text": text,
@@ -163,23 +173,34 @@ def _make_navigation_button_payload(
 
 
 def _build_test_signal_markup() -> dict[str, Any]:
+    """
+    Build colored inline keyboard for test signal.
+
+    IMPORTANT:
+    - style / icon_custom_emoji_id require compatible aiogram version.
+    - if your aiogram is too old, update it.
+    """
     builder = InlineKeyboardBuilder()
 
-    builder.button(
+    buy_button = InlineKeyboardButton(
         text="Купить на Bybit",
         url="https://www.bybit.com/en/trade/spot/BTC/USDT",
         style="success",
         icon_custom_emoji_id="5416081784641168838",
     )
-    builder.button(
+
+    sell_button = InlineKeyboardButton(
         text="Продать на Jupiter",
         url="https://jup.ag/swap/BTC-USDC",
         style="danger",
         icon_custom_emoji_id="5411225014148014586",
     )
 
-    builder.adjust(2)
-    return builder.as_markup().model_dump(exclude_none=True)
+    builder.row(buy_button, sell_button)
+
+    markup = builder.as_markup().model_dump(exclude_none=True)
+    log.info("Built test_signal markup: %s", markup)
+    return markup
 
 
 async def run_settings_command_handler(
@@ -199,7 +220,7 @@ async def run_settings_command_handler(
     on_cleanup: Callable[[Callable[[str], Awaitable[None]]], Awaitable[str]] | None = None,
 ) -> None:
     """
-    Poll for Telegram updates and handle /settings, /help commands.
+    Poll for Telegram updates and handle bot commands.
     Only processes messages from the configured chat_id.
     """
     await _register_bot_commands(session, bot_token, chat_id)
@@ -230,13 +251,20 @@ async def run_settings_command_handler(
             payload["reply_markup"] = reply_markup
 
         try:
-            async with session.post(url_send, json=payload, timeout=aiohttp.ClientTimeout(total=10)) as response:
+            async with session.post(
+                url_send,
+                json=payload,
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as response:
                 data = await response.json(content_type=None)
+
             if data.get("ok"):
                 return int((data.get("result") or {}).get("message_id") or 0)
-            log.warning("Telegram sendMessage failed: %s", data)
+
+            log.warning("Telegram sendMessage failed. payload=%s response=%s", payload, data)
         except Exception as e:
             log.exception("send_to_chat error: %s", e)
+
         return None
 
     async def send(text: str, reply_markup: dict[str, Any] | None = None) -> int | None:
@@ -255,10 +283,16 @@ async def run_settings_command_handler(
         payload = {"chat_id": chat_id, "message_id": int(message_id)}
 
         try:
-            async with session.post(url_delete, json=payload, timeout=aiohttp.ClientTimeout(total=10)):
-                pass
-        except Exception:
-            pass
+            async with session.post(
+                url_delete,
+                json=payload,
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as response:
+                data = await response.json(content_type=None)
+                if not data.get("ok", False):
+                    log.warning("deleteMessage failed: %s", data)
+        except Exception as e:
+            log.warning("delete_message error: %s", e)
 
     async def edit_message(message_id: int, text: str) -> None:
         if not message_id:
@@ -274,10 +308,16 @@ async def run_settings_command_handler(
         }
 
         try:
-            async with session.post(url_edit, json=payload, timeout=aiohttp.ClientTimeout(total=10)):
-                pass
-        except Exception:
-            pass
+            async with session.post(
+                url_edit,
+                json=payload,
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as response:
+                data = await response.json(content_type=None)
+                if not data.get("ok", False):
+                    log.warning("editMessageText failed: %s", data)
+        except Exception as e:
+            log.warning("edit_message error: %s", e)
 
     async def send_test_signal_and_autodelete(command_message_id: int | None = None) -> None:
         try:
@@ -319,12 +359,13 @@ async def run_settings_command_handler(
     while not stop_event.is_set():
         try:
             params = {"offset": offset, "timeout": 30}
+
             async with session.get(
                 url_updates,
                 params=params,
                 timeout=aiohttp.ClientTimeout(total=35),
             ) as response:
-                data = await response.json()
+                data = await response.json(content_type=None)
 
             if not data.get("ok"):
                 log.warning("getUpdates error: %s", data)
@@ -376,7 +417,9 @@ async def run_settings_command_handler(
                         await send(f"{CUSTOM_ERROR_EMOJI_HTML} Команда /cleanup отключена на сервере")
                         continue
 
-                    progress_mid = await send(f"{CUSTOM_HOURGLASS_EMOJI_HTML} Запуск ручной проверки сигналов...")
+                    progress_mid = await send(
+                        f"{CUSTOM_HOURGLASS_EMOJI_HTML} Запуск ручной проверки сигналов..."
+                    )
                     last_edit_ts = 0.0
 
                     async def set_progress(progress_text: str) -> None:
@@ -400,10 +443,14 @@ async def run_settings_command_handler(
                     )
 
                     try:
-                        result_text = await asyncio.wait_for(on_cleanup(set_progress), timeout=180.0)
+                        result_text = await asyncio.wait_for(
+                            on_cleanup(set_progress),
+                            timeout=180.0,
+                        )
                         await set_progress(result_text)
                         if not progress_mid:
                             await send(result_text)
+
                     except asyncio.TimeoutError:
                         result_text = (
                             f"{CUSTOM_WARNING_EMOJI_HTML} /cleanup: проверка заняла слишком много времени "
@@ -412,11 +459,13 @@ async def run_settings_command_handler(
                         await set_progress(result_text)
                         if not progress_mid:
                             await send(result_text)
+
                     except Exception as e:
                         result_text = f"{CUSTOM_ERROR_EMOJI_HTML} /cleanup: ошибка: {e}"
                         await set_progress(result_text)
                         if not progress_mid:
                             await send(result_text)
+
                     continue
 
                 if cmd == "/test_signal":
@@ -447,7 +496,10 @@ async def run_settings_command_handler(
                         continue
 
                     status = "включена" if settings.exchange_enabled else "выключена"
-                    await send(f"Биржевая логика: <b>{status}</b>\nИспользуй: /exchange on | /exchange off")
+                    await send(
+                        f"Биржевая логика: <b>{status}</b>\n"
+                        "Используй: /exchange on | /exchange off"
+                    )
                     continue
 
                 if cmd == "/pin_setup":
@@ -464,7 +516,8 @@ async def run_settings_command_handler(
                             json=payload,
                             timeout=aiohttp.ClientTimeout(total=10),
                         ) as response:
-                            data = await response.json()
+                            data = await response.json(content_type=None)
+
                         if not data.get("ok"):
                             await send(
                                 f"{CUSTOM_ERROR_EMOJI_HTML} Ошибка: "
@@ -495,7 +548,10 @@ async def run_settings_command_handler(
 
                 key, value = parsed
                 if not settings.update(key, value):
-                    await send(f"{CUSTOM_ERROR_EMOJI_HTML} Неизвестный параметр: {key}\nСписок: /settings")
+                    await send(
+                        f"{CUSTOM_ERROR_EMOJI_HTML} Неизвестный параметр: {key}\n"
+                        "Список: /settings"
+                    )
                     continue
 
                 save_runtime_settings(settings_path, settings)
@@ -504,7 +560,10 @@ async def run_settings_command_handler(
                 if key == "exchange_enabled" and on_exchange_toggle is not None:
                     await on_exchange_toggle(bool(settings.exchange_enabled))
 
-                await send(f"{CUSTOM_SUCCESS_EMOJI_HTML} Обновлено: {settings.LABELS.get(key, key)} = {value}")
+                await send(
+                    f"{CUSTOM_SUCCESS_EMOJI_HTML} "
+                    f"Обновлено: {settings.LABELS.get(key, key)} = {value}"
+                )
 
         except asyncio.CancelledError:
             break
