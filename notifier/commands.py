@@ -139,7 +139,10 @@ async def _register_bot_commands(
     commands = [
         {"command": "settings", "description": "Настройки: /settings min_profit_usd 20"},
         {"command": "exchange", "description": "Вкл/выкл биржевую логику: /exchange on|off"},
-        {"command": "cleanup", "description": "Проверить сигналы и удалить не-прибыльные: /cleanup"},
+        {
+            "command": "cleanup",
+            "description": "Проверка по TTL — /cleanup; все слоты — /cleanup all",
+        },
         {"command": "test_signal", "description": "Тестовый сигнал (авто-удаление через 1 мин)"},
         {"command": "help", "description": "Справка по параметрам"},
         {"command": "pin_setup", "description": "Отправить сообщение с кнопкой Навигация"},
@@ -281,7 +284,7 @@ async def run_settings_command_handler(
     poll_interval_sec: float = 2.0,
     on_exchange_toggle: Callable[[bool], Awaitable[None]] | None = None,
     app_link: str | None = None,
-    on_cleanup: Callable[[Callable[[str], Awaitable[None]]], Awaitable[str]] | None = None,
+    on_cleanup: Callable[..., Awaitable[str]] | None = None,
 ) -> None:
     """
     Poll for Telegram updates and handle bot commands.
@@ -483,8 +486,14 @@ async def run_settings_command_handler(
                         await send(f"{CUSTOM_ERROR_EMOJI_HTML} Команда /cleanup отключена на сервере")
                         continue
 
+                    parts = text.split(maxsplit=1)
+                    only_ttl_stale = True
+                    if len(parts) > 1 and parts[1].strip().lower() in ("all", "все", "full"):
+                        only_ttl_stale = False
+
                     progress_mid = await send(
-                        f"{CUSTOM_HOURGLASS_EMOJI_HTML} Запуск ручной проверки сигналов..."
+                        f"{CUSTOM_HOURGLASS_EMOJI_HTML} Запуск ручной проверки сигналов"
+                        f"({'все отслеживаемые слоты' if not only_ttl_stale else 'по TTL'})..."
                     )
                     last_edit_ts = 0.0
 
@@ -510,7 +519,7 @@ async def run_settings_command_handler(
 
                     try:
                         result_text = await asyncio.wait_for(
-                            on_cleanup(set_progress),
+                            on_cleanup(set_progress, only_ttl_stale=only_ttl_stale),
                             timeout=180.0,
                         )
                         await set_progress(result_text)

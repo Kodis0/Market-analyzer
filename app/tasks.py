@@ -153,7 +153,10 @@ async def cleanup_non_profitable_msgs_profit_based_once(
         return 0, 0
 
     if not only_ttl_stale and not ctx.settings.exchange_enabled:
-        log.info("profit check (all slots): skipped — exchange_enabled=false, need OB+Jupiter")
+        log.warning(
+            "[TG_PROFIT] hourly skipped: exchange_enabled=false (нужны стакан Bybit + Jupiter). "
+            "Включите: /exchange on или в runtime settings."
+        )
         return 0, 0
 
     if progress_cb:
@@ -167,11 +170,21 @@ async def cleanup_non_profitable_msgs_profit_based_once(
         rows = await ctx.tg.list_stale_cleanup_candidates_async()
     else:
         rows = await ctx.tg.list_all_tracked_signal_slots_async()
+        log.info(
+            "[TG_PROFIT] hourly: отслеживаемых слотов=%d, за этот проход проверим до %d",
+            len(rows),
+            max_rows,
+        )
 
     if not rows:
         if progress_cb:
             await progress_cb(
                 "ℹ️ Нечего проверять (нет записей в tg_messages / слотов в памяти)."
+            )
+        if not only_ttl_stale:
+            log.info(
+                "[TG_PROFIT] hourly: слотов нет — бот ещё не сохранял message_id в tg_messages "
+                "(или таблица пуста после чистки)."
             )
         return 0, 0
 
@@ -398,6 +411,13 @@ async def cleanup_non_profitable_msgs_profit_based_once(
                 f"Оставлено: {left_count}"
             )
 
+    if not only_ttl_stale:
+        log.info(
+            "[TG_PROFIT] hourly: готово checked=%d deleted=%d",
+            checked_count,
+            deleted_count,
+        )
+
     return deleted_count, checked_count
 
 
@@ -408,20 +428,21 @@ def make_tg_hourly_cleanup_loop(ctx: AppContext):
     """
 
     async def tg_hourly_cleanup_loop():
+        # Сразу после старта бота — первая проверка, затем раз в час (раньше sleep шёл первым и ждал целый час).
+        log.info(
+            "[TG_PROFIT] hourly: старт, интервал=%ds, первый проход сейчас",
+            TG_HOURLY_CLEANUP_INTERVAL_SEC,
+        )
         while True:
-            await asyncio.sleep(TG_HOURLY_CLEANUP_INTERVAL_SEC)
             try:
-                deleted, checked = await cleanup_non_profitable_msgs_profit_based_once(
+                await cleanup_non_profitable_msgs_profit_based_once(
                     ctx,
                     max_rows=HOURLY_PROFIT_CHECK_MAX_ROWS,
                     only_ttl_stale=False,
                 )
-                if checked or deleted:
-                    log.info(
-                        "[TG_PROFIT] hourly all-tracked: checked=%d deleted=%d", checked, deleted
-                    )
             except Exception as e:
                 log.warning("tg_hourly_cleanup_loop error: %s", e)
+            await asyncio.sleep(TG_HOURLY_CLEANUP_INTERVAL_SEC)
 
     return tg_hourly_cleanup_loop
 

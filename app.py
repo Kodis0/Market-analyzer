@@ -27,6 +27,8 @@ from app.handlers import (
     make_on_symbols_changed,
 )
 from app.tasks import (
+    HOURLY_PROFIT_CHECK_MAX_ROWS,
+    cleanup_non_profitable_msgs_profit_based_once,
     make_auto_tune_loop,
     make_stats_heartbeat_loop,
     make_status_loop,
@@ -34,7 +36,6 @@ from app.tasks import (
     make_tg_hourly_cleanup_loop,
     make_tg_verify_loop,
     make_ws_health_loop,
-    cleanup_non_profitable_msgs_profit_based_once,
 )
 
 log = logging.getLogger("app")
@@ -95,17 +96,33 @@ async def main(cfg_path: str) -> None:
         api_server_mod = __import__("api.server", fromlist=["run_server"])
         full_tokens = dict(cfg.trading.tokens)
 
-        async def on_manual_cleanup(set_progress) -> str:
+        async def on_manual_cleanup(
+            set_progress,
+            *,
+            only_ttl_stale: bool = True,
+        ) -> str:
             try:
+                max_rows = 60 if only_ttl_stale else HOURLY_PROFIT_CHECK_MAX_ROWS
                 deleted, checked = await cleanup_non_profitable_msgs_profit_based_once(
                     ctx,
-                    max_rows=60,
+                    max_rows=max_rows,
                     progress_cb=set_progress,
-                    only_ttl_stale=True,
+                    only_ttl_stale=only_ttl_stale,
                 )
                 if checked == 0:
-                    return "ℹ️ /cleanup: нечего проверять (stale_ttl_sec<=0 или нет кандидатов по TTL в БД и памяти)."
-                return f"✅ /cleanup: проверено={checked}, удалено={deleted}, оставлено={checked - deleted}"
+                    if only_ttl_stale:
+                        return (
+                            "ℹ️ /cleanup: нечего проверять (stale_ttl_sec<=0 или нет кандидатов "
+                            "по TTL в БД и памяти). Для всех слотов: <code>/cleanup all</code>."
+                        )
+                    return (
+                        "ℹ️ /cleanup all: нечего проверять — нет слотов в tg_messages, "
+                        "или <code>exchange_enabled=false</code> (нужен <code>/exchange on</code>)."
+                    )
+                label = "/cleanup" if only_ttl_stale else "/cleanup all"
+                return (
+                    f"✅ {label}: проверено={checked}, удалено={deleted}, оставлено={checked - deleted}"
+                )
             except Exception as e:
                 return f"❌ /cleanup: ошибка: {e}"
 
