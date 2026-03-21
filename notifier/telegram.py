@@ -315,6 +315,8 @@ class TelegramNotifier:
         text: str,
         reply_markup: dict | None = None,
         message_effect_id: str | None = None,
+        *,
+        relax_edit_interval: bool = False,
     ) -> None:
         async with self._lock_for_key(key):
             now = time.time()
@@ -339,7 +341,11 @@ class TelegramNotifier:
             await self._hydrate_msg_id_from_db(key)
 
             last = self._last_edit.get(key, 0.0)
-            if (now - last) < self.edit_min_interval_sec and key in self._msg_ids:
+            if (
+                not relax_edit_interval
+                and (now - last) < self.edit_min_interval_sec
+                and key in self._msg_ids
+            ):
                 return
 
             msg_id = self._msg_ids.get(key)

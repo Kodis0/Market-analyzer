@@ -18,6 +18,7 @@ from core.runtime_settings import save_runtime_settings
 
 from app.handlers import AUTO_TUNE_HISTORY_MAX, make_apply_settings_reload
 from app.signal_message_parse import parse_arb_signal_from_message
+from core.arb.tg_refresh import build_snapshot_signal_for_refresh
 
 if TYPE_CHECKING:
     from app.context import AppContext
@@ -33,6 +34,28 @@ TG_PROFIT_RECHECK_INTERVAL_SEC = 30 * 60  # 30 минут
 TG_PROFIT_RECHECK_MAX_PER_TICK = 8
 # Если отслеживаемых слотов нет — тот же интервал (меньше пустых запросов к БД).
 TG_PROFIT_RECHECK_IDLE_INTERVAL_SEC = 30 * 60
+# Обновление текста/времени в открытых сигналах Telegram (без сброса TTL движка).
+TG_DISPLAY_REFRESH_INTERVAL_SEC = 45.0
+TG_DISPLAY_REFRESH_MAX_PER_TICK = 4
+TG_DISPLAY_REFRESH_SNAPSHOT_TIMEOUT_SEC = 25.0
+
+
+def resolve_slot_token_direction(ctx: AppContext, key: str) -> tuple[str, str] | None:
+    """Ключ слота mint:dir или TOKEN:dir → (token_key, direction) для движка."""
+    if ":" not in key:
+        return None
+    left, direction = key.split(":", 1)
+    if direction not in ("JUP->BYBIT", "BYBIT->JUP"):
+        return None
+    token_key = left
+    if token_key not in ctx.cfg.trading.tokens:
+        for tk, tc in ctx.cfg.trading.tokens.items():
+            if getattr(tc, "mint", "") == token_key:
+                token_key = tk
+                break
+    if not ctx.cfg.trading.tokens.get(token_key):
+        return None
+    return token_key, direction
 
 
 def _rotate_signal_batch(rows: list[dict], offset: int, take: int) -> tuple[list[dict], int]:
@@ -572,6 +595,69 @@ def make_tg_hourly_cleanup_loop(ctx: AppContext):
             await asyncio.sleep(sleep_sec)
 
     return tg_hourly_cleanup_loop
+
+
+def make_tg_signal_display_refresh_loop(ctx: AppContext):
+    """
+    Периодически пересчитывает текст активных сигналов (цены, «Последнее изменение», проверки бирж)
+    и правит сообщение в Telegram. Не вызывает mark_engine_signal_emit — TTL «устарел» от движка не сбивается.
+    При прибыли <= 0 удаляет сообщение (как ручной cleanup).
+    """
+
+    async def tg_display_refresh_loop():
+        rotation_offset = 0
+        log.info(
+            "[TG_DISPLAY] refresh: старт, интервал=%.0fs, до %d слотов за тик",
+            TG_DISPLAY_REFRESH_INTERVAL_SEC,
+            TG_DISPLAY_REFRESH_MAX_PER_TICK,
+        )
+        while True:
+            try:
+                if not ctx.settings.exchange_enabled:
+                    await asyncio.sleep(TG_DISPLAY_REFRESH_INTERVAL_SEC)
+                    continue
+                rows = await ctx.tg.list_all_tracked_signal_slots_async()
+                rows.sort(key=lambda r: str(r.get("key") or ""))
+                if not rows:
+                    await asyncio.sleep(TG_DISPLAY_REFRESH_INTERVAL_SEC)
+                    continue
+                batch, rotation_offset = _rotate_signal_batch(
+                    rows,
+                    rotation_offset,
+                    TG_DISPLAY_REFRESH_MAX_PER_TICK,
+                )
+                for row in batch:
+                    key = str(row.get("key") or "")
+                    msg_id = row.get("message_id")
+                    if not key or msg_id is None:
+                        continue
+                    resolved = resolve_slot_token_direction(ctx, key)
+                    if not resolved:
+                        continue
+                    token_key, direction = resolved
+                    try:
+                        sig, remove = await asyncio.wait_for(
+                            build_snapshot_signal_for_refresh(ctx.engine, token_key, direction),
+                            timeout=TG_DISPLAY_REFRESH_SNAPSHOT_TIMEOUT_SEC,
+                        )
+                    except asyncio.TimeoutError:
+                        log.debug("[TG_DISPLAY] snapshot timeout key=%s", key)
+                        continue
+                    except Exception as e:
+                        log.warning("[TG_DISPLAY] snapshot key=%s: %s", key, e)
+                        continue
+                    if remove:
+                        await ctx.tg.delete_message_for_key(key, int(msg_id))
+                        continue
+                    if sig is None:
+                        continue
+                    reply_markup = sig.to_reply_markup() if hasattr(sig, "to_reply_markup") else None
+                    await ctx.tg.upsert(key, sig.text, reply_markup=reply_markup, relax_edit_interval=True)
+            except Exception as e:
+                log.warning("[TG_DISPLAY] refresh loop error: %s", e)
+            await asyncio.sleep(TG_DISPLAY_REFRESH_INTERVAL_SEC)
+
+    return tg_display_refresh_loop
 
 
 def make_auto_tune_loop(ctx: AppContext):
