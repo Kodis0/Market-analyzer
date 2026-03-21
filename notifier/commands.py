@@ -13,8 +13,6 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 import aiohttp
-from aiogram.types import InlineKeyboardButton
-from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from core.runtime_settings import RuntimeSettings, save_runtime_settings
 
@@ -39,6 +37,36 @@ CUSTOM_REFRESH_EMOJI_HTML = '<tg-emoji emoji-id="5386367538735104399">🔄</tg-e
 CUSTOM_HOURGLASS_EMOJI_HTML = '<tg-emoji emoji-id="5231012545799666522">⏳</tg-emoji>'
 CUSTOM_SPARKLES_EMOJI_HTML = '<tg-emoji emoji-id="5325547803936572038">✨</tg-emoji>'
 CUSTOM_TEST_EMOJI_HTML = '<tg-emoji emoji-id="5452069934089641166">🧪</tg-emoji>'
+
+# InlineKeyboardButton: style + icon_custom_emoji_id (Bot API; нужен клиент с поддержкой и
+# Premium/Fragment для icon_custom_emoji_id — см. документацию Telegram).
+DEFAULT_MINI_APP_URL = "https://t.me/AutoArbitrage0Bot/market"
+
+
+def _inline_kb_button(
+    text: str,
+    *,
+    url: str | None = None,
+    callback_data: str | None = None,
+    style: str | None = None,
+    icon_custom_emoji_id: str | None = None,
+) -> dict[str, Any]:
+    """Build one InlineKeyboardButton dict for Telegram Bot API JSON."""
+    btn: dict[str, Any] = {"text": text}
+    if url is not None:
+        btn["url"] = url
+    if callback_data is not None:
+        btn["callback_data"] = callback_data
+    if style:
+        btn["style"] = style
+    if icon_custom_emoji_id:
+        btn["icon_custom_emoji_id"] = icon_custom_emoji_id
+    return btn
+
+
+def _resolve_dashboard_url(web_app_url: str | None, app_link: str | None) -> str:
+    button_url = (app_link or "").strip() if app_link else (web_app_url or "").strip()
+    return button_url or DEFAULT_MINI_APP_URL
 
 
 def _parse_settings_args(text: str) -> tuple[str, Any] | None:
@@ -162,45 +190,81 @@ def _make_navigation_button_payload(
     if thread_id is not None:
         payload["message_thread_id"] = thread_id
 
-    button_url = (app_link or "").strip() if app_link else (web_app_url or "").strip()
-    if not button_url:
-        button_url = "https://t.me/AutoArbitrage0Bot/market"
+    button_url = _resolve_dashboard_url(web_app_url, app_link)
 
     payload["reply_markup"] = {
-        "inline_keyboard": [[{"text": "НАВИГАЦИЯ", "url": button_url}]],
+        "inline_keyboard": [
+            [
+                _inline_kb_button(
+                    "НАВИГАЦИЯ",
+                    url=button_url,
+                    style="primary",
+                    icon_custom_emoji_id="5325547803936572038",
+                ),
+            ],
+        ],
     }
     return payload
 
 
+def _build_welcome_markup(web_app_url: str | None, app_link: str | None) -> dict[str, Any]:
+    """Colored inline keyboard for private /start (Bot API style + custom emoji icons)."""
+    dash = _resolve_dashboard_url(web_app_url, app_link)
+    bot_profile = "https://t.me/AutoArbitrage0Bot"
+    return {
+        "inline_keyboard": [
+            [
+                _inline_kb_button(
+                    "Info",
+                    url=bot_profile,
+                    style="primary",
+                    icon_custom_emoji_id="6028435952299413210",
+                ),
+                _inline_kb_button(
+                    "Дашборд",
+                    url=dash,
+                    style="success",
+                    icon_custom_emoji_id="5416081784641168838",
+                ),
+            ],
+            [
+                _inline_kb_button(
+                    "Bybit",
+                    url="https://www.bybit.com/en/trade/spot/BTC/USDT",
+                    style="danger",
+                    icon_custom_emoji_id="5411225014148014586",
+                ),
+                _inline_kb_button(
+                    "Jupiter",
+                    url="https://jup.ag/",
+                    style="primary",
+                    icon_custom_emoji_id="5372878077250519677",
+                ),
+            ],
+        ],
+    }
+
+
 def _build_test_signal_markup() -> dict[str, Any]:
-    """
-    Build colored inline keyboard for test signal.
-
-    IMPORTANT:
-    - style / icon_custom_emoji_id require compatible aiogram version.
-    - if your aiogram is too old, update it.
-    """
-    builder = InlineKeyboardBuilder()
-
-    buy_button = InlineKeyboardButton(
-        text="Купить на Bybit",
-        url="https://www.bybit.com/en/trade/spot/BTC/USDT",
-        style="success",
-        icon_custom_emoji_id="5416081784641168838",
-    )
-
-    sell_button = InlineKeyboardButton(
-        text="Продать на Jupiter",
-        url="https://jup.ag/swap/BTC-USDC",
-        style="danger",
-        icon_custom_emoji_id="5411225014148014586",
-    )
-
-    builder.row(buy_button, sell_button)
-
-    markup = builder.as_markup().model_dump(exclude_none=True)
-    log.info("Built test_signal markup: %s", markup)
-    return markup
+    """Colored inline keyboard for test signal (plain Bot API JSON, no aiogram)."""
+    return {
+        "inline_keyboard": [
+            [
+                _inline_kb_button(
+                    "Купить на Bybit",
+                    url="https://www.bybit.com/en/trade/spot/BTC/USDT",
+                    style="success",
+                    icon_custom_emoji_id="5416081784641168838",
+                ),
+                _inline_kb_button(
+                    "Продать на Jupiter",
+                    url="https://jup.ag/swap/BTC-USDC",
+                    style="danger",
+                    icon_custom_emoji_id="5411225014148014586",
+                ),
+            ],
+        ],
+    }
 
 
 async def run_settings_command_handler(
@@ -395,14 +459,16 @@ async def run_settings_command_handler(
                         f"{CUSTOM_SPARKLES_EMOJI_HTML} <b>Привет!</b>\n"
                         "Я бот арбитражных сигналов.\n\n"
                     )
+                    welcome_markup = _build_welcome_markup(web_app_url, app_link)
                     sent_mid = await send_to_chat(
                         from_chat_id,
                         welcome_text,
                         target_thread_id=None,
                         message_effect_id=LIGHTNING_MESSAGE_EFFECT_ID,
+                        reply_markup=welcome_markup,
                     )
                     if not sent_mid:
-                        await send_to_chat(from_chat_id, welcome_text)
+                        await send_to_chat(from_chat_id, welcome_text, reply_markup=welcome_markup)
                     continue
 
                 if from_chat_id != chat_id:
