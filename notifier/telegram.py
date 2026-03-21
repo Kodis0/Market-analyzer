@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import logging
+import threading
 import time
 
 import aiohttp
@@ -55,6 +57,9 @@ class TelegramNotifier:
         self._last_sent_markup: dict[str, dict | None] = {}
         # key -> stale flag
         self._stale: dict[str, bool] = {}
+        # Один upsert на ключ — нет двух send подряд при гонке.
+        self._slot_locks: dict[str, asyncio.Lock] = {}
+        self._slot_locks_guard = threading.Lock()
 
         # Restore from DB after restart (delete_stale survives deploy)
         for row in _load_tg_messages_from_db():
@@ -87,6 +92,33 @@ class TelegramNotifier:
         now = time.time()
         self._last_seen[key] = now
         self._stale[key] = False
+
+    def _lock_for_key(self, key: str) -> asyncio.Lock:
+        with self._slot_locks_guard:
+            lock = self._slot_locks.get(key)
+            if lock is None:
+                lock = asyncio.Lock()
+                self._slot_locks[key] = lock
+            return lock
+
+    async def _hydrate_msg_id_from_db(self, key: str) -> None:
+        """Если message_id не в памяти — подтянуть из БД перед send (после сбоя edit и т.п.)."""
+        if key in self._msg_ids:
+            return
+        try:
+            from api.db import get_tg_message_by_key_async
+
+            row = await get_tg_message_by_key_async(key)
+        except Exception as e:
+            log.warning("hydrate tg msg_id failed key=%s: %s", key, e)
+            return
+        if not row:
+            return
+        mid = int(row["message_id"])
+        self._msg_ids[key] = mid
+        ts = row.get("ts")
+        if ts is not None:
+            self._last_seen.setdefault(key, float(ts))
 
     def _url(self, method: str) -> str:
         return f"{self.base}/{method}"
@@ -191,67 +223,70 @@ class TelegramNotifier:
         reply_markup: dict | None = None,
         message_effect_id: str | None = None,
     ) -> None:
-        now = time.time()
-        self._last_text[key] = text
+        async with self._lock_for_key(key):
+            now = time.time()
+            self._last_text[key] = text
 
-        if reply_markup is None:
-            reply_markup = self._last_markup.get(key)
-        else:
-            self._last_markup[key] = reply_markup
+            if reply_markup is None:
+                reply_markup = self._last_markup.get(key)
+            else:
+                self._last_markup[key] = reply_markup
 
-        slot_ts = float(self._last_seen.get(key, now))
+            slot_ts = float(self._last_seen.get(key, now))
 
-        if not self.edit_mode:
-            new_id = await self.send(text, reply_markup=reply_markup, message_effect_id=message_effect_id)
-            self._msg_ids[key] = new_id
-            self._last_edit[key] = now
-            self._last_sent_text[key] = text
-            self._last_sent_markup[key] = reply_markup
-            await self._save_msg_to_db(key, new_id, slot_ts)
-            return
+            if not self.edit_mode:
+                new_id = await self.send(text, reply_markup=reply_markup, message_effect_id=message_effect_id)
+                self._msg_ids[key] = new_id
+                self._last_edit[key] = now
+                self._last_sent_text[key] = text
+                self._last_sent_markup[key] = reply_markup
+                await self._save_msg_to_db(key, new_id, slot_ts)
+                return
 
-        last = self._last_edit.get(key, 0.0)
-        if (now - last) < self.edit_min_interval_sec and key in self._msg_ids:
-            return
+            await self._hydrate_msg_id_from_db(key)
 
-        msg_id = self._msg_ids.get(key)
-        if msg_id is None:
-            new_id = await self.send(text, reply_markup=reply_markup, message_effect_id=message_effect_id)
-            self._msg_ids[key] = new_id
-            self._last_edit[key] = now
-            self._last_sent_text[key] = text
-            self._last_sent_markup[key] = reply_markup
-            await self._save_msg_to_db(key, new_id, slot_ts)
-            return
+            last = self._last_edit.get(key, 0.0)
+            if (now - last) < self.edit_min_interval_sec and key in self._msg_ids:
+                return
 
-        prev_text = self._last_sent_text.get(key)
-        prev_markup = self._last_sent_markup.get(key)
-        if prev_text == text and prev_markup == reply_markup:
-            return
+            msg_id = self._msg_ids.get(key)
+            if msg_id is None:
+                new_id = await self.send(text, reply_markup=reply_markup, message_effect_id=message_effect_id)
+                self._msg_ids[key] = new_id
+                self._last_edit[key] = now
+                self._last_sent_text[key] = text
+                self._last_sent_markup[key] = reply_markup
+                await self._save_msg_to_db(key, new_id, slot_ts)
+                return
 
-        try:
-            await self.edit(msg_id, text, reply_markup=reply_markup)
-            self._last_edit[key] = now
-            self._last_sent_text[key] = text
-            self._last_sent_markup[key] = reply_markup
-            await self._save_msg_to_db(key, msg_id, slot_ts)
-        except Exception as e:
-            log.warning("edit failed for key=%s msg_id=%s: %s; invalidating, next upsert will send one new", key, msg_id, e)
-            # Best-effort: если edit упал, то старое сообщение может остаться "висящим" в чате.
-            # Попробуем удалить его, чтобы не копить сироты.
+            prev_text = self._last_sent_text.get(key)
+            prev_markup = self._last_sent_markup.get(key)
+            if prev_text == text and prev_markup == reply_markup:
+                return
+
             try:
-                await self.delete(int(msg_id))
-            except Exception as del_e:
-                err_str = str(del_e).lower()
-                if "not found" not in err_str and "message to delete" not in err_str:
-                    log.debug("edit-fail cleanup delete failed key=%s msg_id=%s: %s", key, msg_id, del_e)
-            self._msg_ids.pop(key, None)
-            self._last_edit.pop(key, None)
-            self._last_sent_text.pop(key, None)
-            self._last_sent_markup.pop(key, None)
-            await self._remove_msg_from_db(key)
-            # Не отправляем новое сообщение здесь — иначе при частых upsert получается спам.
-            # Следующий upsert с этим key отправит одно новое сообщение (как в истории: один слот на token+direction).
+                await self.edit(msg_id, text, reply_markup=reply_markup)
+                self._last_edit[key] = now
+                self._last_sent_text[key] = text
+                self._last_sent_markup[key] = reply_markup
+                await self._save_msg_to_db(key, msg_id, slot_ts)
+            except Exception as e:
+                log.warning("edit failed for key=%s msg_id=%s: %s; invalidating, next upsert will send one new", key, msg_id, e)
+                # Best-effort: если edit упал, то старое сообщение может остаться "висящим" в чате.
+                # Попробуем удалить его, чтобы не копить сироты.
+                try:
+                    await self.delete(int(msg_id))
+                except Exception as del_e:
+                    err_str = str(del_e).lower()
+                    if "not found" not in err_str and "message to delete" not in err_str:
+                        log.debug("edit-fail cleanup delete failed key=%s msg_id=%s: %s", key, msg_id, del_e)
+                self._msg_ids.pop(key, None)
+                self._last_edit.pop(key, None)
+                self._last_sent_text.pop(key, None)
+                self._last_sent_markup.pop(key, None)
+                await self._remove_msg_from_db(key)
+                # Не отправляем новое сообщение здесь — иначе при частых upsert получается спам.
+                # Следующий upsert с этим key отправит одно новое сообщение (как в истории: один слот на token+direction).
 
     async def list_stale_cleanup_candidates_async(self) -> list[dict]:
         """

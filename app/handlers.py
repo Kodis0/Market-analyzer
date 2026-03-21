@@ -23,11 +23,12 @@ def make_on_signal(ctx: AppContext):
     async def on_signal(sig):
         ctx.metrics_collector.record_signal()
         reply_markup = sig.to_reply_markup() if hasattr(sig, "to_reply_markup") else None
-        # Тот же ключ, что и в record_signal: один слот на (token, direction) — обновление, а не спам.
-        key = f"{sig.token}:{sig.direction}"
+        # Один слот на (mint, direction): одна монета + один маршрут → одно сообщение (редактирование).
+        # Fallback без mint — старый формат ключа TOKEN:direction.
+        tg_key = f"{sig.mint}:{sig.direction}" if sig.mint else f"{sig.token}:{sig.direction}"
         message_effect_id = PREMIUM_LIGHTNING_MESSAGE_EFFECT_ID if sig.direction == "BYBIT->JUP" else None
-        ctx.tg.mark_engine_signal_emit(key)
-        await ctx.tg.upsert(key, sig.text, reply_markup=reply_markup, message_effect_id=message_effect_id)
+        ctx.tg.mark_engine_signal_emit(tg_key)
+        await ctx.tg.upsert(tg_key, sig.text, reply_markup=reply_markup, message_effect_id=message_effect_id)
         try:
             from api.db import record_signal_async
 

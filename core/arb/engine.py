@@ -360,7 +360,14 @@ class ArbEngine:
                                                     ]
                                                 ]
                                                 sig = Signal(
-                                                    key, token_key, "JUP->BYBIT", profit, self.notional, text, buttons
+                                                    key,
+                                                    token_key,
+                                                    "JUP->BYBIT",
+                                                    profit,
+                                                    self.notional,
+                                                    text,
+                                                    buttons,
+                                                    mint=mint,
                                                 )
                                                 self.dedup.mark_sent(f"{token_key}:JUP->BYBIT:{int(self.notional)}", profit)
                                                 res = on_signal(sig)
@@ -510,6 +517,7 @@ class ArbEngine:
                                                     self.notional,
                                                     text2,
                                                     buttons2,
+                                                    mint=mint,
                                                 )
                                                 self.dedup.mark_sent(f"{token_key}:BYBIT->JUP:{int(self.notional)}", profit2)
                                                 res2 = on_signal(sig2)

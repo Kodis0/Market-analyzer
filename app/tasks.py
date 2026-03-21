@@ -320,7 +320,17 @@ async def cleanup_non_profitable_msgs_profit_based_once(
         Профит как у движка: Bybit стакан + Jupiter quote.
         Токен и направление: из текста сообщения (если распознано и токен есть в конфиге), иначе из key.
         """
-        token_key, direction = key.split(":", 1)
+        if ":" not in key:
+            return False
+        left, direction = key.split(":", 1)
+        if direction not in ("JUP->BYBIT", "BYBIT->JUP"):
+            return False
+        token_key = left
+        if token_key not in ctx.cfg.trading.tokens:
+            for tk, tc in ctx.cfg.trading.tokens.items():
+                if getattr(tc, "mint", "") == token_key:
+                    token_key = tk
+                    break
         if message_hint:
             parsed = parse_arb_signal_from_message(message_hint)
             if parsed:

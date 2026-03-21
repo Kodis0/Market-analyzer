@@ -454,6 +454,68 @@ def get_tg_messages() -> list[dict]:
         return []
 
 
+def get_tg_message_by_key(key: str) -> dict | None:
+    """Одна строка tg_messages по ключу слота (mint:direction или TOKEN:direction)."""
+    if _conn is None:
+        return None
+    try:
+        cur = _conn.execute(
+            "SELECT key, message_id, ts FROM tg_messages WHERE key = ?",
+            (key,),
+        )
+        r = cur.fetchone()
+        if r:
+            return {"key": r[0], "message_id": int(r[1]), "ts": int(r[2])}
+    except Exception as e:
+        log.warning("get_tg_message_by_key failed: %s", e)
+    return None
+
+
+def migrate_tg_message_keys_token_to_mint(token_key_to_mint: dict[str, str]) -> None:
+    """
+    Переименовать ключи TOKEN:direction → mint:direction, чтобы один слот на монету и маршрут.
+    Если канонический ключ уже есть — удаляем только дубликат-строку (старое имя).
+    """
+    if _conn is None or not token_key_to_mint:
+        return
+    try:
+        rows = get_tg_messages()
+        if not rows:
+            return
+        dirs = ("JUP->BYBIT", "BYBIT->JUP")
+        migrated = 0
+        for row in rows:
+            old_key = str(row.get("key") or "")
+            if ":" not in old_key:
+                continue
+            token_part, direction = old_key.split(":", 1)
+            if direction not in dirs:
+                continue
+            mint = token_key_to_mint.get(token_part)
+            if not mint:
+                continue
+            new_key = f"{mint}:{direction}"
+            if old_key == new_key:
+                continue
+            cur = _conn.execute(
+                "SELECT 1 FROM tg_messages WHERE key = ?",
+                (new_key,),
+            )
+            if cur.fetchone():
+                _conn.execute("DELETE FROM tg_messages WHERE key = ?", (old_key,))
+            else:
+                _conn.execute(
+                    "UPDATE tg_messages SET key = ? WHERE key = ?",
+                    (new_key, old_key),
+                )
+            migrated += 1
+        if migrated:
+            _conn.commit()
+            log.info("tg_messages: migrated %d key(s) to mint:direction form", migrated)
+    except Exception as e:
+        log.warning("migrate_tg_message_keys_token_to_mint: %s", e)
+
+
 def delete_tg_message(key: str) -> None:
     """Remove record after message was deleted from chat. Keeps DB small."""
     if _conn is None:
@@ -504,3 +566,7 @@ async def get_stale_tg_messages_async(stale_ttl_sec: float) -> list[dict]:
 async def get_tg_messages_async() -> list[dict]:
     """Все строки tg_messages (для фоновой перепроверки прибыли по отслеживаемым слотам)."""
     return await asyncio.to_thread(get_tg_messages)
+
+
+async def get_tg_message_by_key_async(key: str) -> dict | None:
+    return await asyncio.to_thread(get_tg_message_by_key, key)

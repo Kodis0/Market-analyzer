@@ -62,6 +62,10 @@ async def build_context(cfg_path: str, session: aiohttp.ClientSession) -> AppCon
     api_db.init(api_db_path)
     log.info("API DB (signal history + stats): %s", api_db_path.resolve())
 
+    from api.db import migrate_tg_message_keys_token_to_mint
+
+    migrate_tg_message_keys_token_to_mint({k: str(t.mint) for k, t in cfg.trading.tokens.items()})
+
     full_symbols: list[str] = list(cfg.bybit.symbols)
     full_tokens = dict(cfg.trading.tokens)
     base_denylist = list(cfg.filters.denylist_symbols or [])

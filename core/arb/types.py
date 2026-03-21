@@ -34,6 +34,8 @@ class Signal:
     notional_usd: Decimal
     text: str
     buttons: Buttons | None = None
+    # Mint Solana — канонический идентификатор для одного слота в Telegram (mint:direction).
+    mint: str | None = None
 
     def to_reply_markup(self) -> dict | None:
         if not self.buttons:
