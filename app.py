@@ -29,6 +29,7 @@ from app.handlers import (
 from app.tasks import (
     HOURLY_PROFIT_CHECK_MAX_ROWS,
     cleanup_non_profitable_msgs_profit_based_once,
+    format_tg_cleanup_diagnostics,
     make_auto_tune_loop,
     make_stats_heartbeat_loop,
     make_status_loop,
@@ -103,21 +104,24 @@ async def main(cfg_path: str) -> None:
         ) -> str:
             try:
                 max_rows = 60 if only_ttl_stale else HOURLY_PROFIT_CHECK_MAX_ROWS
+
+                async def cleanup_progress(msg: str) -> None:
+                    await set_progress(msg, force=True)
+
                 deleted, checked = await cleanup_non_profitable_msgs_profit_based_once(
                     ctx,
                     max_rows=max_rows,
-                    progress_cb=set_progress,
+                    progress_cb=cleanup_progress,
                     only_ttl_stale=only_ttl_stale,
                 )
                 if checked == 0:
-                    if only_ttl_stale:
-                        return (
-                            "ℹ️ /cleanup: нечего проверять (stale_ttl_sec<=0 или нет кандидатов "
-                            "по TTL в БД и памяти). Для всех слотов: <code>/cleanup all</code>."
-                        )
+                    diag = await format_tg_cleanup_diagnostics(ctx)
                     return (
-                        "ℹ️ /cleanup all: нечего проверять — нет слотов в tg_messages, "
-                        "или <code>exchange_enabled=false</code> (нужен <code>/exchange on</code>)."
+                        "ℹ️ <b>Нечего проверить</b> по этому запросу (0 сигналов в очереди на пересчёт).\n\n"
+                        f"<b>Сводка сервера:</b>\n{diag}\n\n"
+                        "• <code>/cleanup</code> — только устаревшие по <code>stale_ttl_sec</code>.\n"
+                        "• <code>/cleanup all</code> — все слоты из БД (как почасовая проверка).\n"
+                        "• Для прибыли нужен <code>/exchange on</code>."
                     )
                 label = "/cleanup" if only_ttl_stale else "/cleanup all"
                 return (

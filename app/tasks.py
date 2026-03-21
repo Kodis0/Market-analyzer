@@ -131,6 +131,40 @@ def make_tg_verify_loop(ctx: AppContext):
 TG_HOURLY_CLEANUP_INTERVAL_SEC = 60 * 60  # 1 hour — проверка "висящих" сообщений
 
 
+async def format_tg_cleanup_diagnostics(ctx: AppContext) -> str:
+    """
+    Сводка для ответа в Telegram, когда проверить нечего или нужно понять состояние сервера.
+    """
+    try:
+        from api.db import get_tg_messages_async
+
+        db_rows = await get_tg_messages_async()
+        n_db = len(db_rows)
+    except Exception:
+        n_db = -1
+    n_mem = len(getattr(ctx.tg, "_msg_ids", {}) or {})
+    ttl = float(getattr(ctx.tg, "stale_ttl_sec", 0) or 0)
+    try:
+        stale = await ctx.tg.list_stale_cleanup_candidates_async()
+        n_stale = len(stale)
+    except Exception:
+        n_stale = -1
+    try:
+        all_trk = await ctx.tg.list_all_tracked_signal_slots_async()
+        n_all = len(all_trk)
+    except Exception:
+        n_all = -1
+    exch = "вкл" if ctx.settings.exchange_enabled else "выкл"
+    return (
+        f"• строк в БД <code>tg_messages</code>: {n_db}\n"
+        f"• слотов в памяти бота: {n_mem}\n"
+        f"• <code>stale_ttl_sec</code>: {ttl:.0f} (0 = режим /cleanup по TTL пустой)\n"
+        f"• кандидатов «устаревших по TTL»: {n_stale}\n"
+        f"• всего отслеживаемых слотов (как /cleanup all): {n_all}\n"
+        f"• биржа <code>exchange_enabled</code>: {exch}"
+    )
+
+
 async def cleanup_non_profitable_msgs_profit_based_once(
     ctx: AppContext,
     max_rows: int = 60,
@@ -150,6 +184,11 @@ async def cleanup_non_profitable_msgs_profit_based_once(
     Возвращает (deleted_count, checked_count).
     """
     if only_ttl_stale and ctx.tg.stale_ttl_sec <= 0:
+        if progress_cb:
+            await progress_cb(
+                "⚠️ Режим <code>/cleanup</code>: в настройках <code>stale_ttl_sec</code> = 0 — "
+                "по возрасту кандидатов нет. Используйте <code>/cleanup all</code>."
+            )
         return 0, 0
 
     if not only_ttl_stale and not ctx.settings.exchange_enabled:
@@ -157,6 +196,11 @@ async def cleanup_non_profitable_msgs_profit_based_once(
             "[TG_PROFIT] hourly skipped: exchange_enabled=false (нужны стакан Bybit + Jupiter). "
             "Включите: /exchange on или в runtime settings."
         )
+        if progress_cb:
+            await progress_cb(
+                "🚫 <code>exchange_enabled=false</code> — без стакана Bybit и Jupiter пересчёт прибыли "
+                "невозможен. Включите: <code>/exchange on</code>."
+            )
         return 0, 0
 
     if progress_cb:
@@ -187,6 +231,19 @@ async def cleanup_non_profitable_msgs_profit_based_once(
                 "(или таблица пуста после чистки)."
             )
         return 0, 0
+
+    if progress_cb and rows and ctx.settings.exchange_enabled:
+        keys = [str(r.get("key") or "") for r in rows[:max_rows] if r.get("key")]
+        head = keys[:10]
+        tail = len(keys) - len(head)
+        sample = ", ".join(f"<code>{k}</code>" for k in head)
+        if tail > 0:
+            sample += f"\n… и ещё <b>{tail}</b> в этом проходе"
+        mode = "по TTL" if only_ttl_stale else "все слоты"
+        await progress_cb(
+            f"📋 Режим: <b>{mode}</b>. В очереди <b>{len(rows)}</b> слот(ов), "
+            f"за проход проверю до <b>{min(len(rows), max_rows)}</b>.\n{sample}"
+        )
 
     if not ctx.settings.exchange_enabled:
         # Только режим «по TTL» при выключенном обмене: удалить по возрасту без пересчёта прибыли.
@@ -405,7 +462,8 @@ async def cleanup_non_profitable_msgs_profit_based_once(
         if progress_cb:
             # Обновляем состояние после каждого проверенного сообщения
             await progress_cb(
-                "🔄 Идёт ручная проверка сигналов...\n"
+                "🔄 Проверка прибыли (как движок)…\n"
+                f"Сейчас: <code>{key}</code>\n"
                 f"Проверено: {checked_count}/{total}\n"
                 f"Удалено: {deleted_count}\n"
                 f"Оставлено: {left_count}"
