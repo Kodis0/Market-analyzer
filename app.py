@@ -144,7 +144,7 @@ async def main(cfg_path: str) -> None:
                         f"{headline}\n\n"
                         f"<b>Сводка сервера:</b>\n{diag}\n\n"
                         "• <code>/cleanup</code> — только устаревшие по <code>stale_ttl_sec</code>.\n"
-                        "• <code>/cleanup all</code> — все слоты из БД (как почасовая проверка).\n"
+                        "• <code>/cleanup all</code> — все слоты из БД (как фоновая перепроверка прибыли).\n"
                         "• Для прибыли нужен <code>/exchange on</code>."
                     )
                 label = "/cleanup" if only_ttl_stale else "/cleanup all"
@@ -179,7 +179,7 @@ async def main(cfg_path: str) -> None:
             asyncio.create_task(status_loop(), name="status"),
             asyncio.create_task(stale_loop(), name="tg_stale"),
             asyncio.create_task(tg_verify_loop(), name="tg_verify"),
-            asyncio.create_task(make_tg_hourly_cleanup_loop(ctx)(), name="tg_hourly_cleanup"),
+            asyncio.create_task(make_tg_hourly_cleanup_loop(ctx)(), name="tg_profit_recheck"),
             asyncio.create_task(auto_tune_loop(), name="auto_tune"),
             asyncio.create_task(stats_heartbeat_loop(), name="stats_heartbeat"),
             asyncio.create_task(

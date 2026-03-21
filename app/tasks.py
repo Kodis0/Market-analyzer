@@ -26,8 +26,24 @@ log = logging.getLogger("app.tasks")
 
 # Один ключ за раз; Jupiter/стакан не должны блокировать /cleanup бесконечно.
 CLEANUP_PROFIT_CHECK_TIMEOUT_SEC = 40.0
-# Почасовая проверка: сколько слотов максимум за один проход (остальное — на следующий час).
+# Ручной /cleanup all: сколько слотов максимум за один проход (остальное — повторить команду).
 HOURLY_PROFIT_CHECK_MAX_ROWS = 120
+# Фоновая перепроверка прибыли: интервал и размер пачки (round-robin по всем слотам).
+TG_PROFIT_RECHECK_INTERVAL_SEC = 45.0
+TG_PROFIT_RECHECK_MAX_PER_TICK = 8
+# Если отслеживаемых слотов нет — реже будим цикл (меньше пустых запросов к БД).
+TG_PROFIT_RECHECK_IDLE_INTERVAL_SEC = 120.0
+
+
+def _rotate_signal_batch(rows: list[dict], offset: int, take: int) -> tuple[list[dict], int]:
+    """Стабильный round-robin: take слотов из rows, offset сдвигается по кругу."""
+    n = len(rows)
+    if n == 0:
+        return [], 0
+    take = min(int(take), n)
+    batch = [rows[(offset + i) % n] for i in range(take)]
+    new_offset = (offset + take) % n
+    return batch, new_offset
 
 
 def make_status_loop(ctx: AppContext):
@@ -128,9 +144,6 @@ def make_tg_verify_loop(ctx: AppContext):
     return tg_verify_loop
 
 
-TG_HOURLY_CLEANUP_INTERVAL_SEC = 60 * 60  # 1 hour — проверка "висящих" сообщений
-
-
 async def get_tg_cleanup_counts(ctx: AppContext) -> dict[str, int | float | bool]:
     """Числа для диагностики /cleanup (один проход — без лишних дублей запросов)."""
     try:
@@ -188,29 +201,33 @@ async def cleanup_non_profitable_msgs_profit_based_once(
     progress_cb: Callable[[str], Awaitable[None]] | None = None,
     *,
     only_ttl_stale: bool = True,
+    rows_override: list[dict] | None = None,
+    quiet: bool = False,
 ) -> tuple[int, int]:
     """
     Пересчёт арбитражной прибыли (Bybit OB + Jupiter) как в движке; при profit <= 0 — delete в Telegram.
 
     only_ttl_stale=True (/cleanup по TTL): только слоты старше stale_ttl_sec (БД+память).
-    only_ttl_stale=False (почасовой job): все отслеживаемые слоты из tg_messages — без фильтра TTL.
+    only_ttl_stale=False (фоновый job): все отслеживаемые слоты из tg_messages — без фильтра TTL,
+    либо явный список rows_override (round-robin пачками).
 
     Важно: Bot API не отдаёт список всех сообщений чата — работаем только с тем, что сами сохранили
     при send/edit (таблица tg_messages + кэш notifier).
 
     Возвращает (deleted_count, checked_count).
     """
-    if only_ttl_stale and ctx.tg.stale_ttl_sec <= 0:
-        if progress_cb:
-            await progress_cb(
-                "⚠️ Режим <code>/cleanup</code>: в настройках <code>stale_ttl_sec</code> = 0 — "
-                "по возрасту кандидатов нет. Используйте <code>/cleanup all</code>."
-            )
-        return 0, 0
+    if rows_override is None:
+        if only_ttl_stale and ctx.tg.stale_ttl_sec <= 0:
+            if progress_cb:
+                await progress_cb(
+                    "⚠️ Режим <code>/cleanup</code>: в настройках <code>stale_ttl_sec</code> = 0 — "
+                    "по возрасту кандидатов нет. Используйте <code>/cleanup all</code>."
+                )
+            return 0, 0
 
     if not only_ttl_stale and not ctx.settings.exchange_enabled:
         log.warning(
-            "[TG_PROFIT] hourly skipped: exchange_enabled=false (нужны стакан Bybit + Jupiter). "
+            "[TG_PROFIT] recheck skipped: exchange_enabled=false (нужны стакан Bybit + Jupiter). "
             "Включите: /exchange on или в runtime settings."
         )
         if progress_cb:
@@ -220,19 +237,21 @@ async def cleanup_non_profitable_msgs_profit_based_once(
             )
         return 0, 0
 
-    if progress_cb:
+    if not quiet and progress_cb:
         await progress_cb(
             "🔄 Сбор кандидатов (TTL)…"
             if only_ttl_stale
             else "🔄 Сбор всех отслеживаемых слотов (БД + память)…"
         )
 
-    if only_ttl_stale:
+    if rows_override is not None:
+        rows = rows_override
+    elif only_ttl_stale:
         rows = await ctx.tg.list_stale_cleanup_candidates_async()
     else:
         rows = await ctx.tg.list_all_tracked_signal_slots_async()
         log.info(
-            "[TG_PROFIT] hourly: отслеживаемых слотов=%d, за этот проход проверим до %d",
+            "[TG_PROFIT] recheck: отслеживаемых слотов=%d, за этот проход проверим до %d",
             len(rows),
             max_rows,
         )
@@ -244,12 +263,12 @@ async def cleanup_non_profitable_msgs_profit_based_once(
             )
         if not only_ttl_stale:
             log.info(
-                "[TG_PROFIT] hourly: слотов нет — бот ещё не сохранял message_id в tg_messages "
+                "[TG_PROFIT] recheck: слотов нет — бот ещё не сохранял message_id в tg_messages "
                 "(или таблица пуста после чистки)."
             )
         return 0, 0
 
-    if progress_cb and rows and ctx.settings.exchange_enabled:
+    if progress_cb and not quiet and rows and ctx.settings.exchange_enabled:
         keys = [str(r.get("key") or "") for r in rows[:max_rows] if r.get("key")]
         head = keys[:10]
         tail = len(keys) - len(head)
@@ -476,7 +495,7 @@ async def cleanup_non_profitable_msgs_profit_based_once(
             deleted_count += 1
         left_count = checked_count - deleted_count
 
-        if progress_cb:
+        if progress_cb and not quiet:
             # Обновляем состояние после каждого проверенного сообщения
             await progress_cb(
                 "🔄 Проверка прибыли (как движок)…\n"
@@ -487,37 +506,60 @@ async def cleanup_non_profitable_msgs_profit_based_once(
             )
 
     if not only_ttl_stale:
-        log.info(
-            "[TG_PROFIT] hourly: готово checked=%d deleted=%d",
-            checked_count,
-            deleted_count,
-        )
+        if rows_override is not None:
+            log.debug(
+                "[TG_PROFIT] recheck batch: checked=%d deleted=%d",
+                checked_count,
+                deleted_count,
+            )
+        else:
+            log.info(
+                "[TG_PROFIT] recheck full: checked=%d deleted=%d",
+                checked_count,
+                deleted_count,
+            )
 
     return deleted_count, checked_count
 
 
 def make_tg_hourly_cleanup_loop(ctx: AppContext):
     """
-    Раз в час: все отслеживаемые слоты из tg_messages (+память), пересчёт прибыли как у движка;
-    если profit <= 0 — удаление сообщения в Telegram.
+    Фоновая перепроверка прибыли по открытым сигналам в Telegram (как движок).
+    Round-robin: каждые TG_PROFIT_RECHECK_INTERVAL_SEC проверяется до TG_PROFIT_RECHECK_MAX_PER_TICK
+    слотов — нагрузка ограничена, все слоты проходят очередь без «дыры» в час.
     """
 
     async def tg_hourly_cleanup_loop():
-        # Сразу после старта бота — первая проверка, затем раз в час (раньше sleep шёл первым и ждал целый час).
+        rotation_offset = 0
         log.info(
-            "[TG_PROFIT] hourly: старт, интервал=%ds, первый проход сейчас",
-            TG_HOURLY_CLEANUP_INTERVAL_SEC,
+            "[TG_PROFIT] recheck: старт, интервал=%.0fs, до %d слотов за тик, round-robin",
+            TG_PROFIT_RECHECK_INTERVAL_SEC,
+            TG_PROFIT_RECHECK_MAX_PER_TICK,
         )
         while True:
+            sleep_sec = TG_PROFIT_RECHECK_INTERVAL_SEC
             try:
-                await cleanup_non_profitable_msgs_profit_based_once(
-                    ctx,
-                    max_rows=HOURLY_PROFIT_CHECK_MAX_ROWS,
-                    only_ttl_stale=False,
-                )
+                rows = await ctx.tg.list_all_tracked_signal_slots_async()
+                rows.sort(key=lambda r: str(r.get("key") or ""))
+                n = len(rows)
+                if n == 0:
+                    sleep_sec = TG_PROFIT_RECHECK_IDLE_INTERVAL_SEC
+                else:
+                    batch, rotation_offset = _rotate_signal_batch(
+                        rows,
+                        rotation_offset,
+                        TG_PROFIT_RECHECK_MAX_PER_TICK,
+                    )
+                    await cleanup_non_profitable_msgs_profit_based_once(
+                        ctx,
+                        max_rows=len(batch),
+                        only_ttl_stale=False,
+                        rows_override=batch,
+                        quiet=True,
+                    )
             except Exception as e:
-                log.warning("tg_hourly_cleanup_loop error: %s", e)
-            await asyncio.sleep(TG_HOURLY_CLEANUP_INTERVAL_SEC)
+                log.warning("tg_profit_recheck_loop error: %s", e)
+            await asyncio.sleep(sleep_sec)
 
     return tg_hourly_cleanup_loop
 

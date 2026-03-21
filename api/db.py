@@ -502,5 +502,5 @@ async def get_stale_tg_messages_async(stale_ttl_sec: float) -> list[dict]:
 
 
 async def get_tg_messages_async() -> list[dict]:
-    """Все строки tg_messages (для почасовой проверки прибыли по всем отслеживаемым слотам)."""
+    """Все строки tg_messages (для фоновой перепроверки прибыли по отслеживаемым слотам)."""
     return await asyncio.to_thread(get_tg_messages)
