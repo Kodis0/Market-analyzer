@@ -85,7 +85,7 @@ class AutoTuneCfg(BaseModel):
 class NotifierCfg(BaseModel):
     edit_mode: bool = True
     edit_min_interval_sec: float = 3.0
-    stale_ttl_sec: float = 300.0
+    stale_ttl_sec: float = 120.0
     delete_stale: bool = False
 
 

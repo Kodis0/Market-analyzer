@@ -148,6 +148,7 @@ async def build_context(cfg_path: str, session: aiohttp.ClientSession) -> AppCon
         edit_mode=cfg.notifier.edit_mode,
         stale_ttl_sec=float(settings.stale_ttl_sec),
         delete_stale=settings.delete_stale,
+        min_delta_profit_usd=float(settings.min_delta_profit_usd_to_resend),
     )
 
     jup = JupiterClient(

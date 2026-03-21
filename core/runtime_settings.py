@@ -43,7 +43,7 @@ class RuntimeSettings:
     max_ob_age_ms: int = 2000
 
     # Notifier (aligned with NotifierCfg)
-    stale_ttl_sec: int = 300  # 0 = выключено, иначе сек до "устарел"
+    stale_ttl_sec: int = 120  # 0 = выключено, иначе сек до "устарел" (по умолчанию 2 мин)
     delete_stale: bool = False  # True = удалять, False = редактировать на "устарел"
 
     # Exchange: вкл/выкл биржевую логику (Jupiter, Bybit, арбитраж)
@@ -193,10 +193,11 @@ class RuntimeSettings:
 • <code>max_ob_age_ms</code> — макс. возраст стакана в мс (старше = пропускаем)
 
 <b>Устаревшие сигналы:</b>
-• <code>stale_ttl_sec</code> — через сколько сек сигнал считается устаревшим (0 = выключено)
+• <code>stale_ttl_sec</code> — сек без «существенного» обновления профита (см. <code>min_delta_profit_usd_to_resend</code>), после чего сообщение помечается устаревшим (0 = выкл)
+• часы TTL сбрасываются при изменении профита ≥ дельты или при снятии баннера «устарел»
 
 <b>Пример:</b> <code>/settings min_profit_usd 20</code>
-<b>Пример:</b> <code>/settings stale_ttl_sec 300</code> — устаревать через 5 мин"""
+<b>Пример:</b> <code>/settings stale_ttl_sec 120</code> — 2 минуты без заметного изменения профита"""
 
 
 def load_runtime_settings(path: str, defaults: RuntimeSettings | None = None) -> RuntimeSettings:
