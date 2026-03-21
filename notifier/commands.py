@@ -497,13 +497,16 @@ async def run_settings_command_handler(
                     )
                     last_edit_ts = 0.0
 
-                    async def set_progress(progress_text: str) -> None:
+                    async def set_progress(
+                        progress_text: str, *, force: bool = False
+                    ) -> None:
                         nonlocal last_edit_ts
                         if not progress_mid:
                             return
 
                         now = time.time()
-                        if (now - last_edit_ts) < 1.2:
+                        # Не душим финальный ответ: быстрый /cleanup (<1.2с) иначе оставляет «Подожди» навсегда.
+                        if not force and (now - last_edit_ts) < 1.2:
                             return
 
                         last_edit_ts = now
@@ -522,7 +525,7 @@ async def run_settings_command_handler(
                             on_cleanup(set_progress, only_ttl_stale=only_ttl_stale),
                             timeout=180.0,
                         )
-                        await set_progress(result_text)
+                        await set_progress(result_text, force=True)
                         if not progress_mid:
                             await send(result_text)
 
@@ -531,13 +534,13 @@ async def run_settings_command_handler(
                             f"{CUSTOM_WARNING_EMOJI_HTML} /cleanup: проверка заняла слишком много времени "
                             "(таймаут 180с). Попробуй ещё раз."
                         )
-                        await set_progress(result_text)
+                        await set_progress(result_text, force=True)
                         if not progress_mid:
                             await send(result_text)
 
                     except Exception as e:
                         result_text = f"{CUSTOM_ERROR_EMOJI_HTML} /cleanup: ошибка: {e}"
-                        await set_progress(result_text)
+                        await set_progress(result_text, force=True)
                         if not progress_mid:
                             await send(result_text)
 
