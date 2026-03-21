@@ -29,10 +29,10 @@ CLEANUP_PROFIT_CHECK_TIMEOUT_SEC = 40.0
 # Ручной /cleanup all: сколько слотов максимум за один проход (остальное — повторить команду).
 HOURLY_PROFIT_CHECK_MAX_ROWS = 120
 # Фоновая перепроверка прибыли: интервал и размер пачки (round-robin по всем слотам).
-TG_PROFIT_RECHECK_INTERVAL_SEC = 45.0
+TG_PROFIT_RECHECK_INTERVAL_SEC = 30 * 60  # 30 минут
 TG_PROFIT_RECHECK_MAX_PER_TICK = 8
-# Если отслеживаемых слотов нет — реже будим цикл (меньше пустых запросов к БД).
-TG_PROFIT_RECHECK_IDLE_INTERVAL_SEC = 120.0
+# Если отслеживаемых слотов нет — тот же интервал (меньше пустых запросов к БД).
+TG_PROFIT_RECHECK_IDLE_INTERVAL_SEC = 30 * 60
 
 
 def _rotate_signal_batch(rows: list[dict], offset: int, take: int) -> tuple[list[dict], int]:
