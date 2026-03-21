@@ -7,6 +7,8 @@ import time
 
 import aiohttp
 
+from api.db import rename_tg_message_key_async
+
 log = logging.getLogger("telegram")
 
 
@@ -119,6 +121,97 @@ class TelegramNotifier:
         ts = row.get("ts")
         if ts is not None:
             self._last_seen.setdefault(key, float(ts))
+
+    def _purge_key_mem(self, key: str) -> None:
+        for attr in (
+            "_msg_ids",
+            "_last_seen",
+            "_last_edit",
+            "_last_text",
+            "_last_markup",
+            "_last_sent_text",
+            "_last_sent_markup",
+            "_stale",
+        ):
+            getattr(self, attr).pop(key, None)
+
+    def _move_slot_key_mem(self, from_key: str, to_key: str) -> None:
+        """Перенести все поля слота from_key → to_key (from_key удаляется из памяти)."""
+        if from_key not in self._msg_ids:
+            return
+        self._msg_ids[to_key] = self._msg_ids.pop(from_key)
+        for attr in (
+            "_last_seen",
+            "_last_edit",
+            "_last_text",
+            "_last_markup",
+            "_last_sent_text",
+            "_last_sent_markup",
+            "_stale",
+        ):
+            d = getattr(self, attr)
+            if from_key in d:
+                v = d.pop(from_key)
+                if attr == "_last_seen":
+                    d[to_key] = max(float(v), float(d.get(to_key, 0.0)))
+                elif attr == "_last_edit":
+                    d[to_key] = max(float(v), float(d.get(to_key, 0.0)))
+                else:
+                    d.setdefault(to_key, v)
+
+    async def merge_slot_alias_if_needed(self, canonical_key: str, legacy_key: str) -> None:
+        """
+        Один слот в Telegram: канонический ключ mint:direction и старый TOKEN:direction.
+        Без слияния в БД остаётся SAFE:…, а upsert идёт по mint:… → второе сообщение в чате.
+        """
+        if not legacy_key or legacy_key == canonical_key:
+            return
+        first, second = sorted([canonical_key, legacy_key])
+        async with self._lock_for_key(first):
+            async with self._lock_for_key(second):
+                await self._hydrate_msg_id_from_db(legacy_key)
+                await self._hydrate_msg_id_from_db(canonical_key)
+                mid_l = self._msg_ids.get(legacy_key)
+                mid_c = self._msg_ids.get(canonical_key)
+
+                if mid_l is None and mid_c is None:
+                    return
+
+                if mid_l is not None and mid_c is None:
+                    self._move_slot_key_mem(legacy_key, canonical_key)
+                    await rename_tg_message_key_async(legacy_key, canonical_key)
+                    log.info(
+                        "tg slot merged legacy→canonical: %s → %s (msg_id=%s)",
+                        legacy_key,
+                        canonical_key,
+                        self._msg_ids.get(canonical_key),
+                    )
+                    return
+
+                if mid_l is None and mid_c is not None:
+                    await self._remove_msg_from_db(legacy_key)
+                    self._purge_key_mem(legacy_key)
+                    return
+
+                if mid_l == mid_c:
+                    await self._remove_msg_from_db(legacy_key)
+                    self._purge_key_mem(legacy_key)
+                    return
+
+                try:
+                    await self.delete(int(mid_l))
+                except Exception as e:
+                    err = str(e).lower()
+                    if "not found" not in err and "message to delete" not in err:
+                        log.warning("merge duplicate: delete legacy tg msg_id=%s: %s", mid_l, e)
+                await self._remove_msg_from_db(legacy_key)
+                self._purge_key_mem(legacy_key)
+                log.info(
+                    "tg slot deduped: dropped legacy key %s (duplicate msg), keep canonical %s msg_id=%s",
+                    legacy_key,
+                    canonical_key,
+                    mid_c,
+                )
 
     def _url(self, method: str) -> str:
         return f"{self.base}/{method}"

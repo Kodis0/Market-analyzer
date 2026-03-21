@@ -26,6 +26,9 @@ def make_on_signal(ctx: AppContext):
         # Один слот на (mint, direction): одна монета + один маршрут → одно сообщение (редактирование).
         # Fallback без mint — старый формат ключа TOKEN:direction.
         tg_key = f"{sig.mint}:{sig.direction}" if sig.mint else f"{sig.token}:{sig.direction}"
+        legacy_key = f"{sig.token}:{sig.direction}" if sig.mint else None
+        if legacy_key and legacy_key != tg_key:
+            await ctx.tg.merge_slot_alias_if_needed(tg_key, legacy_key)
         message_effect_id = PREMIUM_LIGHTNING_MESSAGE_EFFECT_ID if sig.direction == "BYBIT->JUP" else None
         ctx.tg.mark_engine_signal_emit(tg_key)
         await ctx.tg.upsert(tg_key, sig.text, reply_markup=reply_markup, message_effect_id=message_effect_id)

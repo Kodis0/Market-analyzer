@@ -454,6 +454,32 @@ def get_tg_messages() -> list[dict]:
         return []
 
 
+def rename_tg_message_key(old_key: str, new_key: str) -> None:
+    """
+    Переименовать ключ в tg_messages (legacy TOKEN:dir → mint:dir).
+    Если new_key уже есть — удаляется только строка old_key (дубликат).
+    """
+    if _conn is None or old_key == new_key:
+        return
+    try:
+        cur = _conn.execute("SELECT message_id, ts FROM tg_messages WHERE key = ?", (old_key,))
+        r = cur.fetchone()
+        if not r:
+            return
+        ex = _conn.execute("SELECT 1 FROM tg_messages WHERE key = ?", (new_key,)).fetchone()
+        if ex:
+            _conn.execute("DELETE FROM tg_messages WHERE key = ?", (old_key,))
+        else:
+            _conn.execute("UPDATE tg_messages SET key = ? WHERE key = ?", (new_key, old_key))
+        _conn.commit()
+    except Exception as e:
+        log.warning("rename_tg_message_key: %s", e)
+
+
+async def rename_tg_message_key_async(old_key: str, new_key: str) -> None:
+    return await asyncio.to_thread(rename_tg_message_key, old_key, new_key)
+
+
 def get_tg_message_by_key(key: str) -> dict | None:
     """Одна строка tg_messages по ключу слота (mint:direction или TOKEN:direction)."""
     if _conn is None:
