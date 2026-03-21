@@ -75,7 +75,7 @@ class RuntimeSettings:
             "engine_tick_hz": "Частота тика (Hz)",
             "jupiter_poll_interval_sec": "Интервал опроса Jupiter (сек)",
             "max_ob_age_ms": "Макс. возраст стакана (мс)",
-            "stale_ttl_sec": "Время до устаревания сигнала (сек, 0=выкл)",
+            "stale_ttl_sec": "Сек без нового сигнала движка до «устарел» (0=выкл)",
             "exchange_enabled": "Биржевая логика вкл (true/false)",
             "auto_tune_enabled": "Авто-подстройка параметров вкл (true/false)",
         }
@@ -193,11 +193,10 @@ class RuntimeSettings:
 • <code>max_ob_age_ms</code> — макс. возраст стакана в мс (старше = пропускаем)
 
 <b>Устаревшие сигналы:</b>
-• <code>stale_ttl_sec</code> — сек без «существенного» обновления профита (см. <code>min_delta_profit_usd_to_resend</code>), после чего сообщение помечается устаревшим (0 = выкл)
-• часы TTL сбрасываются при изменении профита ≥ дельты или при снятии баннера «устарел»
+• <code>stale_ttl_sec</code> — секунд без нового сигнала от движка (после dedup/cooldown); затем «устарел» или удаление (0 = выкл)
 
 <b>Пример:</b> <code>/settings min_profit_usd 20</code>
-<b>Пример:</b> <code>/settings stale_ttl_sec 120</code> — 2 минуты без заметного изменения профита"""
+<b>Пример:</b> <code>/settings stale_ttl_sec 120</code> — 2 минуты без нового сигнала по слоту"""
 
 
 def load_runtime_settings(path: str, defaults: RuntimeSettings | None = None) -> RuntimeSettings:

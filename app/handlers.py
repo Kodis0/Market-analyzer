@@ -26,13 +26,8 @@ def make_on_signal(ctx: AppContext):
         # Тот же ключ, что и в record_signal: один слот на (token, direction) — обновление, а не спам.
         key = f"{sig.token}:{sig.direction}"
         message_effect_id = PREMIUM_LIGHTNING_MESSAGE_EFFECT_ID if sig.direction == "BYBIT->JUP" else None
-        await ctx.tg.upsert(
-            key,
-            sig.text,
-            reply_markup=reply_markup,
-            message_effect_id=message_effect_id,
-            ttl_profit_usd=float(sig.profit_usd),
-        )
+        ctx.tg.mark_engine_signal_emit(key)
+        await ctx.tg.upsert(key, sig.text, reply_markup=reply_markup, message_effect_id=message_effect_id)
         try:
             from api.db import record_signal_async
 
@@ -134,7 +129,7 @@ def make_on_symbols_changed(ctx: AppContext):
 def make_apply_settings_reload(ctx: AppContext):
     def apply_settings_reload(s):
         ctx.engine.reload_settings(s)
-        ctx.tg.update_stale_settings(s.stale_ttl_sec, s.delete_stale, s.min_delta_profit_usd_to_resend)
+        ctx.tg.update_stale_settings(s.stale_ttl_sec, s.delete_stale)
 
     return apply_settings_reload
 

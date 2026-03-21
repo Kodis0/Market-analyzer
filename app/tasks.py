@@ -134,9 +134,8 @@ async def cleanup_non_profitable_msgs_profit_based_once(
     progress_cb: Callable[[str], Awaitable[None]] | None = None,
 ) -> tuple[int, int]:
     """
-    Однократная проверка: кандидаты — устаревшие по TTL слоты из tg_messages и из памяти
-    TelegramNotifier (при отсутствии строки в БД она дописывается). Удаление в ТГ, если
-    по ключу сейчас нет прибыли (profit <= 0). На один ключ — таймаут, чтобы не зависать на Jupiter.
+    Однократная проверка: кандидаты — устаревшие по TTL слоты (время последнего on_signal движка).
+    Удаление в ТГ, если по ключу сейчас нет прибыли (profit <= 0). На ключ — таймаут Jupiter.
     Возвращает (deleted_count, checked_count).
     """
     if ctx.tg.stale_ttl_sec <= 0:

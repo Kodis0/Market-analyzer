@@ -30,7 +30,6 @@ class TelegramNotifier:
         edit_mode: bool = True,
         stale_ttl_sec: float = 0.0,
         delete_stale: bool = False,
-        min_delta_profit_usd: float = 0.5,
     ) -> None:
         self.session = session
         self.bot_token = bot_token
@@ -41,17 +40,12 @@ class TelegramNotifier:
         self.edit_mode = bool(edit_mode)
         self.stale_ttl_sec = float(stale_ttl_sec)
         self.delete_stale = bool(delete_stale)
-        # Сдвиг «часов TTL» только если профит изменился ≥ этого порога (как min_delta_profit_usd_to_resend).
-        self.min_delta_profit_usd = float(min_delta_profit_usd)
-        # Последний профит, при котором обновляли _last_seen (для анти-дребезга по тикам).
-        self._last_ttl_profit: dict[str, float] = {}
 
         # key -> message_id
         self._msg_ids: dict[str, int] = {}
         # key -> last_edit_ts
         self._last_edit: dict[str, float] = {}
-        # key -> epoch sec последнего *видимого* обновления в TG (send/edit с новым контентом).
-        # Не двигается при пропуске по rate-limit или при том же тексте — иначе TTL никогда не истекает.
+        # key -> epoch sec последнего сигнала от движка (on_signal после dedup). Задаётся только mark_engine_signal_emit().
         self._last_seen: dict[str, float] = {}
         # key -> last requested text/markup
         self._last_text: dict[str, str] = {}
@@ -74,55 +68,25 @@ class TelegramNotifier:
         if self._msg_ids:
             log.info("Restored %d tg_messages from DB", len(self._msg_ids))
         log.info(
-            "Telegram notifier: stale_ttl_sec=%.0f delete_stale=%s edit_mode=%s min_delta_ttl_profit_usd=%.4f",
+            "Telegram notifier: stale_ttl_sec=%.0f delete_stale=%s edit_mode=%s (TTL = время с последнего on_signal движка)",
             self.stale_ttl_sec,
             self.delete_stale,
             self.edit_mode,
-            self.min_delta_profit_usd,
         )
 
-    def update_stale_settings(
-        self,
-        stale_ttl_sec: float,
-        delete_stale: bool,
-        min_delta_profit_usd: float | None = None,
-    ) -> None:
+    def update_stale_settings(self, stale_ttl_sec: float, delete_stale: bool) -> None:
         """Обновить настройки устаревания (вызывается при /settings)."""
         self.stale_ttl_sec = float(stale_ttl_sec)
         self.delete_stale = bool(delete_stale)
-        if min_delta_profit_usd is not None:
-            self.min_delta_profit_usd = float(min_delta_profit_usd)
 
-    def _should_bump_ttl_clock(
-        self,
-        key: str,
-        ttl_profit_usd: float | None,
-        prev_sent_text: str | None,
-        new_text: str,
-        is_first_send: bool,
-    ) -> bool:
+    def mark_engine_signal_emit(self, key: str) -> None:
         """
-        Сдвигать _last_seen только если первый пост, сняли баннер «устарел», или профит заметно изменился.
-        Иначе котировка дергает edit каждый тик — TTL никогда не истечёт.
+        Вызывать из on_signal до upsert: момент последнего сигнала движка (после dedup/cooldown).
+        expire_stale и cleanup считают возраст от этого времени — не от успешного edit в Telegram.
         """
-        if is_first_send:
-            if ttl_profit_usd is not None:
-                self._last_ttl_profit[key] = float(ttl_profit_usd)
-            return True
-        if prev_sent_text and "Сигнал устарел" in prev_sent_text and "Сигнал устарел" not in new_text:
-            if ttl_profit_usd is not None:
-                self._last_ttl_profit[key] = float(ttl_profit_usd)
-            return True
-        if ttl_profit_usd is None:
-            return True
-        prev = self._last_ttl_profit.get(key)
-        if prev is None:
-            self._last_ttl_profit[key] = float(ttl_profit_usd)
-            return True
-        if abs(float(ttl_profit_usd) - float(prev)) >= self.min_delta_profit_usd:
-            self._last_ttl_profit[key] = float(ttl_profit_usd)
-            return True
-        return False
+        now = time.time()
+        self._last_seen[key] = now
+        self._stale[key] = False
 
     def _url(self, method: str) -> str:
         return f"{self.base}/{method}"
@@ -208,7 +172,6 @@ class TelegramNotifier:
         self._last_markup.pop(key, None)
         self._last_sent_text.pop(key, None)
         self._last_sent_markup.pop(key, None)
-        self._last_ttl_profit.pop(key, None)
 
         try:
             await self.delete(int(message_id))
@@ -227,7 +190,6 @@ class TelegramNotifier:
         text: str,
         reply_markup: dict | None = None,
         message_effect_id: str | None = None,
-        ttl_profit_usd: float | None = None,
     ) -> None:
         now = time.time()
         self._last_text[key] = text
@@ -237,22 +199,15 @@ class TelegramNotifier:
         else:
             self._last_markup[key] = reply_markup
 
+        slot_ts = float(self._last_seen.get(key, now))
+
         if not self.edit_mode:
-            prev_sent = self._last_sent_text.get(key)
-            first_non_edit = key not in self._msg_ids
             new_id = await self.send(text, reply_markup=reply_markup, message_effect_id=message_effect_id)
             self._msg_ids[key] = new_id
             self._last_edit[key] = now
             self._last_sent_text[key] = text
             self._last_sent_markup[key] = reply_markup
-            bump = self._should_bump_ttl_clock(key, ttl_profit_usd, prev_sent, text, is_first_send=first_non_edit)
-            if bump:
-                self._last_seen[key] = now
-                self._stale[key] = False
-                await self._save_msg_to_db(key, new_id, now)
-            else:
-                ts = float(self._last_seen.get(key, now))
-                await self._save_msg_to_db(key, new_id, ts)
+            await self._save_msg_to_db(key, new_id, slot_ts)
             return
 
         last = self._last_edit.get(key, 0.0)
@@ -266,14 +221,7 @@ class TelegramNotifier:
             self._last_edit[key] = now
             self._last_sent_text[key] = text
             self._last_sent_markup[key] = reply_markup
-            bump = self._should_bump_ttl_clock(key, ttl_profit_usd, None, text, is_first_send=True)
-            if bump:
-                self._last_seen[key] = now
-                self._stale[key] = False
-                await self._save_msg_to_db(key, new_id, now)
-            else:
-                ts = float(self._last_seen.get(key, now))
-                await self._save_msg_to_db(key, new_id, ts)
+            await self._save_msg_to_db(key, new_id, slot_ts)
             return
 
         prev_text = self._last_sent_text.get(key)
@@ -286,14 +234,7 @@ class TelegramNotifier:
             self._last_edit[key] = now
             self._last_sent_text[key] = text
             self._last_sent_markup[key] = reply_markup
-            bump = self._should_bump_ttl_clock(key, ttl_profit_usd, prev_text, text, is_first_send=False)
-            if bump:
-                self._last_seen[key] = now
-                self._stale[key] = False
-                await self._save_msg_to_db(key, msg_id, now)
-            else:
-                ts = float(self._last_seen.get(key, now))
-                await self._save_msg_to_db(key, msg_id, ts)
+            await self._save_msg_to_db(key, msg_id, slot_ts)
         except Exception as e:
             log.warning("edit failed for key=%s msg_id=%s: %s; invalidating, next upsert will send one new", key, msg_id, e)
             # Best-effort: если edit упал, то старое сообщение может остаться "висящим" в чате.
@@ -308,7 +249,6 @@ class TelegramNotifier:
             self._last_edit.pop(key, None)
             self._last_sent_text.pop(key, None)
             self._last_sent_markup.pop(key, None)
-            self._last_ttl_profit.pop(key, None)
             await self._remove_msg_from_db(key)
             # Не отправляем новое сообщение здесь — иначе при частых upsert получается спам.
             # Следующий upsert с этим key отправит одно новое сообщение (как в истории: один слот на token+direction).
@@ -318,7 +258,7 @@ class TelegramNotifier:
         Кандидаты на /cleanup: записи из tg_messages по TTL + слоты из памяти (_msg_ids),
         если по TTL они уже «старые». Память без строки в БД дописывается через upsert_tg_message.
 
-        Учитывает рассинхрон: если в БД старый ts, а _last_seen (последний реальный send/edit) свежее —
+        Учитывает рассинхрон: если в БД старый ts, а в памяти _last_seen (время последнего on_signal) свежее —
         кандидатом не считается.
         """
         if self.stale_ttl_sec <= 0:
@@ -365,9 +305,44 @@ class TelegramNotifier:
             return []
 
     async def expire_stale(self) -> None:
-        if not self.edit_mode:
-            return
         if self.stale_ttl_sec <= 0:
+            return
+
+        now = time.time()
+
+        if not self.edit_mode:
+            if not self.delete_stale:
+                return
+            for key in list(self._msg_ids.keys()):
+                if self._stale.get(key):
+                    continue
+                last_seen = float(self._last_seen.get(key, 0.0))
+                if (now - last_seen) < self.stale_ttl_sec:
+                    continue
+                msg_id = self._msg_ids.get(key)
+                if msg_id is None:
+                    self._stale[key] = True
+                    continue
+                try:
+                    await self.delete(msg_id)
+                    self._msg_ids.pop(key, None)
+                    self._last_seen.pop(key, None)
+                    self._last_edit.pop(key, None)
+                    self._last_text.pop(key, None)
+                    self._last_markup.pop(key, None)
+                    self._last_sent_text.pop(key, None)
+                    self._last_sent_markup.pop(key, None)
+                    self._stale[key] = True
+                    await self._remove_msg_from_db(key)
+                except Exception as e:
+                    err_str = str(e).lower()
+                    if "not found" in err_str or "message to delete" in err_str:
+                        self._msg_ids.pop(key, None)
+                        self._last_seen.pop(key, None)
+                        self._stale[key] = True
+                        await self._remove_msg_from_db(key)
+                    else:
+                        log.warning("expire_stale non-edit delete failed key=%s: %s", key, e)
             return
 
         now = time.time()
@@ -392,10 +367,12 @@ class TelegramNotifier:
                 try:
                     await self.delete(msg_id)
                     self._msg_ids.pop(key, None)
+                    self._last_seen.pop(key, None)
                     self._last_edit.pop(key, None)
+                    self._last_text.pop(key, None)
+                    self._last_markup.pop(key, None)
                     self._last_sent_text.pop(key, None)
                     self._last_sent_markup.pop(key, None)
-                    self._last_ttl_profit.pop(key, None)
                     self._stale[key] = True
                     await self._remove_msg_from_db(key)
                     continue
@@ -403,7 +380,7 @@ class TelegramNotifier:
                     err_str = str(e).lower()
                     if "not found" in err_str or "message to delete" in err_str:
                         self._msg_ids.pop(key, None)
-                        self._last_ttl_profit.pop(key, None)
+                        self._last_seen.pop(key, None)
                         self._stale[key] = True
                         await self._remove_msg_from_db(key)
                         continue
@@ -457,7 +434,6 @@ class TelegramNotifier:
                 self._last_edit.pop(key, None)
                 self._last_sent_text.pop(key, None)
                 self._last_sent_markup.pop(key, None)
-                self._last_ttl_profit.pop(key, None)
 
                 try:
                     await self.delete(int(msg_id))
@@ -491,7 +467,6 @@ class TelegramNotifier:
                     await self._remove_msg_from_db(key)
                     self._msg_ids.pop(key, None)
                     self._last_seen.pop(key, None)
-                    self._last_ttl_profit.pop(key, None)
                     self._stale[key] = True
                     log.debug("verify_and_cleanup: deleted key=%s msg_id=%s", key, msg_id)
                 except Exception as e:
@@ -500,7 +475,6 @@ class TelegramNotifier:
                         await self._remove_msg_from_db(key)
                         self._msg_ids.pop(key, None)
                         self._last_seen.pop(key, None)
-                        self._last_ttl_profit.pop(key, None)
                         self._stale[key] = True
                         log.debug("verify_and_cleanup: msg already gone key=%s, cleaned DB", key)
                     else:
