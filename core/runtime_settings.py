@@ -160,7 +160,7 @@ class RuntimeSettings:
 
     @staticmethod
     def format_help() -> str:
-        return """<b>📖 Справка по параметрам</b>
+        return """<b><tg-emoji emoji-id="5226512880362332956">📖</tg-emoji> Справка по параметрам</b>
 
 <b>Прибыль и объём:</b>
 • <code>min_profit_usd</code> — минимальная чистая прибыль в $ для отправки сигнала
