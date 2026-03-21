@@ -21,6 +21,8 @@ log = logging.getLogger("commands")
 
 # /cleanup: через столько секунд удалить команду пользователя и ответ бота (одно сообщение, правки — то же message_id).
 CLEANUP_CMD_AUTODELETE_SEC = 600
+# /help: команда пользователя + текст справки.
+HELP_CMD_AUTODELETE_SEC = 180
 
 TG_GET_UPDATES = "https://api.telegram.org/bot{token}/getUpdates"
 TG_SEND_MESSAGE = "https://api.telegram.org/bot{token}/sendMessage"
@@ -482,7 +484,23 @@ async def run_settings_command_handler(
                     continue
 
                 if cmd == "/help":
-                    await send(RuntimeSettings.format_help())
+                    user_cmd_mid = int(msg.get("message_id") or 0)
+                    help_mid = await send(RuntimeSettings.format_help())
+                    bot_message_ids: list[int] = []
+                    if help_mid:
+                        bot_message_ids.append(int(help_mid))
+
+                    async def _autodelete_help_dialog() -> None:
+                        await asyncio.sleep(HELP_CMD_AUTODELETE_SEC)
+                        seen: set[int] = set()
+                        for mid in (user_cmd_mid, *bot_message_ids):
+                            if not mid or mid in seen:
+                                continue
+                            seen.add(mid)
+                            await delete_message(mid)
+
+                    t = asyncio.create_task(_autodelete_help_dialog())
+                    t.add_done_callback(log_task_exception)
                     continue
 
                 if cmd == "/cleanup":
