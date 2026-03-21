@@ -17,6 +17,7 @@ from core.vwap import simulate_buy_with_notional, simulate_sell_base
 from core.runtime_settings import save_runtime_settings
 
 from app.handlers import AUTO_TUNE_HISTORY_MAX, make_apply_settings_reload
+from app.signal_message_parse import parse_arb_signal_from_message
 
 if TYPE_CHECKING:
     from app.context import AppContext
@@ -184,8 +185,18 @@ async def cleanup_non_profitable_msgs_profit_based_once(
 
     required = ctx.engine.thresholds.required_profit_usd(notional)
 
-    async def is_profitable_key(key: str) -> bool:
+    async def is_profitable_key(key: str, message_hint: str | None = None) -> bool:
+        """
+        Профит как у движка: Bybit стакан + Jupiter quote.
+        Токен и направление: из текста сообщения (если распознано и токен есть в конфиге), иначе из key.
+        """
         token_key, direction = key.split(":", 1)
+        if message_hint:
+            parsed = parse_arb_signal_from_message(message_hint)
+            if parsed:
+                tk, dr = parsed
+                if ctx.cfg.trading.tokens.get(tk):
+                    token_key, direction = tk, dr
         token_cfg = ctx.cfg.trading.tokens.get(token_key)
         if not token_cfg:
             return False
@@ -336,9 +347,10 @@ async def cleanup_non_profitable_msgs_profit_based_once(
             continue
 
         checked_count += 1
+        text_hint = ctx.tg._last_sent_text.get(str(key)) or ctx.tg._last_text.get(str(key))
         try:
             profitable = await asyncio.wait_for(
-                is_profitable_key(str(key)),
+                is_profitable_key(str(key), text_hint),
                 timeout=CLEANUP_PROFIT_CHECK_TIMEOUT_SEC,
             )
         except asyncio.TimeoutError:
