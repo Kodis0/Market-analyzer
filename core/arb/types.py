@@ -7,23 +7,21 @@ from typing import Any
 ButtonRow = list[tuple[str, str]]
 Buttons = list[ButtonRow]
 
-# Как в notifier/commands.py (тестовый сигнал): зелёный — Bybit, красный — Jupiter.
-_ICON_BYBIT = "5416081784641168838"
-_ICON_JUPITER = "5411225014148014586"
+# Зелёный шарик — «Купить», красный — «Продать» (как в тестовом сигнале в commands.py).
+_ICON_BUY_GREEN = "5416081784641168838"
+_ICON_SELL_RED = "5411225014148014586"
 
 
 def _styled_inline_button(title: str, url: str) -> dict[str, Any]:
     """InlineKeyboardButton с style + icon_custom_emoji_id (Bot API)."""
     btn: dict[str, Any] = {"text": title, "url": url}
-    t = title.lower()
+    t = title.lower().strip()
     if "купить" in t or t.startswith("buy"):
         btn["style"] = "success"
+        btn["icon_custom_emoji_id"] = _ICON_BUY_GREEN
     elif "продать" in t or t.startswith("sell"):
         btn["style"] = "danger"
-    if "jupiter" in t:
-        btn["icon_custom_emoji_id"] = _ICON_JUPITER
-    elif "bybit" in t:
-        btn["icon_custom_emoji_id"] = _ICON_BYBIT
+        btn["icon_custom_emoji_id"] = _ICON_SELL_RED
     return btn
 
 
