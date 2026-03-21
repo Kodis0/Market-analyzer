@@ -26,6 +26,8 @@ log = logging.getLogger("app.tasks")
 
 # Один ключ за раз; Jupiter/стакан не должны блокировать /cleanup бесконечно.
 CLEANUP_PROFIT_CHECK_TIMEOUT_SEC = 40.0
+# Почасовая проверка: сколько слотов максимум за один проход (остальное — на следующий час).
+HOURLY_PROFIT_CHECK_MAX_ROWS = 120
 
 
 def make_status_loop(ctx: AppContext):
@@ -133,26 +135,48 @@ async def cleanup_non_profitable_msgs_profit_based_once(
     ctx: AppContext,
     max_rows: int = 60,
     progress_cb: Callable[[str], Awaitable[None]] | None = None,
+    *,
+    only_ttl_stale: bool = True,
 ) -> tuple[int, int]:
     """
-    Однократная проверка: кандидаты — устаревшие по TTL слоты (время последнего on_signal движка).
-    Удаление в ТГ, если по ключу сейчас нет прибыли (profit <= 0). На ключ — таймаут Jupiter.
+    Пересчёт арбитражной прибыли (Bybit OB + Jupiter) как в движке; при profit <= 0 — delete в Telegram.
+
+    only_ttl_stale=True (/cleanup по TTL): только слоты старше stale_ttl_sec (БД+память).
+    only_ttl_stale=False (почасовой job): все отслеживаемые слоты из tg_messages — без фильтра TTL.
+
+    Важно: Bot API не отдаёт список всех сообщений чата — работаем только с тем, что сами сохранили
+    при send/edit (таблица tg_messages + кэш notifier).
+
     Возвращает (deleted_count, checked_count).
     """
-    if ctx.tg.stale_ttl_sec <= 0:
+    if only_ttl_stale and ctx.tg.stale_ttl_sec <= 0:
+        return 0, 0
+
+    if not only_ttl_stale and not ctx.settings.exchange_enabled:
+        log.info("profit check (all slots): skipped — exchange_enabled=false, need OB+Jupiter")
         return 0, 0
 
     if progress_cb:
-        await progress_cb("🔄 Сбор кандидатов (БД + память)…")
+        await progress_cb(
+            "🔄 Сбор кандидатов (TTL)…"
+            if only_ttl_stale
+            else "🔄 Сбор всех отслеживаемых слотов (БД + память)…"
+        )
 
-    rows = await ctx.tg.list_stale_cleanup_candidates_async()
+    if only_ttl_stale:
+        rows = await ctx.tg.list_stale_cleanup_candidates_async()
+    else:
+        rows = await ctx.tg.list_all_tracked_signal_slots_async()
+
     if not rows:
         if progress_cb:
-            await progress_cb("ℹ️ Ручная проверка: нечего проверять (кандидатов нет).")
+            await progress_cb(
+                "ℹ️ Нечего проверять (нет записей в tg_messages / слотов в памяти)."
+            )
         return 0, 0
 
     if not ctx.settings.exchange_enabled:
-        # Нет стакана/Jupiter — пересчёт прибыли невозможен; удаляем сообщения по TTL из БД.
+        # Только режим «по TTL» при выключенном обмене: удалить по возрасту без пересчёта прибыли.
         deleted_count = 0
         checked_count = 0
         total = min(len(rows), max_rows)
@@ -379,10 +403,8 @@ async def cleanup_non_profitable_msgs_profit_based_once(
 
 def make_tg_hourly_cleanup_loop(ctx: AppContext):
     """
-    Удаляет сообщения в Telegram только если по этому сигналу сейчас нет прибыли.
-    Проверка делается раз в час: берём кандидатов из tg_messages (по stale_ttl_sec),
-    пересчитываем вероятность прибыли по текущему OB + Jupiter quote и удаляем
-    только если прибыль <= 0.
+    Раз в час: все отслеживаемые слоты из tg_messages (+память), пересчёт прибыли как у движка;
+    если profit <= 0 — удаление сообщения в Telegram.
     """
 
     async def tg_hourly_cleanup_loop():
@@ -390,10 +412,14 @@ def make_tg_hourly_cleanup_loop(ctx: AppContext):
             await asyncio.sleep(TG_HOURLY_CLEANUP_INTERVAL_SEC)
             try:
                 deleted, checked = await cleanup_non_profitable_msgs_profit_based_once(
-                    ctx, max_rows=60
+                    ctx,
+                    max_rows=HOURLY_PROFIT_CHECK_MAX_ROWS,
+                    only_ttl_stale=False,
                 )
-                if checked:
-                    log.info("Manual/Hourly cleanup: checked=%d deleted=%d", checked, deleted)
+                if checked or deleted:
+                    log.info(
+                        "[TG_PROFIT] hourly all-tracked: checked=%d deleted=%d", checked, deleted
+                    )
             except Exception as e:
                 log.warning("tg_hourly_cleanup_loop error: %s", e)
 

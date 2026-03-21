@@ -304,6 +304,47 @@ class TelegramNotifier:
             log.warning("list_stale_cleanup_candidates_async failed: %s", e)
             return []
 
+    async def list_all_tracked_signal_slots_async(self) -> list[dict]:
+        """
+        Все отслеживаемые слоты сигналов: tg_messages + память, без фильтра по TTL.
+
+        Telegram Bot API не умеет «прочитать весь чат» — источник истины только наши
+        записи (что бот отправил/редактировал и сохранил в БД).
+        """
+        try:
+            from api.db import get_tg_messages_async
+
+            db_rows = await get_tg_messages_async()
+            by_key: dict[str, dict] = {}
+
+            for r in db_rows:
+                k = str(r.get("key") or "")
+                if not k:
+                    continue
+                mid = r.get("message_id")
+                if mid is None:
+                    continue
+                ts_db = float(r.get("ts", 0))
+                last_seen = float(self._last_seen.get(k, ts_db))
+                mem_mid = self._msg_ids.get(k)
+                use_mid = int(mem_mid) if mem_mid is not None else int(mid)
+                by_key[k] = {"key": k, "message_id": use_mid, "ts": int(last_seen)}
+
+            for key, m_id in list(self._msg_ids.items()):
+                last_seen = float(self._last_seen.get(key, 0.0))
+                row = {"key": key, "message_id": int(m_id), "ts": int(last_seen)}
+                if key not in by_key:
+                    by_key[key] = row
+                    await self._save_msg_to_db(key, int(m_id), last_seen)
+                elif int(m_id) != int(by_key[key]["message_id"]):
+                    by_key[key] = row
+                    await self._save_msg_to_db(key, int(m_id), last_seen)
+
+            return sorted(by_key.values(), key=lambda x: int(x.get("ts", 0)))
+        except Exception as e:
+            log.warning("list_all_tracked_signal_slots_async failed: %s", e)
+            return []
+
     async def expire_stale(self) -> None:
         if self.stale_ttl_sec <= 0:
             return

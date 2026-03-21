@@ -499,3 +499,8 @@ async def delete_tg_message_async(key: str) -> None:
 
 async def get_stale_tg_messages_async(stale_ttl_sec: float) -> list[dict]:
     return await asyncio.to_thread(get_stale_tg_messages, stale_ttl_sec)
+
+
+async def get_tg_messages_async() -> list[dict]:
+    """Все строки tg_messages (для почасовой проверки прибыли по всем отслеживаемым слотам)."""
+    return await asyncio.to_thread(get_tg_messages)
