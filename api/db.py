@@ -466,13 +466,18 @@ def delete_tg_message(key: str) -> None:
 
 
 def get_stale_tg_messages(stale_ttl_sec: float) -> list[dict]:
-    """Get records where ts is older than stale_ttl_sec. For verify-and-delete task."""
+    """
+    Rows whose stored ts (last signal update, epoch seconds) is stale by TTL.
+
+    Must match notifier.expire_stale(): candidate when (now - ts) >= stale_ttl_sec,
+    i.e. ts <= now - stale_ttl_sec. Uses <= (not <) so the boundary second is included.
+    """
     if _conn is None:
         return []
-    cutoff = int(time.time()) - int(stale_ttl_sec)
+    cutoff = time.time() - float(stale_ttl_sec)
     try:
         cur = _conn.execute(
-            "SELECT key, message_id, ts FROM tg_messages WHERE ts < ?",
+            "SELECT key, message_id, ts FROM tg_messages WHERE ts <= ? ORDER BY ts ASC",
             (cutoff,),
         )
         return [

@@ -100,11 +100,10 @@ async def main(cfg_path: str) -> None:
                 deleted, checked = await cleanup_non_profitable_msgs_profit_based_once(
                     ctx,
                     max_rows=60,
-                    max_checks_per_run=60,
                     progress_cb=set_progress,
                 )
                 if checked == 0:
-                    return "ℹ️ /cleanup: нечего проверять (обмен выключен или stale_ttl_sec<=0 либо кандидатов нет)."
+                    return "ℹ️ /cleanup: нечего проверять (stale_ttl_sec<=0 либо нет записей в tg_messages по TTL)."
                 return f"✅ /cleanup: проверено={checked}, удалено={deleted}, оставлено={checked - deleted}"
             except Exception as e:
                 return f"❌ /cleanup: ошибка: {e}"

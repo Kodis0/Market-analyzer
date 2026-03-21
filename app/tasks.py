@@ -128,7 +128,6 @@ TG_HOURLY_CLEANUP_INTERVAL_SEC = 60 * 60  # 1 hour — проверка "вис�
 async def cleanup_non_profitable_msgs_profit_based_once(
     ctx: AppContext,
     max_rows: int = 60,
-    max_checks_per_run: int = 60,
     progress_cb: Callable[[str], Awaitable[None]] | None = None,
 ) -> tuple[int, int]:
     """
@@ -136,8 +135,6 @@ async def cleanup_non_profitable_msgs_profit_based_once(
     сейчас нет прибыли (profit <= 0).
     Возвращает (deleted_count, checked_count).
     """
-    if not ctx.settings.exchange_enabled:
-        return 0, 0
     if ctx.tg.stale_ttl_sec <= 0:
         return 0, 0
 
@@ -149,9 +146,31 @@ async def cleanup_non_profitable_msgs_profit_based_once(
             await progress_cb("ℹ️ Ручная проверка: нечего проверять (кандидатов нет).")
         return 0, 0
 
+    if not ctx.settings.exchange_enabled:
+        # Нет стакана/Jupiter — пересчёт прибыли невозможен; удаляем сообщения по TTL из БД.
+        deleted_count = 0
+        checked_count = 0
+        total = min(len(rows), max_rows)
+        for row in rows[:max_rows]:
+            key = row.get("key")
+            msg_id = row.get("message_id")
+            if not key or msg_id is None:
+                continue
+            checked_count += 1
+            await ctx.tg.delete_message_for_key(str(key), int(msg_id))
+            deleted_count += 1
+            left_count = checked_count - deleted_count
+            if progress_cb:
+                await progress_cb(
+                    "🔄 Ручная проверка (обмен выключен — только TTL из БД)…\n"
+                    f"Обработано: {checked_count}/{total}\n"
+                    f"Удалено: {deleted_count}\n"
+                    f"Оставлено: {left_count}"
+                )
+        return deleted_count, checked_count
+
     deleted_count = 0
     checked_count = 0
-    jup_checks = 0
 
     now_ms = ctx.state.now_ms()
     stable_mint = ctx.engine.stable_mint
@@ -162,8 +181,6 @@ async def cleanup_non_profitable_msgs_profit_based_once(
     required = ctx.engine.thresholds.required_profit_usd(notional)
 
     async def is_profitable_key(key: str) -> bool:
-        nonlocal jup_checks
-
         token_key, direction = key.split(":", 1)
         token_cfg = ctx.cfg.trading.tokens.get(token_key)
         if not token_cfg:
@@ -207,7 +224,6 @@ async def cleanup_non_profitable_msgs_profit_based_once(
                 or j_buy.output_mint != mint
             ):
                 j_buy = await ctx.jup.quote_exact_in(stable_mint, mint, stable_raw)
-                jup_checks += 1
             if (
                 j_buy is None
                 or j_buy.input_mint != stable_mint
@@ -284,7 +300,6 @@ async def cleanup_non_profitable_msgs_profit_based_once(
 
             if need_requote:
                 j_sell = await ctx.jup.quote_exact_in(mint, stable_mint, expected_raw_int)
-                jup_checks += 1
 
             if (
                 j_sell is None
@@ -311,9 +326,6 @@ async def cleanup_non_profitable_msgs_profit_based_once(
 
     total = min(len(rows), max_rows)
     for idx, row in enumerate(rows[:max_rows], start=1):
-        if jup_checks >= max_checks_per_run:
-            break
-
         key = row.get("key")
         msg_id = row.get("message_id")
         if not key or msg_id is None:
@@ -351,7 +363,7 @@ def make_tg_hourly_cleanup_loop(ctx: AppContext):
             await asyncio.sleep(TG_HOURLY_CLEANUP_INTERVAL_SEC)
             try:
                 deleted, checked = await cleanup_non_profitable_msgs_profit_based_once(
-                    ctx, max_rows=60, max_checks_per_run=60
+                    ctx, max_rows=60
                 )
                 if checked:
                     log.info("Manual/Hourly cleanup: checked=%d deleted=%d", checked, deleted)
