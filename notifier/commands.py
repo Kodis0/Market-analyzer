@@ -11,6 +11,7 @@ import re
 import time
 from collections.abc import Awaitable, Callable
 from typing import Any
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 import aiohttp
 
@@ -162,20 +163,23 @@ def _make_navigation_button_payload(
 
 
 def _build_test_signal_markup() -> dict[str, Any]:
-    return {
-        "inline_keyboard": [
-            [
-                {
-                    "text": "Купить на Bybit",
-                    "url": "https://www.bybit.com/en/trade/spot/BTC/USDT",
-                },
-                {
-                    "text": "Продать на Jupiter",
-                    "url": "https://jup.ag/swap/BTC-USDC",
-                },
-            ]
-        ]
-    }
+    builder = InlineKeyboardBuilder()
+
+    builder.button(
+        text="Купить на Bybit",
+        url="https://www.bybit.com/en/trade/spot/BTC/USDT",
+        style="success",
+        icon_custom_emoji_id="5416081784641168838",
+    )
+    builder.button(
+        text="Продать на Jupiter",
+        url="https://jup.ag/swap/BTC-USDC",
+        style="danger",
+        icon_custom_emoji_id="5411225014148014586",
+    )
+
+    builder.adjust(2)
+    return builder.as_markup().model_dump(exclude_none=True)
 
 
 async def run_settings_command_handler(
