@@ -45,7 +45,8 @@ class TelegramNotifier:
         self._msg_ids: dict[str, int] = {}
         # key -> last_edit_ts
         self._last_edit: dict[str, float] = {}
-        # key -> last_seen_ts (signal update)
+        # key -> epoch sec последнего *видимого* обновления в TG (send/edit с новым контентом).
+        # Не двигается при пропуске по rate-limit или при том же тексте — иначе TTL никогда не истекает.
         self._last_seen: dict[str, float] = {}
         # key -> last requested text/markup
         self._last_text: dict[str, str] = {}
@@ -177,7 +178,6 @@ class TelegramNotifier:
         message_effect_id: str | None = None,
     ) -> None:
         now = time.time()
-        self._last_seen[key] = now
         self._last_text[key] = text
 
         if reply_markup is None:
@@ -185,14 +185,14 @@ class TelegramNotifier:
         else:
             self._last_markup[key] = reply_markup
 
-        self._stale[key] = False
-
         if not self.edit_mode:
             new_id = await self.send(text, reply_markup=reply_markup, message_effect_id=message_effect_id)
             self._msg_ids[key] = new_id
             self._last_edit[key] = now
             self._last_sent_text[key] = text
             self._last_sent_markup[key] = reply_markup
+            self._last_seen[key] = now
+            self._stale[key] = False
             await self._save_msg_to_db(key, new_id, now)
             return
 
@@ -207,6 +207,8 @@ class TelegramNotifier:
             self._last_edit[key] = now
             self._last_sent_text[key] = text
             self._last_sent_markup[key] = reply_markup
+            self._last_seen[key] = now
+            self._stale[key] = False
             await self._save_msg_to_db(key, new_id, now)
             return
 
@@ -220,6 +222,8 @@ class TelegramNotifier:
             self._last_edit[key] = now
             self._last_sent_text[key] = text
             self._last_sent_markup[key] = reply_markup
+            self._last_seen[key] = now
+            self._stale[key] = False
             await self._save_msg_to_db(key, msg_id, now)
         except Exception as e:
             log.warning("edit failed for key=%s msg_id=%s: %s; invalidating, next upsert will send one new", key, msg_id, e)
@@ -244,7 +248,8 @@ class TelegramNotifier:
         Кандидаты на /cleanup: записи из tg_messages по TTL + слоты из памяти (_msg_ids),
         если по TTL они уже «старые». Память без строки в БД дописывается через upsert_tg_message.
 
-        Учитывает рассинхрон: если в БД старый ts, а в памяти сигнал уже обновлялся — кандидатом не считается.
+        Учитывает рассинхрон: если в БД старый ts, а _last_seen (последний реальный send/edit) свежее —
+        кандидатом не считается.
         """
         if self.stale_ttl_sec <= 0:
             return []
