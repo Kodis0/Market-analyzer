@@ -131,10 +131,8 @@ def make_tg_verify_loop(ctx: AppContext):
 TG_HOURLY_CLEANUP_INTERVAL_SEC = 60 * 60  # 1 hour — проверка "висящих" сообщений
 
 
-async def format_tg_cleanup_diagnostics(ctx: AppContext) -> str:
-    """
-    Сводка для ответа в Telegram, когда проверить нечего или нужно понять состояние сервера.
-    """
+async def get_tg_cleanup_counts(ctx: AppContext) -> dict[str, int | float | bool]:
+    """Числа для диагностики /cleanup (один проход — без лишних дублей запросов)."""
     try:
         from api.db import get_tg_messages_async
 
@@ -154,15 +152,34 @@ async def format_tg_cleanup_diagnostics(ctx: AppContext) -> str:
         n_all = len(all_trk)
     except Exception:
         n_all = -1
-    exch = "вкл" if ctx.settings.exchange_enabled else "выкл"
+    return {
+        "n_db": n_db,
+        "n_mem": n_mem,
+        "stale_ttl_sec": ttl,
+        "n_stale": n_stale,
+        "n_all": n_all,
+        "exchange_enabled": bool(ctx.settings.exchange_enabled),
+    }
+
+
+def format_tg_cleanup_diagnostics_from_counts(c: dict[str, int | float | bool]) -> str:
+    """Текст сводки из результата get_tg_cleanup_counts (без повторных запросов к БД)."""
+    exch = "вкл" if c["exchange_enabled"] else "выкл"
+    ttl = float(c["stale_ttl_sec"])
     return (
-        f"• строк в БД <code>tg_messages</code>: {n_db}\n"
-        f"• слотов в памяти бота: {n_mem}\n"
+        f"• строк в БД <code>tg_messages</code>: {c['n_db']}\n"
+        f"• слотов в памяти бота: {c['n_mem']}\n"
         f"• <code>stale_ttl_sec</code>: {ttl:.0f} (0 = режим /cleanup по TTL пустой)\n"
-        f"• кандидатов «устаревших по TTL»: {n_stale}\n"
-        f"• всего отслеживаемых слотов (как /cleanup all): {n_all}\n"
+        f"• кандидатов «устаревших по TTL» (только для <code>/cleanup</code>): {c['n_stale']}\n"
+        f"• всего отслеживаемых слотов (<code>/cleanup all</code>): {c['n_all']}\n"
         f"• биржа <code>exchange_enabled</code>: {exch}"
     )
+
+
+async def format_tg_cleanup_diagnostics(ctx: AppContext) -> str:
+    """Сводка для ответа в Telegram (один round-trip к данным)."""
+    c = await get_tg_cleanup_counts(ctx)
+    return format_tg_cleanup_diagnostics_from_counts(c)
 
 
 async def cleanup_non_profitable_msgs_profit_based_once(

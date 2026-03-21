@@ -29,7 +29,8 @@ from app.handlers import (
 from app.tasks import (
     HOURLY_PROFIT_CHECK_MAX_ROWS,
     cleanup_non_profitable_msgs_profit_based_once,
-    format_tg_cleanup_diagnostics,
+    format_tg_cleanup_diagnostics_from_counts,
+    get_tg_cleanup_counts,
     make_auto_tune_loop,
     make_stats_heartbeat_loop,
     make_status_loop,
@@ -115,9 +116,32 @@ async def main(cfg_path: str) -> None:
                     only_ttl_stale=only_ttl_stale,
                 )
                 if checked == 0:
-                    diag = await format_tg_cleanup_diagnostics(ctx)
+                    c = await get_tg_cleanup_counts(ctx)
+                    diag = format_tg_cleanup_diagnostics_from_counts(c)
+                    n_all = int(c["n_all"])
+                    n_stale = int(c["n_stale"])
+                    ttl_sec = int(float(c["stale_ttl_sec"]))
+
+                    if only_ttl_stale and n_all > 0 and n_stale == 0 and ttl_sec > 0:
+                        headline = (
+                            "ℹ️ <b>Слоты в БД есть</b>, но <code>/cleanup</code> проверяет только те, что "
+                            f"<b>устарели по TTL</b> (нет сигнала движка дольше <code>{ttl_sec}</code> с). "
+                            "Сейчас таких <b>0</b> — сообщение(я) ещё «свежие».\n\n"
+                            "Чтобы пересчитать прибыль по <b>всем</b> отслеживаемым без ожидания TTL — "
+                            "<code>/cleanup all</code>."
+                        )
+                    elif only_ttl_stale and n_all > 0 and n_stale == 0 and ttl_sec <= 0:
+                        headline = (
+                            "ℹ️ Слоты есть, но <code>stale_ttl_sec</code>=0 — режим <code>/cleanup</code> "
+                            "по возрасту отключён. Используйте <code>/cleanup all</code>."
+                        )
+                    else:
+                        headline = (
+                            "ℹ️ <b>Нечего проверить</b> по этому запросу (0 сигналов в очереди на пересчёт)."
+                        )
+
                     return (
-                        "ℹ️ <b>Нечего проверить</b> по этому запросу (0 сигналов в очереди на пересчёт).\n\n"
+                        f"{headline}\n\n"
                         f"<b>Сводка сервера:</b>\n{diag}\n\n"
                         "• <code>/cleanup</code> — только устаревшие по <code>stale_ttl_sec</code>.\n"
                         "• <code>/cleanup all</code> — все слоты из БД (как почасовая проверка).\n"
