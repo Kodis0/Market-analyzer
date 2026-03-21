@@ -25,9 +25,18 @@ TG_EDIT_MESSAGE_TEXT = "https://api.telegram.org/bot{token}/editMessageText"
 TG_SET_MY_COMMANDS = "https://api.telegram.org/bot{token}/setMyCommands"
 
 LIGHTNING_MESSAGE_EFFECT_ID = "5123236135417415011"
+
 CUSTOM_ALERT_EMOJI_HTML = '<tg-emoji emoji-id="5420323339723881652">🚨</tg-emoji>'
 CUSTOM_GREEN_EMOJI_HTML = '<tg-emoji emoji-id="5416081784641168838">🟢</tg-emoji>'
 CUSTOM_RED_EMOJI_HTML = '<tg-emoji emoji-id="5411225014148014586">🔴</tg-emoji>'
+
+CUSTOM_ERROR_EMOJI_HTML = '<tg-emoji emoji-id="5210952531676504517">❌</tg-emoji>'
+CUSTOM_SUCCESS_EMOJI_HTML = '<tg-emoji emoji-id="5206607081334906820">✅</tg-emoji>'
+CUSTOM_WARNING_EMOJI_HTML = '<tg-emoji emoji-id="5447644880824181073">⚠️</tg-emoji>'
+CUSTOM_REFRESH_EMOJI_HTML = '<tg-emoji emoji-id="5386367538735104399">🔄</tg-emoji>'
+CUSTOM_HOURGLASS_EMOJI_HTML = '<tg-emoji emoji-id="5231012545799666522">⏳</tg-emoji>'
+CUSTOM_SPARKLES_EMOJI_HTML = '<tg-emoji emoji-id="5325547803936572038">✨</tg-emoji>'
+CUSTOM_TEST_EMOJI_HTML = '<tg-emoji emoji-id="5452069934089641166">🧪</tg-emoji>'
 
 
 def _parse_settings_args(text: str) -> tuple[str, Any] | None:
@@ -159,12 +168,10 @@ def _build_test_signal_markup() -> dict[str, Any]:
                 {
                     "text": "Купить на Bybit",
                     "url": "https://www.bybit.com/en/trade/spot/BTC/USDT",
-                    "style": "success",
                 },
                 {
                     "text": "Продать на Jupiter",
                     "url": "https://jup.ag/swap/BTC-USDC",
-                    "style": "danger",
                 },
             ]
         ]
@@ -223,8 +230,9 @@ async def run_settings_command_handler(
                 data = await response.json(content_type=None)
             if data.get("ok"):
                 return int((data.get("result") or {}).get("message_id") or 0)
-        except Exception:
-            pass
+            log.warning("Telegram sendMessage failed: %s", data)
+        except Exception as e:
+            log.exception("send_to_chat error: %s", e)
         return None
 
     async def send(text: str, reply_markup: dict[str, Any] | None = None) -> int | None:
@@ -284,12 +292,12 @@ async def run_settings_command_handler(
                 "<code>Jupiter: 2026-03-20 22:22:21 (412ms)</code>\n"
                 "<code>Bybit: 2026-03-20 22:22:22 (97ms)</code>\n"
                 "\n"
-                "🧪 <i>Тестовый сигнал для проверки UI. Сообщение удалится через 1 минуту.</i>"
+                f"{CUSTOM_TEST_EMOJI_HTML} <i>Тестовый сигнал для проверки UI. Сообщение удалится через 1 минуту.</i>"
             )
 
             sent_message_id = await send(text, reply_markup=_build_test_signal_markup())
             if not sent_message_id:
-                await send("❌ Не удалось отправить тестовый сигнал")
+                await send(f"{CUSTOM_ERROR_EMOJI_HTML} Не удалось отправить тестовый сигнал")
                 return
 
             async def _del_later(mid: int, user_cmd_mid: int | None) -> None:
@@ -302,7 +310,7 @@ async def run_settings_command_handler(
 
         except Exception as e:
             log.exception("send_test_signal_and_autodelete error: %s", e)
-            await send(f"❌ Ошибка /test_signal: {e}")
+            await send(f"{CUSTOM_ERROR_EMOJI_HTML} Ошибка /test_signal: {e}")
 
     while not stop_event.is_set():
         try:
@@ -339,7 +347,7 @@ async def run_settings_command_handler(
 
                 if cmd == "/start" and from_chat_type == "private":
                     welcome_text = (
-                        "✨ <b>Привет!</b>\n"
+                        f"{CUSTOM_SPARKLES_EMOJI_HTML} <b>Привет!</b>\n"
                         "Я бот арбитражных сигналов.\n\n"
                     )
                     sent_mid = await send_to_chat(
@@ -361,10 +369,10 @@ async def run_settings_command_handler(
 
                 if cmd == "/cleanup":
                     if on_cleanup is None:
-                        await send("❌ Команда /cleanup отключена на сервере")
+                        await send(f"{CUSTOM_ERROR_EMOJI_HTML} Команда /cleanup отключена на сервере")
                         continue
 
-                    progress_mid = await send("⏳ Запуск ручной проверки сигналов...")
+                    progress_mid = await send(f"{CUSTOM_HOURGLASS_EMOJI_HTML} Запуск ручной проверки сигналов...")
                     last_edit_ts = 0.0
 
                     async def set_progress(progress_text: str) -> None:
@@ -382,7 +390,10 @@ async def run_settings_command_handler(
                         except Exception:
                             pass
 
-                    await set_progress("🔄 Идёт ручная проверка сигналов...\nПожалуйста, подожди.")
+                    await set_progress(
+                        f"{CUSTOM_REFRESH_EMOJI_HTML} Идёт ручная проверка сигналов...\n"
+                        "Пожалуйста, подожди."
+                    )
 
                     try:
                         result_text = await asyncio.wait_for(on_cleanup(set_progress), timeout=180.0)
@@ -391,14 +402,14 @@ async def run_settings_command_handler(
                             await send(result_text)
                     except asyncio.TimeoutError:
                         result_text = (
-                            "⚠️ /cleanup: проверка заняла слишком много времени "
+                            f"{CUSTOM_WARNING_EMOJI_HTML} /cleanup: проверка заняла слишком много времени "
                             "(таймаут 180с). Попробуй ещё раз."
                         )
                         await set_progress(result_text)
                         if not progress_mid:
                             await send(result_text)
                     except Exception as e:
-                        result_text = f"❌ /cleanup: ошибка: {e}"
+                        result_text = f"{CUSTOM_ERROR_EMOJI_HTML} /cleanup: ошибка: {e}"
                         await set_progress(result_text)
                         if not progress_mid:
                             await send(result_text)
@@ -415,14 +426,20 @@ async def run_settings_command_handler(
                         settings.exchange_enabled = True
                         save_runtime_settings(settings_path, settings)
                         await on_exchange_toggle(True)
-                        await send("✅ Биржевая логика <b>включена</b> (Jupiter, Bybit, арбитраж)")
+                        await send(
+                            f"{CUSTOM_SUCCESS_EMOJI_HTML} Биржевая логика <b>включена</b> "
+                            "(Jupiter, Bybit, арбитраж)"
+                        )
                         continue
 
                     if rest in ("off", "0", "no", "выкл", "выключить"):
                         settings.exchange_enabled = False
                         save_runtime_settings(settings_path, settings)
                         await on_exchange_toggle(False)
-                        await send("⏸ Биржевая логика <b>выключена</b> (запросы к биржам остановлены)")
+                        await send(
+                            "⏸ Биржевая логика <b>выключена</b> "
+                            "(запросы к биржам остановлены)"
+                        )
                         continue
 
                     status = "включена" if settings.exchange_enabled else "выключена"
@@ -445,9 +462,12 @@ async def run_settings_command_handler(
                         ) as response:
                             data = await response.json()
                         if not data.get("ok"):
-                            await send(f"Ошибка: {data.get('description', 'unknown')}")
+                            await send(
+                                f"{CUSTOM_ERROR_EMOJI_HTML} Ошибка: "
+                                f"{data.get('description', 'unknown')}"
+                            )
                     except Exception as e:
-                        await send(f"Ошибка: {e}")
+                        await send(f"{CUSTOM_ERROR_EMOJI_HTML} Ошибка: {e}")
                     continue
 
                 if not cmd.startswith("/settings"):
@@ -463,7 +483,7 @@ async def run_settings_command_handler(
                 parsed = _parse_settings_args(rest)
                 if not parsed:
                     await send(
-                        "❌ Формат: /settings ключ значение\n"
+                        f"{CUSTOM_ERROR_EMOJI_HTML} Формат: /settings ключ значение\n"
                         "Пример: /settings min_profit_usd 20\n"
                         "Список параметров: /settings"
                     )
@@ -471,7 +491,7 @@ async def run_settings_command_handler(
 
                 key, value = parsed
                 if not settings.update(key, value):
-                    await send(f"❌ Неизвестный параметр: {key}\nСписок: /settings")
+                    await send(f"{CUSTOM_ERROR_EMOJI_HTML} Неизвестный параметр: {key}\nСписок: /settings")
                     continue
 
                 save_runtime_settings(settings_path, settings)
@@ -480,7 +500,7 @@ async def run_settings_command_handler(
                 if key == "exchange_enabled" and on_exchange_toggle is not None:
                     await on_exchange_toggle(bool(settings.exchange_enabled))
 
-                await send(f"✅ Обновлено: {settings.LABELS.get(key, key)} = {value}")
+                await send(f"{CUSTOM_SUCCESS_EMOJI_HTML} Обновлено: {settings.LABELS.get(key, key)} = {value}")
 
         except asyncio.CancelledError:
             break
