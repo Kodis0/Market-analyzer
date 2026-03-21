@@ -19,7 +19,7 @@ from utils.log import log_task_exception
 
 log = logging.getLogger("commands")
 
-# /cleanup: через столько секунд удалить команду пользователя и ответ бота (одно сообщение, правки — то же message_id).
+# /cleanup: не раньше финального ответа; не раньше чем столько секунд с момента вызова команды (если проверка дольше — удаление сразу после неё).
 CLEANUP_CMD_AUTODELETE_SEC = 60
 # /settings: команда пользователя + ответ(ы) бота.
 SETTINGS_CMD_AUTODELETE_SEC = 60
@@ -523,6 +523,9 @@ async def run_settings_command_handler(
                     )
                     if progress_mid:
                         bot_message_ids.append(int(progress_mid))
+
+                    cleanup_started_monotonic = time.monotonic()
+
                     last_edit_ts = 0.0
 
                     async def set_progress(
@@ -578,17 +581,20 @@ async def run_settings_command_handler(
                             if fm:
                                 bot_message_ids.append(int(fm))
 
-                    async def _autodelete_cleanup_dialog() -> None:
-                        await asyncio.sleep(CLEANUP_CMD_AUTODELETE_SEC)
-                        seen: set[int] = set()
+                    elapsed_cleanup = time.monotonic() - cleanup_started_monotonic
+                    remaining = max(0.0, float(CLEANUP_CMD_AUTODELETE_SEC) - elapsed_cleanup)
+
+                    async def _autodelete_cleanup_after_delay() -> None:
+                        await asyncio.sleep(remaining)
+                        seen_del: set[int] = set()
                         for mid in (user_cmd_mid, *bot_message_ids):
-                            if not mid or mid in seen:
+                            if not mid or mid in seen_del:
                                 continue
-                            seen.add(mid)
+                            seen_del.add(mid)
                             await delete_message(mid)
 
-                    t = asyncio.create_task(_autodelete_cleanup_dialog())
-                    t.add_done_callback(log_task_exception)
+                    t_cleanup_del = asyncio.create_task(_autodelete_cleanup_after_delay())
+                    t_cleanup_del.add_done_callback(log_task_exception)
 
                     continue
 
