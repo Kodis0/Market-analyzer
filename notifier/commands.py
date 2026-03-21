@@ -20,7 +20,9 @@ from utils.log import log_task_exception
 log = logging.getLogger("commands")
 
 # /cleanup: через столько секунд удалить команду пользователя и ответ бота (одно сообщение, правки — то же message_id).
-CLEANUP_CMD_AUTODELETE_SEC = 600
+CLEANUP_CMD_AUTODELETE_SEC = 300
+# /settings: команда пользователя + ответ(ы) бота.
+SETTINGS_CMD_AUTODELETE_SEC = 300
 # /help: команда пользователя + текст справки.
 HELP_CMD_AUTODELETE_SEC = 180
 
@@ -652,28 +654,46 @@ async def run_settings_command_handler(
                 if not cmd.startswith("/settings"):
                     continue
 
+                user_cmd_mid_settings = int(msg.get("message_id") or 0)
+
+                async def _schedule_settings_autodelete(bot_ids: list[int]) -> None:
+                    async def _run() -> None:
+                        await asyncio.sleep(SETTINGS_CMD_AUTODELETE_SEC)
+                        seen: set[int] = set()
+                        for mid in (user_cmd_mid_settings, *bot_ids):
+                            if not mid or mid in seen:
+                                continue
+                            seen.add(mid)
+                            await delete_message(mid)
+
+                    t = asyncio.create_task(_run())
+                    t.add_done_callback(log_task_exception)
+
                 rest = text[len(cmd):].strip()
                 rest = re.sub(r"@\S+\s*", "", rest).strip()
 
                 if not rest:
-                    await send(settings.format_for_telegram())
+                    sm = await send(settings.format_for_telegram())
+                    await _schedule_settings_autodelete([x for x in [sm] if x])
                     continue
 
                 parsed = _parse_settings_args(rest)
                 if not parsed:
-                    await send(
+                    em = await send(
                         f"{CUSTOM_ERROR_EMOJI_HTML} Формат: /settings ключ значение\n"
                         "Пример: /settings min_profit_usd 20\n"
                         "Список параметров: /settings"
                     )
+                    await _schedule_settings_autodelete([x for x in [em] if x])
                     continue
 
                 key, value = parsed
                 if not settings.update(key, value):
-                    await send(
+                    em = await send(
                         f"{CUSTOM_ERROR_EMOJI_HTML} Неизвестный параметр: {key}\n"
                         "Список: /settings"
                     )
+                    await _schedule_settings_autodelete([x for x in [em] if x])
                     continue
 
                 save_runtime_settings(settings_path, settings)
@@ -682,10 +702,11 @@ async def run_settings_command_handler(
                 if key == "exchange_enabled" and on_exchange_toggle is not None:
                     await on_exchange_toggle(bool(settings.exchange_enabled))
 
-                await send(
+                sm = await send(
                     f"{CUSTOM_SUCCESS_EMOJI_HTML} "
                     f"Обновлено: {settings.LABELS.get(key, key)} = {value}"
                 )
+                await _schedule_settings_autodelete([x for x in [sm] if x])
 
         except asyncio.CancelledError:
             break
